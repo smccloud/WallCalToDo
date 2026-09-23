@@ -1,5 +1,7 @@
 # WallCalToDo
 
+Current work - Microsoft Calendar support
+
 A wall-mounted display (old monitor + Raspberry Pi) that shows a Google
 Calendar, Google Task list, and a Microsoft To Do list at the same time.
 Works mounted either way — portrait puts the calendar on top with today's
