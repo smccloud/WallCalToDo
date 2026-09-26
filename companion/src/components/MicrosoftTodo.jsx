@@ -18,23 +18,27 @@ const MICROSOFT_HELP_STEPS = [
   </>,
   <>
     <strong>API permissions → Add a permission → Microsoft Graph → Delegated permissions</strong>, search for and
-    add <code>Tasks.Read</code>.
+    add both <code>Tasks.Read</code> and <code>Calendars.Read</code> -- this section manages both from the same
+    connected account.
   </>,
 ];
 
-// Microsoft To Do section: the credentials this deployment needs before it
-// can connect an account, then the connected account's lists (including
-// ones shared with you) with enable toggles, plus connect/refresh/
-// disconnect actions. Only ever one account, unlike Google's list of
-// accounts.
+// Microsoft To Do + Calendar section: the credentials this deployment
+// needs before it can connect an account, then the connected account's To
+// Do lists and calendars (including ones shared with you) with enable
+// toggles, plus connect/refresh/disconnect actions. Only ever one
+// account, unlike Google's list of accounts.
 export default function MicrosoftTodo({
   todoLists,
   todoLoading,
   todoBusy,
   msAccount,
+  msCalendars,
+  msCalendarsLoading,
   credentialsStatus,
   onSaveCredentials,
   onToggleTodoList,
+  onToggleMsCalendar,
   onRefreshTodoLists,
   onDisconnectMsAccount,
 }) {
@@ -43,8 +47,10 @@ export default function MicrosoftTodo({
   return (
     <>
       <header className="page__header page__header--section page__header--sub">
-        <h1>Microsoft To Do Reminders</h1>
-        <p className="page__subtitle">Choose which lists show up on the display — including ones shared with you.</p>
+        <h1>Microsoft To Do &amp; Calendar</h1>
+        <p className="page__subtitle">
+          Choose which lists and calendars show up on the display — including ones shared with you.
+        </p>
       </header>
 
       {/* See the matching comment in GoogleAccounts.jsx -- not rendered
@@ -71,7 +77,7 @@ export default function MicrosoftTodo({
             <h2>{msAccount.email}</h2>
             <div className="account-card__actions">
               <button className="button button--ghost" disabled={todoBusy} onClick={onRefreshTodoLists}>
-                Refresh lists
+                Refresh
               </button>
               <button
                 className="button button--danger"
@@ -83,6 +89,7 @@ export default function MicrosoftTodo({
             </div>
           </div>
 
+          <h3 className="account-card__subheading">Lists</h3>
           <ul className="calendar-list">
             {todoLists.map((list) => (
               <li key={list.id} className="calendar-row">
@@ -99,6 +106,45 @@ export default function MicrosoftTodo({
             ))}
             {todoLists.length === 0 && <li className="calendar-row calendar-row--empty">No lists found.</li>}
           </ul>
+
+          <h3 className="account-card__subheading">Calendars</h3>
+          {msAccount.calendarScopeGranted === false && (
+            // This account was connected before Microsoft Calendar
+            // support existed (or the permission was later revoked) --
+            // its token doesn't include Calendar access. There's no
+            // separate "reconnect" action here either; "+ Connect
+            // Microsoft account" below re-runs the consent screen for
+            // this same account, same as Google's equivalent prompt in
+            // GoogleAccounts.jsx.
+            <p className="banner banner--warning">
+              Microsoft Calendar needs an extra permission for this account. Use "+ Connect Microsoft account" below
+              again to grant it.
+            </p>
+          )}
+          {!msCalendarsLoading && (
+            <ul className="calendar-list">
+              {(msCalendars || []).map((cal) => (
+                <li key={cal.id} className="calendar-row">
+                  <span
+                    className="calendar-row__swatch"
+                    style={{ background: cal.hexColor ? `#${cal.hexColor.replace(/^#/, '')}` : '#888' }}
+                  />
+                  <span className="calendar-row__label">{cal.displayName}</span>
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={cal.enabled}
+                      onChange={(e) => onToggleMsCalendar(cal.id, e.target.checked)}
+                    />
+                    <span className="switch__track" />
+                  </label>
+                </li>
+              ))}
+              {(msCalendars || []).length === 0 && (
+                <li className="calendar-row calendar-row--empty">No calendars found.</li>
+              )}
+            </ul>
+          )}
         </section>
       )}
 

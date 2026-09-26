@@ -29,6 +29,8 @@ export default function App() {
   const [todoLoading, setTodoLoading] = useState(true);
   const [todoBusy, setTodoBusy] = useState(false);
   const [msAccount, setMsAccount] = useState(null);
+  const [msCalendars, setMsCalendars] = useState([]);
+  const [msCalendarsLoading, setMsCalendarsLoading] = useState(true);
 
   const [credentials, setCredentials] = useState(null);
   // Separate from `error` below on purpose: `error` reflects live API call
@@ -83,6 +85,18 @@ export default function App() {
     }
   }, []);
 
+  const loadMsCalendars = useCallback(async () => {
+    try {
+      const data = await api('/ms/calendars');
+      setMsCalendars(data.calendars);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setMsCalendarsLoading(false);
+    }
+  }, []);
+
   const loadCredentials = useCallback(async () => {
     try {
       setCredentials(await api('/credentials'));
@@ -94,9 +108,10 @@ export default function App() {
   useEffect(() => {
     loadAccounts();
     loadTodoLists();
+    loadMsCalendars();
     loadSettings();
     loadCredentials();
-  }, [loadAccounts, loadTodoLists, loadSettings, loadCredentials]);
+  }, [loadAccounts, loadTodoLists, loadMsCalendars, loadSettings, loadCredentials]);
 
   // The OAuth connect flow is a real page navigation through Google/
   // Microsoft's own consent screen (see routes/auth.js), not a fetch this
@@ -287,14 +302,38 @@ export default function App() {
     }
   }
 
+  // Mirrors toggleTodoList exactly -- same account, same
+  // optimistic-update/PATCH/rollback shape, just a different endpoint and
+  // a separate top-level state array since msCalendars isn't nested under
+  // msAccount the way Google's calendars/tasklists are nested under each
+  // account object.
+  async function toggleMsCalendar(calendarId, enabled) {
+    setMsCalendars((prev) => prev.map((cal) => (cal.id === calendarId ? { ...cal, enabled } : cal)));
+    try {
+      await api(`/ms/calendars/${encodeURIComponent(calendarId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ enabled }),
+      });
+    } catch (err) {
+      setError(err.message);
+      loadMsCalendars();
+    }
+  }
+
   // Microsoft doesn't push list changes, so this is how a newly-shared
   // list (e.g. one your spouse just shared with you) shows up without
-  // waiting for a reconnect.
+  // waiting for a reconnect. Covers both To Do lists and calendars in one
+  // action -- same account, same "doesn't push changes" reasoning for
+  // both, mirroring how Google's refreshAccount() covers calendars and
+  // task lists together rather than two separate buttons.
   async function refreshTodoLists() {
     setTodoBusy(true);
     try {
-      await api('/todo/refresh', { method: 'POST' });
-      await loadTodoLists();
+      await Promise.all([
+        api('/todo/refresh', { method: 'POST' }),
+        api('/ms/calendars/refresh', { method: 'POST' }),
+      ]);
+      await Promise.all([loadTodoLists(), loadMsCalendars()]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -303,11 +342,12 @@ export default function App() {
   }
 
   async function disconnectMsAccount(email) {
-    if (!window.confirm(`Disconnect ${email}? Its to-do items will disappear from the display.`)) return;
+    if (!window.confirm(`Disconnect ${email}? Its to-do items and calendar events will disappear from the display.`))
+      return;
     setTodoBusy(true);
     try {
       await api('/todo/account', { method: 'DELETE' });
-      await loadTodoLists();
+      await Promise.all([loadTodoLists(), loadMsCalendars()]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -377,9 +417,12 @@ export default function App() {
         todoLoading={todoLoading}
         todoBusy={todoBusy}
         msAccount={msAccount}
+        msCalendars={msCalendars}
+        msCalendarsLoading={msCalendarsLoading}
         credentialsStatus={credentials?.ms}
         onSaveCredentials={(creds) => saveCredentials('ms', creds)}
         onToggleTodoList={toggleTodoList}
+        onToggleMsCalendar={toggleMsCalendar}
         onRefreshTodoLists={refreshTodoLists}
         onDisconnectMsAccount={disconnectMsAccount}
       />

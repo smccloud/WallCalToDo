@@ -1,4 +1,9 @@
-import { pollCalendar, resetSyncTokens as resetCalendarSyncTokens } from './calendarService.js';
+import { pollCalendar as pollGoogleCalendar, resetSyncTokens as resetGoogleCalendarSyncTokens } from './calendarService.js';
+import {
+  pollCalendar as pollMicrosoftCalendar,
+  resetSyncTokens as resetMicrosoftCalendarSyncTokens,
+} from './microsoftCalendarService.js';
+import { getMergedEvents } from './calendarAggregator.js';
 import { pollTodo, clearCompletedTasks as clearCompletedMicrosoftTasks } from './todoService.js';
 import { pollTasks as pollGoogleTasks, clearCompletedTasks as clearCompletedGoogleTasks } from './googleTasksService.js';
 import { getMergedTasks } from './todoAggregator.js';
@@ -22,7 +27,12 @@ async function runPoll() {
   const now = new Date();
   const today = now.toDateString();
   if (lastFullResyncDay !== today) {
-    resetCalendarSyncTokens();
+    // Both calendar providers pin their sync window to whenever the last
+    // full sync ran (see each service's own resetSyncTokens comment for
+    // why), so both need resetting on the same daily cadence, not just
+    // Google's.
+    resetGoogleCalendarSyncTokens();
+    resetMicrosoftCalendarSyncTokens();
     lastFullResyncDay = today;
   }
 
@@ -66,18 +76,28 @@ async function runPoll() {
     lastSettingsDay = today;
   }
 
+  // Same "poll both unconditionally, merge, broadcast once if either
+  // changed" shape as the to-do polling below -- see todoAggregator.js /
+  // calendarAggregator.js for why the merge can't just be "whichever
+  // provider's own result changed".
+  let calendarChanged = false;
+
   try {
-    const { changed, events } = await pollCalendar();
-    if (changed) broadcast({ type: 'calendar', data: events });
+    const { changed } = await pollGoogleCalendar();
+    calendarChanged = calendarChanged || changed;
   } catch (err) {
-    console.error('[poller] Calendar poll failed:', err.message);
+    console.error('[poller] Google Calendar poll failed:', err.message);
   }
 
-  // Both providers are polled unconditionally -- a failure in one
-  // shouldn't skip the other, same as calendar/todo/weather already don't
-  // take each other down. Either one reporting `changed` means the merged
-  // snapshot needs rebroadcasting (never just the one provider's own
-  // tasks -- see todoAggregator.js for why).
+  try {
+    const { changed } = await pollMicrosoftCalendar();
+    calendarChanged = calendarChanged || changed;
+  } catch (err) {
+    console.error('[poller] Microsoft Calendar poll failed:', err.message);
+  }
+
+  if (calendarChanged) broadcast({ type: 'calendar', data: getMergedEvents() });
+
   let todoChanged = false;
 
   try {

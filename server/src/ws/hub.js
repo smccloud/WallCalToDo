@@ -1,5 +1,5 @@
 import { WebSocketServer } from 'ws';
-import { getCachedEvents } from '../services/calendarService.js';
+import { getMergedEvents } from '../services/calendarAggregator.js';
 import { getMergedTasks } from '../services/todoAggregator.js';
 import { getSettings } from '../services/settingsService.js';
 import { getCachedWeather } from '../services/weatherService.js';
@@ -18,12 +18,13 @@ export function initWebSocket(server) {
     });
 
     // Hydrate a newly (re)connected display immediately rather than making
-    // it wait for the next poll cycle to have anything to show. `todo` is
-    // the merged Microsoft + Google Tasks snapshot (see todoAggregator.js)
-    // -- sending just one provider's cache here would mean a freshly
-    // (re)connected display sits showing only half the list until the
-    // next poll cycle happens to touch the other provider too.
-    socket.send(JSON.stringify({ type: 'calendar', data: getCachedEvents() }));
+    // it wait for the next poll cycle to have anything to show. Both
+    // `calendar` and `todo` are merged snapshots across providers (see
+    // calendarAggregator.js / todoAggregator.js) -- sending just one
+    // provider's cache here would mean a freshly (re)connected display
+    // sits showing only part of the calendar/list until the next poll
+    // cycle happens to touch the other provider too.
+    socket.send(JSON.stringify({ type: 'calendar', data: getMergedEvents() }));
     socket.send(JSON.stringify({ type: 'todo', data: getMergedTasks() }));
     socket.send(JSON.stringify({ type: 'settings', data: getSettings() }));
     socket.send(JSON.stringify({ type: 'weather', data: getCachedWeather() }));
