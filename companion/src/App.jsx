@@ -121,6 +121,35 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
+  // Credentials are editable from any device on the network, but this page
+  // has no live connection to the server (the WebSocket push is the kiosk
+  // display's, not this app's), so a tab left open on the Pi would otherwise
+  // sit on whatever it loaded at page load indefinitely -- save a Microsoft
+  // tenant ID from a laptop, and the Pi's own companion tab keeps reporting
+  // the old one until someone reloads it by hand. Re-read on a slow interval
+  // and again whenever this tab is actually being looked at, which covers
+  // both "left open in the background" and "just walked over to the Pi".
+  //
+  // Only the credentials here, not the other panels: these have no optimistic
+  // state to disturb, so a refresh landing mid-edit can't visibly undo
+  // anything the user is doing. loadAccounts/loadTodoLists/settings do have
+  // that (see the optimistic toggles), where a poll arriving while a PATCH
+  // is in flight would visibly flip the control back until the write landed.
+  useEffect(() => {
+    const refresh = () => loadCredentials();
+    const refreshIfVisible = () => {
+      if (!document.hidden) refresh();
+    };
+    const timer = setInterval(refresh, 60_000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+    };
+  }, [loadCredentials]);
+
   // Matches the companion app's own look to whatever theme is actually
   // active on the wall display -- switching Light/Dark/Automatic here
   // updates `settings` immediately (see patchSetting below), which this
