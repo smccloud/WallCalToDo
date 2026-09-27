@@ -343,7 +343,7 @@ export default function App() {
         todoBusy={todoBusy}
         msAccount={msAccount}
         credentialsStatus={credentials?.ms}
-        onSaveCredentials={(creds) => saveCredentials('ms', creds)}
+        onSaveCredentials={(creds, extra) => saveCredentials('ms', creds, extra)}
         onToggleTodoList={toggleTodoList}
         onRefreshTodoLists={refreshTodoLists}
         onDisconnectMsAccount={disconnectMsAccount}
