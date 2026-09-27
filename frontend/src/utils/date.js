@@ -1,4 +1,8 @@
-export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+// Monday-first. A wall calendar is a working-week view, and anchoring rows to
+// Sunday split the business week in half: every Sunday opened a fresh row, so a
+// Mon-Fri week appeared "finished" in the row above while today sat alone in an
+// empty one, and the week you were living in looked like it had no events at all.
+export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // Google sends all-day events as a plain "2026-08-21" date with no time or
 // timezone. Handing that straight to `new Date()` parses it as UTC
@@ -38,7 +42,10 @@ export function buildMonthGrid(year, month) {
   const firstOfMonth = new Date(year, month, 1);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const daysInPrevMonth = new Date(year, month, 0).getDate();
-  const startWeekday = firstOfMonth.getDay();
+  // getDay() is 0=Sunday, so shift it to 0=Monday. Keeps the leading
+  // pad-and-count loop below unchanged -- it just needs the number of days
+  // to borrow from the previous month.
+  const startWeekday = (firstOfMonth.getDay() + 6) % 7;
 
   const cells = [];
   for (let i = startWeekday - 1; i >= 0; i--) {
