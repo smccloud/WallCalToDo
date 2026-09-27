@@ -67,9 +67,9 @@ onto accounts you're already keeping up with.
 ## How it works
 
 ```
-Google Calendar API (N accounts) ─┐
+Google Calendar API (N accounts)   ─┐
                                     ├─ poll on interval (delta/sync tokens) ─ Node backend ─┬─ WebSocket ─ React kiosk app (Chromium fullscreen, portrait)
-Microsoft Graph API               ─┘                                                        └─ REST ────── React companion app (your phone, same Wi-Fi)
+Microsoft Graph API                ─┘                                                       └─ REST ────── React companion app (your phone, same Wi-Fi)
 ```
 
 - **server/** — Node/Express backend. Handles OAuth for any number of
@@ -330,7 +330,12 @@ sudo apt install -y nodejs git fonts-noto-color-emoji
 node -v   # should print v20.x — if it doesn't, something above failed
 ```
 
-`fonts-noto-color-emoji` isn't always preinstalled on Raspberry Pi OS — without it, an emoji in an event title (from Google Calendar) shows up on the display as a blank box instead of the actual emoji. If you're seeing that on a Pi set up before this was added, just run that one `apt install` line and restart the kiosk (`sudo systemctl restart wallcaltodo` doesn't touch Chromium — reboot, or re-run `kiosk.sh`, to pick up the new font).
+`fonts-noto-color-emoji` isn't always preinstalled on Raspberry Pi
+OS — without it, an emoji in an event title (from Google Calendar) shows up
+on the display as a blank box instead of the actual emoji. If you're seeing
+that on a Pi set up before this was added, just run that one `apt install`
+line and restart the kiosk (`sudo systemctl restart wallcaltodo` doesn't
+touch Chromium — reboot, or re-run `kiosk.sh`, to pick up the new font).
 
 ### 4. Get the code onto the Pi
 
