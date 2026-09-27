@@ -378,12 +378,21 @@ This takes a few minutes on a Pi — that's normal.
 
 ```
 sudo cp ~/WallCalToDo/pi-setup/wallcaltodo.service /etc/systemd/system/
+sudo systemctl daemon-reload
 sudo systemctl enable --now wallcaltodo
 sudo systemctl status wallcaltodo
 ```
 
 The status output should say **active (running)**. If it doesn't, run
 `sudo journalctl -u wallcaltodo -n 50` to see why.
+
+The `daemon-reload` in the middle isn't optional: systemd keeps its own
+cached copy of the unit files it has already read, and `cp`-ing one in by
+hand doesn't update that cache. Without the reload, `enable --now` can act
+on a stale or missing definition — most visibly, editing this unit to fix a
+path and re-running these commands appears to change nothing at all. The
+reload is only needed when the unit file itself changes; normal
+`sudo systemctl restart wallcaltodo` after editing settings doesn't need it.
 
 ### 7. Connect your accounts
 
