@@ -211,17 +211,14 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   calendar the provider returns for it (not just the primary one). Flipping
   a switch hides or shows that calendar's events on the wall display
   immediately — no polling delay, since filtering happens at read time
-  against calendars already cached.
-- **Silencing a shared Microsoft calendar** — turning off a calendar someone
-  shared with you hides their events *and* the ones they invited you to. Those
-  are separate copies: an invite lands in your own calendar, so hiding their
-  calendar alone leaves those meetings on the wall, which reads as the toggle
-  not working. Matching on the event's organizer as well as the calendar it's
-  filed under is what makes it mean what you expect. It only applies to
-  calendars you own your own copy of, and never hides an event you organized
-  yourself — a meeting you scheduled stays put no matter which shared
-  calendars happen to be off. Disabling one of two shared calendars from the
-  same person leaves the other one's events alone, too.
+  against calendars already cached. Note this means "hide *this calendar*",
+  not "silence this person": when someone shares a calendar with you and then
+  invites you to a meeting, that meeting lands in *your* calendar as a
+  separate copy, so it stays on the wall after you switch off their shared
+  calendar. That's deliberate — those are meetings you're meant to attend.
+  Hiding them by organizer as well was tried and reverted, because it
+  removed 425 events (323 of them in the future) and emptied the current
+  week: a shared contact's meetings are mostly the ones happening now.
 - **Untitled events are hidden** — an event with no title at all (Graph's
   `subject`, Google's `summary`) is dropped from the wall display rather than
   shown as "(No title)", on both providers. Some shared-calendar items arrive

@@ -360,10 +360,13 @@ export async function refreshCalendars() {
     color: item.color || 'auto',
     hexColor: item.hexColor || null,
     isDefaultCalendar: Boolean(item.isDefaultCalendar),
-    // Whose calendar this is, lowercased for comparison. This is what tells a
-    // calendar the user owns apart from one shared with them, which the
-    // organizer-based hiding in msCalendarService depends on -- see
-    // hiddenOrganizers() there.
+    // Whose calendar this is, lowercased so it can be compared without
+    // worrying about address casing. Nothing reads it right now: it was
+    // added for organizer-based hiding, which was reverted because it hid
+    // too much (see getCachedMsEvents). Kept because it's the one field that
+    // distinguishes a calendar the user owns from one shared with them, so
+    // anything wanting that distinction later has it available rather than
+    // needing another calendar-list round trip.
     ownerEmail: item.owner?.emailAddress?.address?.toLowerCase() || null,
     enabled: existing.get(item.id)?.enabled ?? true,
   }));

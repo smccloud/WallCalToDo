@@ -365,43 +365,6 @@ export function dropAllCalendarsCache() {
   saveSync({});
 }
 
-// Which events to drop on the way out, beyond the enabled-calendar check.
-//
-// Turning a shared calendar off hides that calendar's own events, but not
-// the ones its owner invited you to. An invite creates a *separate* copy in
-// your own calendar, so it survives the toggle and keeps appearing on the
-// wall even though you can't see the calendar it "came from" -- turning a
-// person off read as "silence that person" and it wasn't. So match on the
-// event's organizer as well as which calendar it's filed under.
-//
-// Two deliberate limits:
-//
-// Only applied to calendars the user owns. A shared calendar that is still
-// enabled is governed by the enabled check alone; if someone has two shared
-// calendars with you and you disable one, the other's events must not vanish.
-//
-// Never hides an event you organized yourself. `me` can't be in `organizers`
-// by construction, so a meeting you scheduled stays put no matter which
-// shared calendars happen to be off.
-//
-// The connected account's address comes from the default calendar's owner
-// rather than the MSAL token cache, because getConnectedAccount() is async
-// and this runs on every read that feeds the display. If that can't be
-// determined, no owner-based hiding happens at all -- the safe direction,
-// since guessing wrong would hide the user's own meetings.
-function hiddenOrganizers(calendars) {
-  const owned = new Set();
-  const organizers = new Set();
-  const me = calendars.find((calendar) => calendar.isDefaultCalendar)?.ownerEmail || null;
-  if (!me) return { owned, organizers };
-  for (const calendar of calendars) {
-    if (!calendar.ownerEmail) continue;
-    if (calendar.ownerEmail === me) owned.add(calendar.id);
-    else if (!calendar.enabled) organizers.add(calendar.ownerEmail);
-  }
-  return { owned, organizers };
-}
-
 // Only events from currently-enabled calendars, and no null entries: like
 // todoService's, this is a plain JSON file on an SD card with no atomic
 // write guarantee, and a bad entry would otherwise reach the sort in
@@ -412,7 +375,7 @@ function hiddenOrganizers(calendars) {
 // delta round only returns what *changed*, so an event excluded while caching
 // would never be offered again and could only be recovered by forcing a full
 // resync -- filtering at read time keeps this reversible by deleting a
-// condition, and is how the calendar toggles above already work. The match is
+// condition, and is how the calendar toggles already work. The match is
 // against the placeholder rather than a missing title, since every cached
 // event already has the placeholder baked in by normalizeEvent().
 //
@@ -421,26 +384,28 @@ function hiddenOrganizers(calendars) {
 // design, and there is no way to tell those apart from the ones the user
 // doesn't want to see. That is the intended trade for a glanceable display.
 //
+// Note what this does *not* do: hide a shared contact's invites. An invite
+// creates a separate copy in the user's own calendar, so it survives that
+// contact's calendar being switched off and stays visible. That is
+// intentional -- those are meetings the user is meant to attend, and the
+// calendar toggle means "hide this calendar", not "silence this person".
+// Matching on the organizer instead was tried and reverted: it removed ~425
+// events, 323 of them dated in the future, because a shared contact's
+// meetings are mostly the ones happening now, so it emptied the current week.
+// If per-contact hiding is ever wanted it needs to be an explicit opt-in, not
+// a side effect of the calendar toggle.
+//
 // Reading a file with a fresh listCalendars() each time is deliberate: the
 // point of the exercise is that toggling a calendar takes effect immediately,
 // without waiting for or triggering a new poll.
 export function getCachedMsEvents() {
   const cache = loadEvents();
-  const calendars = listCalendars();
-  const enabled = new Set(calendars.filter((calendar) => calendar.enabled).map((calendar) => calendar.id));
-  const { owned, organizers } = hiddenOrganizers(calendars);
-
+  const enabled = new Set(listCalendars().filter((calendar) => calendar.enabled).map((calendar) => calendar.id));
   const events = [];
   for (const [id, entries] of Object.entries(cache)) {
     if (!enabled.has(id)) continue;
-    const fromOwnCalendar = owned.has(id);
     for (const event of Object.values(entries)) {
-      if (!event) continue;
-      if (event.title === UNTITLED) continue;
-      // An event cached before organizerEmail existed has none; leave those
-      // alone rather than treat "unknown organizer" as "hidden organizer".
-      if (fromOwnCalendar && event.organizerEmail && organizers.has(event.organizerEmail)) continue;
-      events.push(event);
+      if (event && event.title !== UNTITLED) events.push(event);
     }
   }
   return events;
