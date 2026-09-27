@@ -101,10 +101,11 @@ Microsoft Graph API                ─┘                                       
 
 There's no manual refresh step. The backend polls Google calendars, Microsoft
 calendars, and Microsoft To Do every `POLL_INTERVAL_MS` (default 60s, see
-`server/.env`) using **sync tokens** (Google) and **delta queries**
-(Microsoft) — each poll asks "what changed since last time?" rather than
-re-downloading everything, so it's cheap enough to poll frequently if you
-want faster updates (e.g. drop it to 15–20s).
+`server/.env`) — Google and To Do ask "what changed since last time?" using
+**sync tokens**, which is cheap enough to poll frequently if you want faster
+updates (e.g. drop it to 15–20s). Microsoft is the exception and runs on its
+own slower interval, for the reason given under
+[Microsoft calendar fetching](#microsoft-calendar-fetching).
 
 When a poll detects a change, the backend immediately pushes the new data
 to every connected display over its WebSocket connection
@@ -219,23 +220,19 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   Hiding them by organizer as well was tried and reverted: it made no
   measurable difference, because the meetings worth hiding live in *your*
   calendar, not the shared one.
-- **Untitled events are hidden** — an event with no title at all (Graph's
-  `subject`, Google's `summary`) is dropped from the wall display rather than
-  shown as "(No title)", on both providers. Both sides drop them so the rule
-  doesn't look arbitrary, and removing the check in `getCachedEvents()` and
-  `getCachedMsEvents()` reverses it immediately, with no resync, which is why
-  the filter runs at read time rather than while caching.
-
-  This is a *silent* drop, and it has already cost real events: a `$select` on
-  `calendarView/delta` made Graph return a restricted property set for part of
-  the response, so 21 of 31 events in a single week lost their `subject` and
-  were cached as "(No title)" — invisible rather than mislabelled. The
-  `$select` has been removed from the delta request in `msCalendarService.js`
-  (see the comment above `fullSync`); the filter stays as a guard, but an
-  unexpectedly large number of untitled events should be read as a sync bug,
-  not as junk. Genuinely untitled entries — a focus-time block, an Outlook
-  placeholder — still disappear with no way to tell them apart from a field
-  loss.
+- **Untitled events are shown** — an event with no title at all (Graph's
+  `subject`, Google's `summary`) displays as "(No title)" on both providers
+  rather than being hidden. This reverses an earlier version of this doc that
+  dropped them, and the reason is worth keeping: an event only lacks a subject
+  if the provider failed to send one, so hiding them silently deleted real
+  events whenever a field went missing. Microsoft's `calendarView/delta` did
+  exactly that — 1146 of 1488 events in one round came back with no `subject`,
+  the filter removed every one, and the wall looked nearly empty for reasons
+  nothing on screen could reveal. See
+  [Microsoft calendar fetching](#microsoft-calendar-fetching) for the
+  provider-side fix. A genuinely untitled entry — a focus-time block, an
+  Outlook placeholder — now stays visible, and `journalctl` reports an
+  untitled count if that number ever climbs.
 - **Disconnect a Google account** — removes it and its cached events
   entirely.
 - **Refresh calendars** — neither provider notifies us when you create a new

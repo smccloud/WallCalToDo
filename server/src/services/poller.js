@@ -1,8 +1,5 @@
 import { pollCalendar, resetSyncTokens as resetCalendarSyncTokens, getCachedEvents } from './calendarService.js';
-import {
-  pollMsCalendar,
-  resetSyncTokens as resetMsCalendarSyncTokens,
-} from './msCalendarService.js';
+import { pollMsCalendar } from './msCalendarService.js';
 import { pollTodo, clearCompletedTasks } from './todoService.js';
 import { getSettings } from './settingsService.js';
 import { pollWeather } from './weatherService.js';
@@ -24,13 +21,12 @@ async function runPoll() {
   const now = new Date();
   const today = now.toDateString();
   if (lastFullResyncDay !== today) {
+    // Google only: its sync token is pinned to the window of the request that
+    // started the round, so it has to be dropped daily for that window to roll
+    // forward. Microsoft no longer has a token to drop -- it re-reads its whole
+    // window on its own interval inside pollMsCalendar -- so there is nothing
+    // to reset here for it.
     resetCalendarSyncTokens();
-    // Graph pins a delta token to the date range of the request that started
-    // the round, exactly as Google pins its sync token to the original full
-    // sync's window -- so Microsoft's calendars need their tokens dropped on
-    // the same daily schedule for the same reason (their window rolling
-    // forward, and stale past events getting pruned).
-    resetMsCalendarSyncTokens();
     lastFullResyncDay = today;
   }
 

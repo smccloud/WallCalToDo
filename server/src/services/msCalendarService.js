@@ -9,7 +9,6 @@ import { listAccounts } from '../auth/googleAuth.js';
 import { readJson, writeJson } from '../store/fileStore.js';
 
 const EVENTS_CACHE_FILE = 'msCalendarEventsCache.json';
-const SYNC_FILE = 'msCalendarSync.json';
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 // Same window calendarService.js uses for Google, deliberately: the display
 // only ever shows the current month, and both providers' events end up in
@@ -17,14 +16,25 @@ const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 const FULL_SYNC_WINDOW_DAYS = 90;
 const FULL_SYNC_LOOKBACK_DAYS = 35;
 
+// Graph pages at 100 by default, which turns a ~150-event calendar into two
+// round trips for no reason. 1000 is the documented maximum for calendarView.
+const GRAPH_PAGE_SIZE = 1000;
+
+// How often a Microsoft calendar is actually re-read. Every round now pulls
+// the whole window (see fetchWindow for why delta had to go), so this cannot
+// ride the poller's 60s tick -- that would be ~1500 events re-read ten times
+// a minute across every calendar. Ten minutes is still far more responsive
+// than a wall display needs, and it is what the old once-a-day forced resync
+// was effectively covering for anyway.
+const MS_SYNC_INTERVAL_MS = 10 * 60 * 1000;
+let lastSyncAt = 0;
+
 // `|| {}` rather than relying on readJson's fallback, which only covers a
 // missing or unparseable file -- one that parses to `null` (a torn write on
 // an SD card, same hazard todoService.js guards against per-entry) would
 // otherwise make Object.entries below throw on every poll and every read.
 const loadEvents = () => readJson(EVENTS_CACHE_FILE, {}) || {};
 const saveEvents = (cache) => writeJson(EVENTS_CACHE_FILE, cache);
-const loadSync = () => readJson(SYNC_FILE, {}) || {};
-const saveSync = (sync) => writeJson(SYNC_FILE, sync);
 
 // Graph's event ids are opaque base64 blobs that share no namespace with
 // Google's, but both end up in one flat array on the display keyed by id
@@ -46,9 +56,9 @@ const calendarKey = (calendarId) => `${ID_PREFIX}calendar::${calendarId}`;
 
 // Ask for every response in UTC so timed events come back as a plain UTC
 // wall clock (see toIsoInstant) instead of a Windows time-zone name this
-// process would have to resolve itself. Must be sent on *every* request in a
-// delta round, not just the first -- the returned deltaLink carries the
-// query parameters but not the headers.
+// process would have to resolve itself. Must be sent on *every* page of a
+// round, not just the first: @odata.nextLink carries the query parameters but
+// not the headers.
 const PREFER_HEADERS = { Prefer: 'outlook.timezone="UTC"' };
 
 // Stand-in for an event with no subject. Shared by the normalizer and the
@@ -75,7 +85,7 @@ const UNTITLED = '(No title)';
 // property set, a declined invite, a cancellation and a draft all look the
 // same from the API. keptUntitled is the one that matters most -- it means we
 // cached the event but lost its subject, which is a bug rather than a policy.
-const dropTally = { kept: 0, keptUntitled: 0, noKey: 0, removed: 0, cancelled: 0, draft: 0, notAccepted: 0 };
+const dropTally = { kept: 0, keptUntitled: 0, noKey: 0, cancelled: 0, draft: 0, notAccepted: 0, pruned: 0 };
 
 function resetDropTally() {
   for (const key of Object.keys(dropTally)) dropTally[key] = 0;
@@ -86,7 +96,7 @@ function resetDropTally() {
 // changes, so this stays quiet until there is a reason to look.
 function logDropTally() {
   const dropped = dropTally.cancelled + dropTally.draft + dropTally.notAccepted
-    + dropTally.removed + dropTally.noKey;
+    + dropTally.pruned + dropTally.noKey;
   if (dropped === 0 && dropTally.keptUntitled === 0) return;
   const parts = Object.entries(dropTally)
     .filter(([, count]) => count > 0)
@@ -95,18 +105,13 @@ function logDropTally() {
   console.log(`[ms-calendar] round: ${parts}`);
 }
 
-// Deliberately no $select here.
+// Deliberately no $select on the calendarView request either.
 //
-// calendarView/delta does not apply $select consistently: it honours it for
-// some pages and answers others with a restricted property set, so a subset of
-// events comes back stripped rather than the whole response. Adding $select to
-// ask for `subject` by name caused exactly that -- events lost their subject
-// and were cached as "(No title)", which then read as junk to hide instead of
-// the field loss it actually was. In one week that silently dropped 21 of 31
-// real events off the wall.
-//
-// The full default property set is a few KB per event and buys correctness we
-// cannot get any other way, so take the payload and normalise it below.
+// $select was tried here and removed, then the restricted property set came
+// back anyway with $select absent -- so the stripping belongs to the endpoint,
+// not to the query. Asking for a named property set is not a workaround for
+// it, and the full default property set is only a few KB per event. The real
+// fix was leaving calendarView/delta altogether; see fetchWindow.
 
 // Graph's dateTime is a naive wall-clock string with 7 fractional digits and
 // no offset. With the UTC preference above, that wall clock *is* UTC, so
@@ -219,12 +224,25 @@ function normalizeEvent(event, context) {
   };
 }
 
-// One delta round, following @odata.nextLink until Graph hands back a
-// @odata.deltaLink (or nothing, meaning the round produced no changes at
-// all). `seen` collects every id that came back, for the full sync's pruning
-// pass below; incremental rounds don't need it and skip the bookkeeping.
-async function walkDelta(url, accessToken, entries, context, seen) {
-  let deltaLink = null;
+// Reads a calendar's whole window in one pass, following @odata.nextLink
+// until Graph runs out of pages. `seen` collects every id that came back so
+// the caller can prune what has since been deleted upstream.
+//
+// This is calendarView, deliberately NOT calendarView/delta, and the swap was
+// not cosmetic. The delta variant answers with a restricted property set: in
+// one measured round 1146 of 1488 events came back with no `subject` at all,
+// and the read-time untitled filter then deleted every one of them, leaving
+// the wall nearly empty. It also does not reliably expand recurring series
+// into instances, so entire weeks of recurring meetings were simply absent
+// from the cache. The plain endpoint returns complete event objects and
+// expands recurrences, which is the same thing Google's singleEvents:true
+// gives us on the other side. It also has no token to expire, so the 410/400
+// recovery and the daily forced resync disappear along with it.
+//
+// The cost is that each round re-reads the entire window rather than just
+// what changed, which is why pollMsCalendar throttles itself to one round per
+// MS_SYNC_INTERVAL_MS instead of running on the poller's 60s tick.
+async function fetchWindow(url, accessToken, entries, context, seen) {
   let changed = false;
   let next = url;
 
@@ -237,70 +255,36 @@ async function walkDelta(url, accessToken, entries, context, seen) {
       if (!event.id && !event.iCalUId) { dropTally.noKey += 1; continue; }
       changed = true;
       if (seen) seen.add(eventKey(event));
-      if (event['@removed']) { dropTally.removed += 1; delete entries[eventKey(event)]; }
-      else upsertEvent(entries, event, context);
+      upsertEvent(entries, event, context);
     }
     next = data['@odata.nextLink'] || null;
-    deltaLink = data['@odata.deltaLink'] || deltaLink;
   }
 
-  return { deltaLink, changed };
+  return changed;
 }
 
-// The initial round: every event in the window, from which the returned
-// deltaLink becomes the handle for cheap incremental polls.
-//
-// calendarView/delta (rather than events/delta) is the only per-calendar
-// delta in v1.0 -- events/delta is still beta-only -- and it has the side
-// benefit of returning occurrences of recurring series already expanded,
-// which is what Google's singleEvents:true does on the other side.
-async function fullSync(accessToken, calendarId, entries, context) {
+// One full pass over a single calendar's window. Anything already cached
+// inside the window that this round did not mention has been deleted upstream,
+// so it gets pruned explicitly -- the same reasoning calendarService.js's
+// fullSync uses for Google.
+async function syncCalendar(accessToken, calendarId, entries, context) {
   const timeMin = new Date(Date.now() - FULL_SYNC_LOOKBACK_DAYS * 86400000).toISOString();
   const timeMax = new Date(Date.now() + FULL_SYNC_WINDOW_DAYS * 86400000).toISOString();
-  const startUrl =
-    `${GRAPH_BASE}/me/calendars/${encodeURIComponent(calendarId)}/calendarView/delta` +
-    `?startDateTime=${encodeURIComponent(timeMin)}&endDateTime=${encodeURIComponent(timeMax)}`;
+  const url =
+    `${GRAPH_BASE}/me/calendars/${encodeURIComponent(calendarId)}/calendarView` +
+    `?startDateTime=${encodeURIComponent(timeMin)}&endDateTime=${encodeURIComponent(timeMax)}` +
+    `&$top=${GRAPH_PAGE_SIZE}`;
 
   const seen = new Set();
-  const { deltaLink } = await walkDelta(startUrl, accessToken, entries, context, seen);
+  const changed = await fetchWindow(url, accessToken, entries, context, seen);
 
-  // A delta round flags what it deleted, but a *first* round has nothing
-  // cached to flag against, and an event deleted between two full syncs
-  // simply never comes back. Anything already cached inside this window
-  // that the fresh round didn't mention is gone and has to be pruned
-  // explicitly -- same reasoning as calendarService.js's fullSync.
   const minTime = new Date(timeMin).getTime();
   const maxTime = new Date(timeMax).getTime();
   for (const [id, cached] of Object.entries(entries)) {
     const startTime = new Date(cached.start).getTime();
-    if (startTime >= minTime && startTime <= maxTime && !seen.has(id)) delete entries[id];
-  }
-
-  return deltaLink;
-}
-
-async function pollOneCalendar(accessToken, calendarId, entries, context, sync) {
-  let changed = false;
-
-  try {
-    if (!sync[calendarId]?.deltaLink) {
-      sync[calendarId] = { deltaLink: await fullSync(accessToken, calendarId, entries, context) };
-      changed = true;
-    } else {
-      const result = await walkDelta(sync[calendarId].deltaLink, accessToken, entries, context);
-      changed = result.changed;
-      sync[calendarId] = { deltaLink: result.deltaLink || sync[calendarId].deltaLink };
-    }
-  } catch (err) {
-    // An invalidated or expired delta link comes back as 410 Gone, or 400
-    // for the older tokens Graph still hands out -- same two statuses
-    // todoService.js treats as "start over".
-    if (err.status === 410 || err.status === 400) {
-      Object.keys(entries).forEach((id) => delete entries[id]);
-      sync[calendarId] = { deltaLink: await fullSync(accessToken, calendarId, entries, context) };
-      changed = true;
-    } else {
-      throw err;
+    if (startTime >= minTime && startTime <= maxTime && !seen.has(id)) {
+      dropTally.pruned += 1;
+      delete entries[id];
     }
   }
 
@@ -337,6 +321,14 @@ export async function pollMsCalendar() {
   // reads the same answer to explain the empty list and offer a reconnect.
   // Pre-checking got this wrong for accounts that *had* consented, so the poll
   // no longer trusts an inference over the request it was going to make anyway.
+  // Throttle before spending a token or a request: a round now re-reads every
+  // calendar's whole window rather than following a delta handle, and the
+  // poller calls in every 60s. lastSyncAt is stamped up front so a round that
+  // throws still counts, rather than retrying against Graph on every tick.
+  const now = Date.now();
+  if (lastSyncAt && now - lastSyncAt < MS_SYNC_INTERVAL_MS) return { changed: false };
+  lastSyncAt = now;
+
   let accessToken;
   try {
     accessToken = await getAccessToken(CALENDAR_SCOPES);
@@ -347,7 +339,6 @@ export async function pollMsCalendar() {
 
   const cache = loadEvents();
   resetDropTally();
-  const sync = loadSync();
   let changed = false;
   let calendarOrder = calendarOrderOffset();
 
@@ -361,7 +352,7 @@ export async function pollMsCalendar() {
       calendarOrder: calendarOrder++,
     };
     try {
-      const calendarChanged = await pollOneCalendar(accessToken, calendar.id, entries, context, sync);
+      const calendarChanged = await syncCalendar(accessToken, calendar.id, entries, context);
       changed = changed || calendarChanged;
     } catch (err) {
       console.error(`[ms-calendar] poll failed for ${calendar.name}:`, err.message);
@@ -369,35 +360,21 @@ export async function pollMsCalendar() {
   }
 
   saveEvents(cache);
-  saveSync(sync);
   logDropTally();
   return { changed };
 }
 
-// Forces the next pollMsCalendar() call to do a full resync of every
-// calendar, so the sync window (which Graph pins to the original request's
-// date range, inside the delta token) rolls forward. The poller calls this
-// alongside calendarService's equivalent once a day.
-export function resetSyncTokens() {
-  saveSync({});
-}
-
-// Purges one calendar's cached events/sync state, for a calendar Graph no
-// longer returns.
+// Purges one calendar's cached events, for a calendar Graph no longer returns.
 export function dropCalendarCache(calendarId) {
   const cache = loadEvents();
-  const sync = loadSync();
   delete cache[calendarId];
-  delete sync[calendarId];
   saveEvents(cache);
-  saveSync(sync);
 }
 
-// Wipes every calendar's cached events/sync state — used when the Microsoft
-// account is disconnected entirely, since there's only ever the one account.
+// Wipes every calendar's cached events -- used when the Microsoft account is
+// disconnected entirely, since there's only ever the one account.
 export function dropAllCalendarsCache() {
   saveEvents({});
-  saveSync({});
 }
 
 // Only events from currently-enabled calendars, and no null entries: like
@@ -406,29 +383,26 @@ export function dropAllCalendarsCache() {
 // getCachedEvents() (new Date(undefined) is Invalid Date, which doesn't
 // throw, but the display's own date math downstream would).
 //
-// Untitled events are dropped here rather than at cache time on purpose. A
-// delta round only returns what *changed*, so an event excluded while caching
-// would never be offered again and could only be recovered by forcing a full
-// resync -- filtering at read time keeps this reversible by deleting a
-// condition, and is how the calendar toggles already work. The match is
-// against the placeholder rather than a missing title, since every cached
-// event already has the placeholder baked in by normalizeEvent().
-//
-// The cost is that a genuinely untitled event disappears from the wall too --
-// focus-time blocks and some placeholder entries Outlook creates are empty by
-// design, and there is no way to tell those apart from the ones the user
-// doesn't want to see. That is the intended trade for a glanceable display.
+// Untitled events are NOT dropped here, which reverses an earlier decision.
+// The reasoning then was that a wall display isn't the place for a list of
+// empty entries. It turned out to be the wrong call for a reason nobody could
+// see from the outside: an event only lacks a subject here if Graph failed to
+// send one, so the filter silently deleted every event whose fields had been
+// stripped. With calendarView/delta that was 1146 of 1488 -- the wall looked
+// almost empty and the cause was invisible, because a filter that drops
+// untitled events makes stripped events look like deliberate tidying. A
+// genuinely untitled entry now shows as "(No title)" and stays countable; the
+// [ms-calendar] round: log line is what tells you if that number is climbing.
 //
 // Note what this does *not* do: hide a shared contact's invites. An invite
 // creates a separate copy in the user's own calendar, so it survives that
 // contact's calendar being switched off and stays visible. That is
 // intentional -- those are meetings the user is meant to attend, and the
 // calendar toggle means "hide this calendar", not "silence this person".
-// Matching on the organizer instead was tried and reverted: it removed ~425
-// events, 323 of them dated in the future, because a shared contact's
-// meetings are mostly the ones happening now, so it emptied the current week.
-// If per-contact hiding is ever wanted it needs to be an explicit opt-in, not
-// a side effect of the calendar toggle.
+// Matching on the organizer instead was tried and reverted: it made no
+// measurable difference, because the meetings worth hiding live in the user's
+// own calendar rather than the shared one. If per-contact hiding is ever
+// wanted it needs to be an explicit opt-in, not a side effect of the toggle.
 //
 // Reading a file with a fresh listCalendars() each time is deliberate: the
 // point of the exercise is that toggling a calendar takes effect immediately,
@@ -440,7 +414,7 @@ export function getCachedMsEvents() {
   for (const [id, entries] of Object.entries(cache)) {
     if (!enabled.has(id)) continue;
     for (const event of Object.values(entries)) {
-      if (event && event.title !== UNTITLED) events.push(event);
+      if (event) events.push(event);
     }
   }
   return events;

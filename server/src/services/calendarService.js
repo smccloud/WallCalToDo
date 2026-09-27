@@ -266,15 +266,15 @@ export function dropAccountCache(accountId) {
 // providers — toggling a calendar off in the companion app takes effect
 // immediately, without waiting for or triggering a new poll.
 //
-// Untitled events are dropped at read time for the same reason as the
-// calendar filters, and for the same reason msCalendarService.js does it: an
-// incremental round only returns what changed, so excluding one while caching
-// would need a forced full resync to undo. Both sides drop them, since the
-// display shows one merged list and hiding them on one provider only would be
-// inexplicable to anyone looking at the result. The cost is the same on both
-// — a genuinely untitled entry (a focus-time block, a placeholder Outlook
-// creates) goes off the wall as well, and there's no way to tell it from one
-// the user simply doesn't want to see.
+// Untitled events are NOT dropped here, which reverses an earlier decision
+// that both providers used to share. The idea was that a wall shouldn't list
+// empty entries, but it turned out to hide real breakage: on the Microsoft
+// side a stripped property set left 1146 of 1488 events without a subject, so
+// this filter deleted them and the wall looked almost empty for reasons
+// nothing could see. msCalendarService.js carries the full story and the
+// diagnostic that replaced it; the two sides stay in step because the display
+// shows one merged list and treating the providers differently would be
+// inexplicable to anyone reading the result.
 //
 // The display gets one flat list of events regardless of where they came
 // from, so Microsoft's are appended to Google's here rather than the two
@@ -297,7 +297,7 @@ export function getCachedEvents() {
     // The null guard isn't new here, but msCalendarService.js explains why
     // these files can end up with holes in them.
     for (const event of Object.values(cache[key])) {
-      if (event && event.title !== UNTITLED) events.push(event);
+      if (event) events.push(event);
     }
   }
 
