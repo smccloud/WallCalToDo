@@ -35,10 +35,31 @@ function isMissingConsentError(err) {
 // Read from MSAL's own view of the granted scopes rather than inferred from
 // a failed request, so the companion app can show the "reconnect to grant
 // calendar access" prompt on load instead of after a failed poll.
+// Whether one cached account record shows Calendars.Read was consented to.
+//
+// The ID token's scope claim is the source of truth here, *not*
+// `account.target`. `target` looks like it answers this question and doesn't:
+// MSAL rewrites it to the scopes of the most recent acquireTokenSilent call,
+// and this app asks for Tasks.Read alone on every to-do poll — so reading
+// `target` makes an account that genuinely granted Calendars.Read look like
+// it hadn't, about a minute after signing in. That in turn stops
+// msCalendarService from polling calendars at all, so calendars silently go
+// missing on an account that did everything right.
+//
+// The ID token claims are written once at sign-in and left alone by silent
+// acquisition, so they keep recording what was actually consented to.
+// `target` is still OR'd in for accounts with no usable claims (an older or
+// partially-written cache entry), since it can only add a correct positive.
+function accountHasCalendarScope(account) {
+  const claims = account.idTokenClaims || {};
+  const scopes = `${claims.scp || ''} ${claims.scope || ''} ${account.target || ''}`;
+  return scopes.split(/\s+/).includes(CALENDAR_SCOPE);
+}
+
 export async function hasCalendarAccess() {
   if (!isConfigured()) return false;
   const accounts = await getClient().getTokenCache().getAllAccounts();
-  return accounts.some((account) => (account.target || '').split(/\s+/).includes(CALENDAR_SCOPE));
+  return accounts.some(accountHasCalendarScope);
 }
 
 // Set when a calendar-scoped token request comes back needing consent the

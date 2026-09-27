@@ -310,7 +310,8 @@ connecting your accounts, and mounting it on the wall.
 
 ### 1. Flash the SD card
 
-1. On your computer, install [Raspberry Pi Imager](https://www.raspberrypi.com/software/).
+1. On your computer, install
+   [Raspberry Pi Imager](https://www.raspberrypi.com/software/).
 2. Insert the microSD card, open Imager.
 3. **Choose OS** → Raspberry Pi OS (64-bit) — the full version with a
    desktop, not "Lite". Kiosk mode needs a desktop environment to run
@@ -453,14 +454,14 @@ browser running on the Pi itself.
 5. Tap **+ Connect Microsoft account** and sign in. The account then shows
    its calendars and its to-do lists, each with its own toggle.
 
-   <sub>**Upgrading from a version that only did to-do lists?** That version's
+   **Upgrading from a version that only did to-do lists?** That version's
    instructions only asked for `Tasks.Read`, so an existing account has two
    things to fix: add `Calendars.Read` to the app registration as above,
    *then* reconnect the account. The reconnect is what carries the new
    permission — the old sign-in can't be widened without a new one. Until
    both are done, the companion app's Microsoft section says the calendars
    can't be read yet and offers a **Reconnect** link. The to-do lists keep
-   working throughout, so nothing is lost in the meantime.</sub>
+   working throughout, so nothing is lost in the meantime.
 
 If anything about a connection attempt fails (wrong secret, an account
 that isn't added as a Google test user yet, etc.), the companion app shows
@@ -503,8 +504,9 @@ From your phone, on the same Wi-Fi, open
 `http://wallcaltodo.local:3000/companion` (swap in your own hostname) to
 toggle calendars or disconnect an account — this works fine from your
 phone. **Adding a brand-new account** still has to be done on the Pi's own
-screen, same as step 7 (or via an SSH tunnel — `ssh -L 3000:localhost:3000 pi@wallcaltodo.local`,
-then open `http://localhost:3000/companion` on your laptop through the
+screen, same as step 7 (or via an SSH tunnel —
+`ssh -L 3000:localhost:3000 pi@wallcaltodo.local`, then open
+`http://localhost:3000/companion` on your laptop through the
 tunnel — if you'd rather not walk over to the Pi).
 
 ### Troubleshooting
