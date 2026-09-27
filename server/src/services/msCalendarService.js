@@ -58,32 +58,27 @@ const PREFER_HEADERS = { Prefer: 'outlook.timezone="UTC"' };
 // mirroring isAcceptedByUser -- and both have to drop these or the merged
 // list would show untitled Google events while hiding untitled Microsoft
 // ones, for no reason a user could see.
+//
+// This is a silent drop, and that is the hazard: an event only lands here if
+// Graph omitted `subject`, which is also what a field-loss bug looks like. A
+// $select on calendarView/delta did exactly that, and this filter turned 21
+// missing events in a single week into "untitled junk" that looked deliberate.
+// Anything that mangles a subject upstream will hide behind this, so treat a
+// surprising count of untitled events as a sync bug until proven otherwise.
 const UNTITLED = '(No title)';
 
-// calendarView/delta answers with a restricted default property set, and a
-// delta round that omits a field the code below reads is indistinguishable
-// from one where the event genuinely doesn't have it. That bit us twice:
-// responseStatus missing made every declined/tentative invite look accepted
-// (see isAcceptedByUser), and organizer missing would leave no way to tell an
-// invite from someone else's calendar apart from the user's own. Ask for what
-// we depend on by name rather than hoping for it.
+// Deliberately no $select here.
 //
-// id and iCalUId are both requested because neither is reliable alone across
-// delta rounds -- see eventKey().
-const DELTA_SELECT = [
-  'id',
-  'iCalUId',
-  'subject',
-  'start',
-  'end',
-  'isAllDay',
-  'location',
-  'organizer',
-  'responseStatus',
-  'isCancelled',
-  'isDraft',
-  'type',
-].join(',');
+// calendarView/delta does not apply $select consistently: it honours it for
+// some pages and answers others with a restricted property set, so a subset of
+// events comes back stripped rather than the whole response. Adding $select to
+// ask for `subject` by name caused exactly that -- events lost their subject
+// and were cached as "(No title)", which then read as junk to hide instead of
+// the field loss it actually was. In one week that silently dropped 21 of 31
+// real events off the wall.
+//
+// The full default property set is a few KB per event and buys correctness we
+// cannot get any other way, so take the payload and normalise it below.
 
 // Graph's dateTime is a naive wall-clock string with 7 fractional digits and
 // no offset. With the UTC preference above, that wall clock *is* UTC, so
@@ -225,8 +220,7 @@ async function fullSync(accessToken, calendarId, entries, context) {
   const timeMax = new Date(Date.now() + FULL_SYNC_WINDOW_DAYS * 86400000).toISOString();
   const startUrl =
     `${GRAPH_BASE}/me/calendars/${encodeURIComponent(calendarId)}/calendarView/delta` +
-    `?$select=${encodeURIComponent(DELTA_SELECT)}` +
-    `&startDateTime=${encodeURIComponent(timeMin)}&endDateTime=${encodeURIComponent(timeMax)}`;
+    `?startDateTime=${encodeURIComponent(timeMin)}&endDateTime=${encodeURIComponent(timeMax)}`;
 
   const seen = new Set();
   const { deltaLink } = await walkDelta(startUrl, accessToken, entries, context, seen);
