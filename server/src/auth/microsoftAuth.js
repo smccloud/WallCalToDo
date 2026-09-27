@@ -35,31 +35,40 @@ function isMissingConsentError(err) {
 // Read from MSAL's own view of the granted scopes rather than inferred from
 // a failed request, so the companion app can show the "reconnect to grant
 // calendar access" prompt on load instead of after a failed poll.
-// Whether one cached account record shows Calendars.Read was consented to.
+// Whether calendar-scoped API access actually works, determined by asking for
+// a calendar-scoped token rather than by reading the cache and inferring.
 //
-// The ID token's scope claim is the source of truth here, *not*
-// `account.target`. `target` looks like it answers this question and doesn't:
-// MSAL rewrites it to the scopes of the most recent acquireTokenSilent call,
-// and this app asks for Tasks.Read alone on every to-do poll — so reading
-// `target` makes an account that genuinely granted Calendars.Read look like
-// it hadn't, about a minute after signing in. That in turn stops
-// msCalendarService from polling calendars at all, so calendars silently go
-// missing on an account that did everything right.
+// Inference was tried twice and was wrong both times, in ways that kept
+// reporting "missing" for accounts that had genuinely consented. MSAL's
+// `account.target` is rewritten to the scopes of the most recent
+// acquireTokenSilent call, and this app requests Tasks.Read alone on every
+// to-do poll, so a consented account looks un-consented within a minute. The
+// ID token's `scp` claim is more stable, but is only present for tokens that
+// carry one and says nothing about whether a *silent* redemption of the scope
+// will now be allowed — which is the thing that actually matters, and the
+// thing that changes when an admin grants consent tenant-wide.
 //
-// The ID token claims are written once at sign-in and left alone by silent
-// acquisition, so they keep recording what was actually consented to.
-// `target` is still OR'd in for accounts with no usable claims (an older or
-// partially-written cache entry), since it can only add a correct positive.
-function accountHasCalendarScope(account) {
-  const claims = account.idTokenClaims || {};
-  const scopes = `${claims.scp || ''} ${claims.scope || ''} ${account.target || ''}`;
-  return scopes.split(/\s+/).includes(CALENDAR_SCOPE);
-}
-
-export async function hasCalendarAccess() {
-  if (!isConfigured()) return false;
+// A silent token request is the only thing here that can't be wrong: it is
+// the same call the calendar poll goes on to make, so the answer is the poll's
+// answer. It's silent and cheap — MSAL serves it from the refresh token with
+// no browser interaction — and it self-heals the moment a reconnect happens or
+// admin consent is granted, with nothing to invalidate by hand.
+//
+// Returns 'granted', 'missing' (connected, but the scope needs consent the
+// account never gave), or 'not_connected'.
+export async function getCalendarAccess() {
+  if (!isConfigured()) return 'not_connected';
   const accounts = await getClient().getTokenCache().getAllAccounts();
-  return accounts.some(accountHasCalendarScope);
+  if (!accounts.length) return 'not_connected';
+  try {
+    await getAccessToken(CALENDAR_SCOPES);
+    return 'granted';
+  } catch (err) {
+    if (isMissingConsentError(err)) return 'missing';
+    // Anything else (network blip, Entra outage) is not evidence about
+    // consent, so report what we know rather than accusing the account.
+    throw err;
+  }
 }
 
 // Set when a calendar-scoped token request comes back needing consent the
@@ -207,9 +216,17 @@ export async function getAccessToken(scopes = SCOPES) {
   } catch (err) {
     if (scopes.includes(CALENDAR_SCOPE) && isMissingConsentError(err)) {
       calendarScopeMissing = true;
-      throw new Error(
+      // Tagged so callers can tell "the account never consented to this" from
+      // an unrelated failure without matching on the message text. The status
+      // is the same one a real Graph 403 would carry, so the calendar poll's
+      // existing "this is a permissions problem, skip quietly" handling
+      // treats both the same way.
+      const error = new Error(
         `The connected Microsoft account has not granted ${CALENDAR_SCOPE}. Reconnect it to grant calendar access.`
       );
+      error.status = 403;
+      error.scopeMissing = true;
+      throw error;
     }
     throw err;
   }

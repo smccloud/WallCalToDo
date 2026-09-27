@@ -1,7 +1,6 @@
 import {
   getAccessToken,
   graphFetch,
-  hasCalendarAccess,
   isAuthorized,
   listCalendars,
   CALENDAR_SCOPES,
@@ -250,14 +249,21 @@ export async function pollMsCalendar() {
   const calendars = listCalendars();
   if (calendars.length === 0) return { changed: false };
 
-  // An account connected before calendars existed holds a token that was
-  // never consented to Calendars.Read, so the refresh-token redemption a
-  // calendar-scoped request needs would fail on every single poll. Check the
-  // granted scopes up front instead: the companion app reads the same
-  // answer to explain why the list is empty and ask for a reconnect.
-  if (!(await hasCalendarAccess())) return { changed: false };
+  // Ask for the token and take the answer, rather than pre-checking the cached
+  // scopes and deciding in advance. An account connected before calendars
+  // existed can't redeem a calendar-scoped refresh token, and that failure is
+  // the real signal — getAccessToken records it for the companion app, which
+  // reads the same answer to explain the empty list and offer a reconnect.
+  // Pre-checking got this wrong for accounts that *had* consented, so the poll
+  // no longer trusts an inference over the request it was going to make anyway.
+  let accessToken;
+  try {
+    accessToken = await getAccessToken(CALENDAR_SCOPES);
+  } catch (err) {
+    if (err.status === 400 || err.status === 401 || err.status === 403) return { changed: false };
+    throw err;
+  }
 
-  const accessToken = await getAccessToken(CALENDAR_SCOPES);
   const cache = loadEvents();
   const sync = loadSync();
   let changed = false;

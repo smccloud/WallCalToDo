@@ -21,17 +21,25 @@ export const accountsRouter = Router();
 // connected account: an account connected before calendars existed holds a
 // token that was never consented to Calendars.Read, and asking for one
 // anyway just fails. Saying so lets the companion app ask for a reconnect
-// instead of showing an empty list with no explanation. Both checks are
-// needed — the granted-scope one catches a token that never had it, and the
-// flag catches a redemption that Graph rejected despite the scope looking
-// granted.
+// instead of showing an empty list with no explanation.
+//
+// Asked of the auth layer, which answers by attempting the same silent
+// calendar-scoped token request the poll makes — see
+// microsoftAuth.getCalendarAccess. A transient failure (no network, Entra
+// briefly down) is not evidence about consent, so it falls back to the last
+// thing we did establish rather than telling the user their permissions are
+// wrong when they aren't.
 accountsRouter.get('/accounts', async (req, res) => {
   const account = await microsoftAuth.getConnectedAccount();
-  const calendarAccess = !account
-    ? 'not_connected'
-    : (await microsoftAuth.hasCalendarAccess()) && !microsoftAuth.isCalendarScopeMissing()
-      ? 'granted'
-      : 'missing';
+  let calendarAccess = 'not_connected';
+  if (account) {
+    try {
+      calendarAccess = await microsoftAuth.getCalendarAccess();
+    } catch (err) {
+      console.error('[accounts] could not determine Microsoft calendar access:', err.message);
+      calendarAccess = microsoftAuth.isCalendarScopeMissing() ? 'missing' : 'granted';
+    }
+  }
 
   res.json({
     google: googleAuth.listAccounts(),
