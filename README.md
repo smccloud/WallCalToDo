@@ -199,7 +199,10 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   the one thing about each provider that only needs to be entered once.
   The Microsoft one also has an optional Tenant ID field, which scopes
   sign-in to a single Entra directory and can be left blank (the default)
-  to accept any Microsoft account.
+  to accept any Microsoft account. Its app registration needs **two**
+  delegated Microsoft Graph permissions — `Tasks.Read` for the to-do lists
+  and `Calendars.Read` for the calendars — since one account supplies both
+  halves (see setup step 7).
 - **Add a Google account** — tapping the button starts the normal Google
   OAuth flow; you can connect as many Google accounts as you want (e.g.
   personal + work). Reconnecting an account you've already added updates
@@ -429,9 +432,16 @@ browser running on the Pi itself.
    ![Microsoft section of the companion app, showing the expanded "Where do I get this?" steps and the Client ID/Client Secret fields](docs/setup-microsoft-credentials.png)
 
    The permissions step in that panel asks for **two** delegated Graph
-   permissions, not one: **Tasks.Read** for the to-do lists and
-   **Calendars.Read** for the calendars. Both are requested by the same
-   sign-in, since one Microsoft account supplies both halves.
+   permissions, not one — both are required, and both come from the same
+   sign-in, since one Microsoft account supplies both halves:
+   - **`Tasks.Read`** — the to-do lists.
+   - **`Calendars.Read`** — the calendars.
+
+   Add both under **API permissions → Add a permission → Microsoft Graph →
+   Delegated permissions**. Doing this in the portal is a prerequisite, not
+   an optional extra: an app registration that only lists `Tasks.Read`
+   cannot ask the user for `Calendars.Read` at sign-in, so a connection
+   attempt against one fails with a consent error instead of connecting.
 
    There's also an optional **Tenant ID** field, which most people can leave
    blank: it decides which Entra directory the sign-in page points at, and
@@ -443,11 +453,14 @@ browser running on the Pi itself.
 5. Tap **+ Connect Microsoft account** and sign in. The account then shows
    its calendars and its to-do lists, each with its own toggle.
 
-   If you connected a Microsoft account *before* this read Microsoft
-   calendars, its existing sign-in only ever asked for `Tasks.Read`. The
-   section will say so and offer a **Reconnect** link — tap it and sign in
-   once more to grant the calendar permission. The to-do lists keep working
-   in the meantime.
+   <sub>**Upgrading from a version that only did to-do lists?** That version's
+   instructions only asked for `Tasks.Read`, so an existing account has two
+   things to fix: add `Calendars.Read` to the app registration as above,
+   *then* reconnect the account. The reconnect is what carries the new
+   permission — the old sign-in can't be widened without a new one. Until
+   both are done, the companion app's Microsoft section says the calendars
+   can't be read yet and offers a **Reconnect** link. The to-do lists keep
+   working throughout, so nothing is lost in the meantime.</sub>
 
 If anything about a connection attempt fails (wrong secret, an account
 that isn't added as a Google test user yet, etc.), the companion app shows
@@ -507,8 +520,11 @@ tunnel — if you'd rather not walk over to the Pi).
 - **A Microsoft account's to-do lists work but its calendars don't** — it was
   connected before `Calendars.Read` was requested, so its existing token
   only carries `Tasks.Read`. The companion app's Microsoft section says so
-  and offers a **Reconnect** link; one more sign-in fixes it. See setup
-  step 7.
+  and offers a **Reconnect** link. Reconnecting is necessary but not
+  sufficient: an app registration that doesn't list `Calendars.Read` can't
+  ask for it, so add it under **API permissions → Microsoft Graph →
+  Delegated permissions** first, *then* reconnect. Do both in that order —
+  a reconnect on its own fails with a consent error. See setup step 7.
 - **Kiosk screen is blank or shows a desktop instead of the app** — SSH in
   and run `pi-setup/kiosk/kiosk.sh` by hand to see its output directly,
   and double check the autostart file syntax in `pi-setup/kiosk/README.md`.

@@ -103,7 +103,9 @@ export default function Microsoft({
       {needsCalendarAccess && (
         <p className="banner banner--warning">
           This account was connected before calendar access was requested, so its calendars can't be read yet — its to-do
-          lists still work. Sign in again to grant it.{' '}
+          lists still work. To fix it, add <code>Calendars.Read</code> to the app registration (Azure Portal → your app →
+          <strong> API permissions</strong> → Microsoft Graph → <strong>Delegated permissions</strong>) if you haven't
+          already, then reconnect to grant it:{' '}
           {CAN_ADD_ACCOUNTS ? (
             <a href="/auth/microsoft">Reconnect</a>
           ) : (
