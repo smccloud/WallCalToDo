@@ -187,7 +187,34 @@ landscape):
   (Location section) to show anything at all; Fahrenheit or Celsius is a
   toggle in that same app's Temperature section.
 
-## Companion app
+## Holiday decoration
+
+A day carrying one of fifteen holidays gets its day number circled in the
+holiday calendar's own color — the same circle "today" gets, in that
+calendar's color instead of the fixed red, so the holidays in a month pick
+themselves out at a glance from across the room.
+
+No dates are hardcoded anywhere. The holidays arrive as ordinary all-day
+events from a holiday calendar — Google's "Holidays in United States" (under
+**Other calendars → Browse calendars** in Google Calendar) or Microsoft's
+equivalent, which carries the same name — and the display marks these fifteen
+by name: New Year's Day, Martin Luther King Jr. Day, Presidents' Day,
+Memorial Day, Juneteenth, Independence Day, Labor Day, Columbus Day, Veterans
+Day, Thanksgiving, Christmas Day, Halloween, Valentine's Day, Easter, and
+St. Patrick's Day. The name matching is deliberately loose, since the same
+holiday turns up as "Presidents' Day (Washington's Birthday)" in some years
+and "Washington's Birthday" in others, Easter as "Easter Sunday", and MLK
+Day as "Birthday of Martin Luther King, Jr." — a missing marker is a worse
+outcome than a slightly liberal match.
+
+So there's nothing to switch on: subscribe to that calendar and the markers
+appear with its events. Switching it off in the companion app takes the
+markers away too, since both come from the same events. Anything else that
+calendar happens to list stays unmarked.
+
+Privacy mode doesn't hide the markers. They mark a date rather than say what's
+on it, the same way the day numbers themselves stay visible; only titles go.
+
 
 A separate small app (`companion/`) served at `/companion` lets you manage
 everything from your phone or laptop, on the same Wi-Fi as the Pi:

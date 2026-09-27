@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { WEEKDAYS, addDays, buildMonthGrid, dateKey, parseLocalDate, sortDayEvents } from '../utils/date.js';
+import { holidayFor } from '../utils/holidays.js';
 
 // Placeholder presentation only — swap this markup/styling for the real
 // design later. Data shape stays the same: [{ id, title, start, end, allDay, location, calendarLabel, color }]
@@ -26,7 +27,7 @@ const MEASURE_CAP = 12;
 // guessed limit. Re-measures whenever this day's event list changes; a
 // month change also naturally re-measures every cell, since each one is
 // keyed by date and get a fresh mount with the new month's row heights.
-function DayCell({ date, inMonth, isToday, dayEvents, barsSpace, gridRow, gridColumn, privacyMode }) {
+function DayCell({ date, inMonth, isToday, dayEvents, barsSpace, gridRow, gridColumn, privacyMode, holiday }) {
   const cappedEvents = dayEvents.slice(0, MEASURE_CAP);
   const listRef = useRef(null);
   // Starts optimistic (all of them) — the effect below measures and trims
@@ -89,10 +90,18 @@ function DayCell({ date, inMonth, isToday, dayEvents, barsSpace, gridRow, gridCo
 
   return (
     <div
-      className={['calendar-cell', inMonth ? '' : 'calendar-cell--outside', isToday ? 'calendar-cell--today' : '']
+      className={[
+        'calendar-cell',
+        inMonth ? '' : 'calendar-cell--outside',
+        isToday ? 'calendar-cell--today' : '',
+        holiday ? 'calendar-cell--holiday' : '',
+      ]
         .filter(Boolean)
         .join(' ')}
-      style={{ gridRow, gridColumn }}
+      // The holiday's own calendar color, so its day marker matches the pill
+      // it also renders in the same cell (and its letter-circle in the legend)
+      // rather than being a fixed color of its own.
+      style={{ gridRow, gridColumn, '--holiday-color': holiday?.color || undefined }}
     >
       <span className="calendar-cell__day">{date.getDate()}</span>
       <ul className="calendar-cell__events" ref={listRef} style={barsSpace > 0 ? { marginTop: barsSpace } : undefined}>
@@ -283,6 +292,10 @@ export default function CalendarView({ events, privacyMode, onMeasureSplit }) {
           const week = Math.floor(i / 7);
           const dayEvents = sortDayEvents(singleDayEventsByKey[key] || []);
           const barsSpace = laneCountByCell[week][i % 7] * (BAR_HEIGHT + BAR_GAP);
+          // Marked off the full dayEvents list rather than the trimmed
+          // visibleEvents below, so a holiday whose pill doesn't fit on a
+          // busy day (and ends up behind "+N more") still marks its day.
+          const holiday = dayEvents.map(holidayFor).find(Boolean) || null;
           return (
             <DayCell
               // Content-aware, not just the date: this day's own event IDs
@@ -299,6 +312,7 @@ export default function CalendarView({ events, privacyMode, onMeasureSplit }) {
               gridRow={week + 2}
               gridColumn={(i % 7) + 1}
               privacyMode={privacyMode}
+              holiday={holiday}
             />
           );
         })}

@@ -220,11 +220,35 @@ body {
   justify-content: center;
 }
 
+/* A day carrying one of the decorated holidays (see utils/holidays.js
+   for how one is recognized) gets the same circle-behind-the-day-number the
+   today marker below uses, but in the holiday calendar's own color (passed in
+   per cell as --holiday-color) instead of a fixed red — so "this day is a
+   holiday" reads from across the room the same way "this day is today" does,
+   and matches the pill the same day already renders in that color.
+
+   A ring rather than a colored day number, because the day number has to stay
+   the theme's own text color to be legible: holiday calendar colors run light
+   (Google's is a pale green), which disappears against a white cell in light
+   mode. Declared before .calendar-cell--today below so a day that is both a
+   holiday and today keeps today's marker. */
+.calendar-cell--holiday .calendar-cell__day {
+  background: color-mix(in srgb, var(--holiday-color, var(--color-accent)) 25%, transparent);
+  /* Inset rather than a border so the mark can't change the day number's box
+     (it's a fixed 1.6em circle) and shift the event pills below it. */
+  box-shadow: inset 0 0 0 2px var(--holiday-color, var(--color-accent));
+  border-radius: 50%;
+  font-weight: 600;
+}
+
 .calendar-cell--today .calendar-cell__day {
   /* Fixed white regardless of theme — reads reliably against the red
      marker circle either way, unlike the theme's own body text color. */
   color: #ffffff;
   background: var(--color-today);
+  /* Undoes the holiday ring above for a day that's both: one marker reads
+     better than a holiday-colored ring drawn around today's red circle. */
+  box-shadow: none;
   border-radius: 50%;
   font-weight: 700;
 }
