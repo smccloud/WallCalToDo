@@ -31,8 +31,13 @@ const saveSync = (sync) => writeJson(SYNC_FILE, sync);
 // (see CalendarView.jsx/DayAgenda.jsx), so prefix them to keep a collision
 // from making React reuse the wrong node. Same value used as the cache key
 // so a cancellation deletes the entry it created.
+//
+// iCalUId is the fallback because a delta round can hand back an expanded
+// occurrence of a recurring series with no `id` at all, only its iCalUId.
+// Keying on id alone collapsed every such event onto one `ms:undefined`
+// entry, so all but the last silently overwrote each other.
 const ID_PREFIX = 'ms:';
-const eventKey = (event) => `${ID_PREFIX}${event.id}`;
+const eventKey = (event) => `${ID_PREFIX}${event.id || event.iCalUId}`;
 
 // Every event id in the wall display's flat list, from either provider, needs
 // to be unique on its own. This one is derived from the calendar rather than
@@ -45,6 +50,31 @@ const calendarKey = (calendarId) => `${ID_PREFIX}calendar::${calendarId}`;
 // delta round, not just the first -- the returned deltaLink carries the
 // query parameters but not the headers.
 const PREFER_HEADERS = { Prefer: 'outlook.timezone="UTC"' };
+
+// calendarView/delta answers with a restricted default property set, and a
+// delta round that omits a field the code below reads is indistinguishable
+// from one where the event genuinely doesn't have it. That bit us twice:
+// responseStatus missing made every declined/tentative invite look accepted
+// (see isAcceptedByUser), and organizer missing would leave no way to tell an
+// invite from someone else's calendar apart from the user's own. Ask for what
+// we depend on by name rather than hoping for it.
+//
+// id and iCalUId are both requested because neither is reliable alone across
+// delta rounds -- see eventKey().
+const DELTA_SELECT = [
+  'id',
+  'iCalUId',
+  'subject',
+  'start',
+  'end',
+  'isAllDay',
+  'location',
+  'organizer',
+  'responseStatus',
+  'isCancelled',
+  'isDraft',
+  'type',
+].join(',');
 
 // Graph's dateTime is a naive wall-clock string with 7 fractional digits and
 // no offset. With the UTC preference above, that wall clock *is* UTC, so
@@ -129,6 +159,10 @@ function normalizeEvent(event, context) {
     end: allDay ? exclusiveAllDayEnd(event.end?.dateTime, start) : toIsoInstant(event.end?.dateTime),
     allDay,
     location: event.location?.displayName || null,
+    // Who created the event, as a lowercased address for comparison. Not
+    // display-facing -- this is the field getCachedMsEvents() filters on to
+    // honour "hide everything from a person whose shared calendar is off".
+    organizerEmail: event.organizer?.emailAddress?.address?.toLowerCase() || null,
     calendarKey: context.calendarKey,
     calendarLabel: context.calendarLabel,
     calendarColor: context.color,
@@ -154,6 +188,10 @@ async function walkDelta(url, accessToken, entries, context, seen) {
   while (next) {
     const data = await graphFetch(next, accessToken, PREFER_HEADERS);
     for (const event of data.value || []) {
+      // Neither identifier present means there's nothing stable to key this
+      // on, and caching it under a shared placeholder would let one event
+      // overwrite another. Skip it rather than guess.
+      if (!event.id && !event.iCalUId) continue;
       changed = true;
       if (seen) seen.add(eventKey(event));
       if (event['@removed']) delete entries[eventKey(event)];
@@ -178,7 +216,8 @@ async function fullSync(accessToken, calendarId, entries, context) {
   const timeMax = new Date(Date.now() + FULL_SYNC_WINDOW_DAYS * 86400000).toISOString();
   const startUrl =
     `${GRAPH_BASE}/me/calendars/${encodeURIComponent(calendarId)}/calendarView/delta` +
-    `?startDateTime=${encodeURIComponent(timeMin)}&endDateTime=${encodeURIComponent(timeMax)}`;
+    `?$select=${encodeURIComponent(DELTA_SELECT)}` +
+    `&startDateTime=${encodeURIComponent(timeMin)}&endDateTime=${encodeURIComponent(timeMax)}`;
 
   const seen = new Set();
   const { deltaLink } = await walkDelta(startUrl, accessToken, entries, context, seen);
@@ -317,18 +356,69 @@ export function dropAllCalendarsCache() {
   saveSync({});
 }
 
+// Which events to drop on the way out, beyond the enabled-calendar check.
+//
+// Turning a shared calendar off hides that calendar's own events, but not
+// the ones its owner invited you to. An invite creates a *separate* copy in
+// your own calendar, so it survives the toggle and keeps appearing on the
+// wall even though you can't see the calendar it "came from" -- turning a
+// person off read as "silence that person" and it wasn't. So match on the
+// event's organizer as well as which calendar it's filed under.
+//
+// Two deliberate limits:
+//
+// Only applied to calendars the user owns. A shared calendar that is still
+// enabled is governed by the enabled check alone; if someone has two shared
+// calendars with you and you disable one, the other's events must not vanish.
+//
+// Never hides an event you organized yourself. `me` can't be in `organizers`
+// by construction, so a meeting you scheduled stays put no matter which
+// shared calendars happen to be off.
+//
+// The connected account's address comes from the default calendar's owner
+// rather than the MSAL token cache, because getConnectedAccount() is async
+// and this runs on every read that feeds the display. If that can't be
+// determined, no owner-based hiding happens at all -- the safe direction,
+// since guessing wrong would hide the user's own meetings.
+function hiddenOrganizers(calendars) {
+  const owned = new Set();
+  const organizers = new Set();
+  const me = calendars.find((calendar) => calendar.isDefaultCalendar)?.ownerEmail || null;
+  if (!me) return { owned, organizers };
+  for (const calendar of calendars) {
+    if (!calendar.ownerEmail) continue;
+    if (calendar.ownerEmail === me) owned.add(calendar.id);
+    else if (!calendar.enabled) organizers.add(calendar.ownerEmail);
+  }
+  return { owned, organizers };
+}
+
 // Only events from currently-enabled calendars, and no null entries: like
 // todoService's, this is a plain JSON file on an SD card with no atomic
 // write guarantee, and a bad entry would otherwise reach the sort in
 // getCachedEvents() (new Date(undefined) is Invalid Date, which doesn't
 // throw, but the display's own date math downstream would).
+//
+// Reading a file with a fresh listCalendars() each time is deliberate: the
+// point of the exercise is that toggling a calendar takes effect immediately,
+// without waiting for or triggering a new poll.
 export function getCachedMsEvents() {
   const cache = loadEvents();
-  const enabled = new Set(listCalendars().filter((calendar) => calendar.enabled).map((calendar) => calendar.id));
+  const calendars = listCalendars();
+  const enabled = new Set(calendars.filter((calendar) => calendar.enabled).map((calendar) => calendar.id));
+  const { owned, organizers } = hiddenOrganizers(calendars);
+
   const events = [];
   for (const [id, entries] of Object.entries(cache)) {
     if (!enabled.has(id)) continue;
-    events.push(...Object.values(entries).filter(Boolean));
+    const fromOwnCalendar = owned.has(id);
+    for (const event of Object.values(entries)) {
+      if (!event) continue;
+      // An event cached before organizerEmail existed has none; leave those
+      // alone rather than treat "unknown organizer" as "hidden organizer".
+      if (fromOwnCalendar && event.organizerEmail && organizers.has(event.organizerEmail)) continue;
+      events.push(event);
+    }
   }
   return events;
 }

@@ -315,7 +315,7 @@ function calendarDisplayColor(calendar) {
   return GRAPH_CALENDAR_COLORS[String(calendar.color).toLowerCase()] || GRAPH_CALENDAR_COLORS.auto;
 }
 
-// [{ id, name, color, hexColor, isDefaultCalendar, enabled, displayColor }]
+// [{ id, name, color, hexColor, isDefaultCalendar, ownerEmail, enabled, displayColor }]
 // — the same shape googleAuth keeps per calendar (an id, a display name, a
 // color, and the companion app's enabled flag), with Graph's field names
 // kept as they arrive rather than renamed to Google's.
@@ -360,6 +360,11 @@ export async function refreshCalendars() {
     color: item.color || 'auto',
     hexColor: item.hexColor || null,
     isDefaultCalendar: Boolean(item.isDefaultCalendar),
+    // Whose calendar this is, lowercased for comparison. This is what tells a
+    // calendar the user owns apart from one shared with them, which the
+    // organizer-based hiding in msCalendarService depends on -- see
+    // hiddenOrganizers() there.
+    ownerEmail: item.owner?.emailAddress?.address?.toLowerCase() || null,
     enabled: existing.get(item.id)?.enabled ?? true,
   }));
   writeJson(CALENDARS_FILE, calendars);

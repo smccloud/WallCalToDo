@@ -212,6 +212,16 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   a switch hides or shows that calendar's events on the wall display
   immediately — no polling delay, since filtering happens at read time
   against calendars already cached.
+- **Silencing a shared Microsoft calendar** — turning off a calendar someone
+  shared with you hides their events *and* the ones they invited you to. Those
+  are separate copies: an invite lands in your own calendar, so hiding their
+  calendar alone leaves those meetings on the wall, which reads as the toggle
+  not working. Matching on the event's organizer as well as the calendar it's
+  filed under is what makes it mean what you expect. It only applies to
+  calendars you own your own copy of, and never hides an event you organized
+  yourself — a meeting you scheduled stays put no matter which shared
+  calendars happen to be off. Disabling one of two shared calendars from the
+  same person leaves the other one's events alone, too.
 - **Disconnect a Google account** — removes it and its cached events
   entirely.
 - **Refresh calendars** — neither provider notifies us when you create a new
