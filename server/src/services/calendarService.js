@@ -48,6 +48,16 @@ async function getEventColors(calendarApi, accountId) {
 // hiding them made the wall disagree with both Google Calendar and Outlook,
 // which both list such invites dimmed rather than omitting them.
 function isAcceptedByUser(event) {
+  // Exception, ahead of everything else: an event Google itself labels a
+  // birthday is generated from the account's own contacts, and nobody is ever
+  // invited to somebody's birthday — there's no organizer to decline and no
+  // RSVP to answer. The API documents no attendee list for this event type at
+  // all, so this is a guard rather than a known shape, but the cost of being
+  // wrong in one direction is much worse than the other: an attendee list
+  // carrying a "declined" status would run this event through the invite rules
+  // below and delete somebody's birthday off the wall, invisibly, which is the
+  // exact failure mode the rest of this function exists to prevent.
+  if (event.eventType === 'birthday') return true;
   if (event.organizer?.self) return true;
   if (!event.attendees || event.attendees.length === 0) return true; // no invitees at all - a personal event
   const self = event.attendees.find((attendee) => attendee.self);

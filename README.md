@@ -259,7 +259,14 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   personal + work). Reconnecting an account you've already added updates
   its tokens instead of creating a duplicate.
 - **Toggle calendars on/off** — each connected account lists every
-  calendar the provider returns for it (not just the primary one). Flipping
+  calendar the provider returns for it (not just the primary one), plus one
+  Google deliberately leaves out: your own **Birthdays** calendar. Google never
+  returns that one from the API's calendar listing, so it's asked for by its
+  well-known id instead and merged in — otherwise it would be sitting right
+  there in Google Calendar, ticked on and full of birthdays, and never reach the
+  wall. Nothing to subscribe to and nothing to tick on your side: it appears in
+  the list the next time you tap **Refresh calendars** (or reconnect), and if
+  the account has it switched off in Google Calendar it stays out. Flipping
   a switch hides or shows that calendar's events on the wall display
   immediately — no polling delay, since filtering happens at read time
   against calendars already cached. Note this means "hide *this calendar*",
@@ -289,7 +296,9 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   entirely.
 - **Refresh calendars** — neither provider notifies us when you create a new
   calendar, so this button re-fetches an account's calendar list on
-  demand (new calendars default to enabled).
+  demand (new calendars default to enabled). It also picks up the
+  Birthdays calendar, which is the way to get it onto a display that's
+  already been running against an older backend.
 - **Connect a Microsoft account** — one account at a time, supplying *both*
   the calendars and the to-do lists from the single sign-in. Discovers
   every calendar it can read (including ones shared with you) and every To
