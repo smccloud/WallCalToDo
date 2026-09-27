@@ -67,6 +67,34 @@ const PREFER_HEADERS = { Prefer: 'outlook.timezone="UTC"' };
 // surprising count of untitled events as a sync bug until proven otherwise.
 const UNTITLED = '(No title)';
 
+// Why events went missing, tallied per round and logged once at the end.
+//
+// upsertEvent() *deletes* anything it won't keep, so the cache is
+// write-on-accept and a rejected event leaves no trace: "the API shows fewer
+// events than Outlook" is undiagnosable from the outside, because a stripped
+// property set, a declined invite, a cancellation and a draft all look the
+// same from the API. keptUntitled is the one that matters most -- it means we
+// cached the event but lost its subject, which is a bug rather than a policy.
+const dropTally = { kept: 0, keptUntitled: 0, noKey: 0, removed: 0, cancelled: 0, draft: 0, notAccepted: 0 };
+
+function resetDropTally() {
+  for (const key of Object.keys(dropTally)) dropTally[key] = 0;
+}
+
+// One line per round, and only when something was actually dropped or came
+// back without a subject. Steady-state incremental rounds usually only walk
+// changes, so this stays quiet until there is a reason to look.
+function logDropTally() {
+  const dropped = dropTally.cancelled + dropTally.draft + dropTally.notAccepted
+    + dropTally.removed + dropTally.noKey;
+  if (dropped === 0 && dropTally.keptUntitled === 0) return;
+  const parts = Object.entries(dropTally)
+    .filter(([, count]) => count > 0)
+    .map(([reason, count]) => `${reason}=${count}`)
+    .join(' ');
+  console.log(`[ms-calendar] round: ${parts}`);
+}
+
 // Deliberately no $select here.
 //
 // calendarView/delta does not apply $select consistently: it honours it for
@@ -149,8 +177,13 @@ function isAcceptedByUser(event) {
 // be on the display" -- same three-way split calendarService.js has between
 // Google's status/organizer checks, expressed in Graph's vocabulary.
 function upsertEvent(entries, event, context) {
-  if (event.isCancelled || event.isDraft || !isAcceptedByUser(event)) delete entries[eventKey(event)];
-  else entries[eventKey(event)] = normalizeEvent(event, context);
+  if (event.isCancelled) { dropTally.cancelled += 1; delete entries[eventKey(event)]; return; }
+  if (event.isDraft) { dropTally.draft += 1; delete entries[eventKey(event)]; return; }
+  if (!isAcceptedByUser(event)) { dropTally.notAccepted += 1; delete entries[eventKey(event)]; return; }
+  const normalized = normalizeEvent(event, context);
+  if (normalized.title === UNTITLED) dropTally.keptUntitled += 1;
+  else dropTally.kept += 1;
+  entries[eventKey(event)] = normalized;
 }
 
 function normalizeEvent(event, context) {
@@ -195,10 +228,10 @@ async function walkDelta(url, accessToken, entries, context, seen) {
       // Neither identifier present means there's nothing stable to key this
       // on, and caching it under a shared placeholder would let one event
       // overwrite another. Skip it rather than guess.
-      if (!event.id && !event.iCalUId) continue;
+      if (!event.id && !event.iCalUId) { dropTally.noKey += 1; continue; }
       changed = true;
       if (seen) seen.add(eventKey(event));
-      if (event['@removed']) delete entries[eventKey(event)];
+      if (event['@removed']) { dropTally.removed += 1; delete entries[eventKey(event)]; }
       else upsertEvent(entries, event, context);
     }
     next = data['@odata.nextLink'] || null;
@@ -307,6 +340,7 @@ export async function pollMsCalendar() {
   }
 
   const cache = loadEvents();
+  resetDropTally();
   const sync = loadSync();
   let changed = false;
   let calendarOrder = calendarOrderOffset();
@@ -330,6 +364,7 @@ export async function pollMsCalendar() {
 
   saveEvents(cache);
   saveSync(sync);
+  logDropTally();
   return { changed };
 }
 
