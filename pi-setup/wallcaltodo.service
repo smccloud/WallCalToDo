@@ -4,6 +4,12 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
+# systemd's own "Starting/Started/Stopped/Consumed" lines are info-level, so
+# this is what keeps a restart from printing them. Needs systemd 240 or newer
+# (Raspberry Pi OS Bullseye and later); on anything older the directive is
+# unrecognized and the unit won't start at all, so drop the line there. The
+# backend's own errors are still err-level and still get through.
+LogLevelMax=notice
 # Both of these assume a checkout at /home/pi owned by the user "pi" --
 # edit them (and User=) before copying to /etc/systemd/system/ if yours
 # differs.

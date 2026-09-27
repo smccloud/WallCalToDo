@@ -481,6 +481,13 @@ path and re-running these commands appears to change nothing at all. The
 reload is only needed when the unit file itself changes; normal
 `sudo systemctl restart wallcaltodo` after editing settings doesn't need it.
 
+The unit sets `LogLevelMax=notice`, which is what keeps a restart from
+printing systemd's own "Starting…/Stopped…/Consumed…" lines — those are
+info-level and the backend has nothing to say at boot. Anything that
+actually went wrong still appears in `journalctl -u wallcaltodo`. (It
+needs systemd 240+, which is any Pi OS from Bullseye on; on something
+older, delete that line or the unit won't start at all.)
+
 ### 7. Connect your accounts
 
 Do this step on the Pi's own screen (i.e. with a keyboard/mouse on the
