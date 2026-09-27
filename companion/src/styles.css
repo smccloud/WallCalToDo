@@ -373,6 +373,16 @@ body {
   color: var(--color-accent);
 }
 
+/* Sits between the "Where do I get this?" steps and the form itself, for the
+   optional field a provider may add (Microsoft's tenant ID) -- its own field
+   is a bare input with just a placeholder, so the guidance about leaving it
+   blank belongs outside the collapsed steps panel. */
+.api-credentials__hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
 .api-credentials__form {
   display: flex;
   flex-direction: column;

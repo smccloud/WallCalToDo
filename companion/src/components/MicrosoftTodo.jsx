@@ -22,6 +22,27 @@ const MICROSOFT_HELP_STEPS = [
   </>,
 ];
 
+// The Entra tenant the sign-in page points at, as an optional third field on
+// the credentials form. Blank means "any Microsoft account" -- the server
+// falls back to server/.env's MS_TENANT_ID and then to Microsoft's multi-
+// tenant "common" endpoint, which is what a personal account needs since it
+// has no directory of its own. A tenant ID only matters if sign-ins should
+// be restricted to one organization's directory, which is why this is an
+// optional afterthought to the walkthrough above rather than one of its steps.
+const MICROSOFT_OPTIONAL_FIELD = {
+  name: 'tenantId',
+  label: 'Tenant ID',
+  summaryLabel: 'Tenant',
+  placeholder: 'Tenant ID (optional)',
+  hint: (
+    <>
+      <strong>Tenant ID is optional</strong> — leave it blank to accept any Microsoft account, which is the default. Set
+      it only to limit sign-ins to your own organization's directory, using the <strong>Directory (tenant) ID</strong>{' '}
+      from the app's <strong>Overview</strong> page.
+    </>
+  ),
+};
+
 // Microsoft To Do section: the credentials this deployment needs before it
 // can connect an account, then the connected account's lists (including
 // ones shared with you) with enable toggles, plus connect/refresh/
@@ -56,6 +77,7 @@ export default function MicrosoftTodo({
           redirectUri="http://localhost:3000/auth/microsoft/callback"
           helpSteps={MICROSOFT_HELP_STEPS}
           status={credentialsStatus}
+          optionalField={MICROSOFT_OPTIONAL_FIELD}
           onSave={onSaveCredentials}
         />
       )}

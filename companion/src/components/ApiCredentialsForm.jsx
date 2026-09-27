@@ -13,10 +13,21 @@ import { useState } from 'react';
 // backend) -- `status.configured` is all this has to go on to know one's
 // already on file, and the field just stays blank until you type a new
 // one.
-export default function ApiCredentialsForm({ providerLabel, redirectUri, helpSteps, status, onSave }) {
+//
+// `optionalField` adds a third, non-required input for a provider that has
+// one (currently Microsoft's Entra tenant ID, see MicrosoftTodo.jsx) without
+// making the form itself Microsoft-specific: the provider supplies the
+// details via { name, label, summaryLabel, placeholder, hint }, and this form
+// just renders it and forwards whatever was typed as a second argument to
+// onSave. Its starting value is the server's effective one
+// (`status[name]`), so it pre-fills with the tenant that will really be used
+// -- including the default -- and the collapsed summary shows that same value,
+// so the setting is visible without opening the form.
+export default function ApiCredentialsForm({ providerLabel, redirectUri, helpSteps, status, optionalField, onSave }) {
   const [expanded, setExpanded] = useState(!status?.configured);
   const [clientId, setClientId] = useState(status?.clientId || '');
   const [clientSecret, setClientSecret] = useState('');
+  const [optionalValue, setOptionalValue] = useState(status?.[optionalField?.name] || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -25,7 +36,9 @@ export default function ApiCredentialsForm({ providerLabel, redirectUri, helpSte
     setSaving(true);
     setError(null);
     try {
-      await onSave({ clientId: clientId.trim(), clientSecret: clientSecret.trim() });
+      // Second argument, kept out of the { clientId, clientSecret } shape so
+      // this form never has to know what the extra field is called.
+      await onSave({ clientId: clientId.trim(), clientSecret: clientSecret.trim() }, optionalField ? { [optionalField.name]: optionalValue } : undefined);
       setClientSecret('');
       setExpanded(false);
     } catch (err) {
@@ -47,7 +60,13 @@ export default function ApiCredentialsForm({ providerLabel, redirectUri, helpSte
       </div>
 
       {status?.configured && !expanded ? (
-        <p className="api-credentials__status">Configured — Client ID ends in “…{status.clientId.slice(-6)}”.</p>
+        <p className="api-credentials__status">
+          Configured — Client ID ends in “…{status.clientId.slice(-6)}”
+          {/* An omitted field is still a setting with a value in effect, so
+              name it here rather than letting it look unset. */}
+          {optionalField && status[optionalField.name] && <> — {optionalField.summaryLabel}: <code>{status[optionalField.name]}</code></>}
+          .
+        </p>
       ) : (
         <>
           <details className="api-credentials__help">
@@ -62,6 +81,7 @@ export default function ApiCredentialsForm({ providerLabel, redirectUri, helpSte
               <li>Copy the Client ID and Client Secret it gives you into the fields below.</li>
             </ol>
           </details>
+          {optionalField?.hint && <p className="api-credentials__hint">{optionalField.hint}</p>}
           <form className="api-credentials__form" onSubmit={handleSubmit}>
             <input
               type="text"
@@ -77,6 +97,16 @@ export default function ApiCredentialsForm({ providerLabel, redirectUri, helpSte
               disabled={saving}
               onChange={(e) => setClientSecret(e.target.value)}
             />
+            {optionalField && (
+              <input
+                type="text"
+                placeholder={optionalField.placeholder}
+                aria-label={optionalField.label}
+                value={optionalValue}
+                disabled={saving}
+                onChange={(e) => setOptionalValue(e.target.value)}
+              />
+            )}
             <button
               type="submit"
               className="button button--primary"

@@ -192,6 +192,9 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   credentials in that provider's console. No terminal/`.env` editing
   required (see the setup guide's step 7 below for screenshots) — this is
   the one thing about each provider that only needs to be entered once.
+  The Microsoft one also has an optional Tenant ID field, which scopes
+  sign-in to a single Entra directory and can be left blank (the default)
+  to accept any Microsoft account.
 - **Add a Google account** — tapping the button starts the normal Google
   OAuth flow; you can connect as many Google accounts as you want (e.g.
   personal + work). Reconnecting an account you've already added updates
@@ -396,6 +399,13 @@ browser running on the Pi itself.
 
    ![Microsoft To Do Reminders section of the companion app, showing the expanded "Where do I get this?" steps and the Client ID/Client Secret fields](docs/setup-microsoft-credentials.png)
 
+   There's also an optional **Tenant ID** field, which most people can leave
+   blank: it decides which Entra directory the sign-in page points at, and
+   the default accepts any Microsoft account (a personal Microsoft account
+   has no directory of its own to point at). Only fill it in if you want
+   sign-ins restricted to your own organization's directory, using the
+   **Directory (tenant) ID** from the app's **Overview** page.
+
 5. Tap **+ Connect Microsoft account** and sign in.
 
 If anything about a connection attempt fails (wrong secret, an account
@@ -409,8 +419,8 @@ your real events/tasks. If it's empty, give it a minute (it polls every
 
 <sub>Prefer editing a file over a web form? `server/.env` still accepts
 `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`MS_CLIENT_ID`/`MS_CLIENT_SECRET`
-as a fallback — whatever's saved through the companion app just takes
-priority over them.</sub>
+(as well as the optional `MS_TENANT_ID`) as a fallback — whatever's saved
+through the companion app just takes priority over them.</sub>
 
 ### 8. Enable kiosk mode (and rotate the display, if mounting in portrait)
 

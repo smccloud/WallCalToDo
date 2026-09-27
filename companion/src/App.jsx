@@ -176,13 +176,15 @@ export default function App() {
     }
   }
 
-  // provider is 'google' or 'ms'. Throws on failure so ApiCredentialsForm
-  // can show the error inline next to the fields instead of it going to
-  // the shared banner above the account list.
-  async function saveCredentials(provider, { clientId, clientSecret }) {
+  // provider is 'google' or 'ms'. `extra` is the form's optional
+  // provider-specific fields (currently just Microsoft's Entra tenant ID),
+  // merged straight into the request body. Throws on failure so
+  // ApiCredentialsForm can show the error inline next to the fields instead
+  // of it going to the shared banner above the account list.
+  async function saveCredentials(provider, { clientId, clientSecret }, extra) {
     const data = await api(`/credentials/${provider}`, {
       method: 'PUT',
-      body: JSON.stringify({ clientId, clientSecret }),
+      body: JSON.stringify({ clientId, clientSecret, ...extra }),
     });
     setCredentials(data);
   }
