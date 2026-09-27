@@ -294,12 +294,65 @@ This intentionally does *not* have a login/passcode — it trusts your home
 network, same as the rest of this setup. It's also **not reachable from
 outside your Wi-Fi** by design; if you want to tweak settings while out of
 the house, put something like Tailscale on the Pi rather than exposing it
-publicly.
+publicly. The one exception to "the whole app trusts your home network" is
+the account connect flow, which is limited to the Pi's own screen plus any
+networks you explicitly list — see the next section.
 
-**Connecting a new account has to happen on the Pi's own screen**, not
-from your phone — see step 7 of the setup guide below for why. Everyday
-use of the companion app (toggling calendars, disconnecting an account)
-works fine from your phone once accounts are already connected.
+### Connecting an account from a remote computer
+
+The one thing the companion app deliberately won't do from just anywhere is
+connect a new account. Both providers only allow a plain-`http://` redirect
+URI for the literal loopback address, so the leg that comes back from
+Google/Microsoft's consent screen carrying the code only reaches the Pi if the
+browser doing it can resolve `localhost:3000` to the Pi itself — i.e. from
+the Pi's own screen. From any other device it looks like it's working right up
+through the provider's own consent screen, then silently fails on the way
+back, which is why the buttons are hidden rather than left to fail confusingly.
+
+That's the default: loopback only, nothing to configure, and the rest of the
+companion app (toggling calendars, disconnecting an account, changing
+settings) stays open to your home network as described above. Everyday use
+from your phone works exactly as before.
+
+If you'd rather not walk over to the Pi to add an account, list the networks
+you trust in `server/.env`:
+
+```
+TRUSTED_CIDRS=192.168.1.0/24
+```
+
+and restart the backend (`sudo systemctl restart wallcaltodo`). The server
+checks the address each request came in on, so this is a real gate rather than
+something the app guesses at from its own hostname: the OAuth callback is
+refused as well as the button that starts the flow (it's the callback that
+actually exchanges a code for a token, so gating only the button would be
+worthless), and a refused request comes back to the companion app with a
+message saying which address it was seen as and what to do about it. Entries
+can be single addresses or ranges, IPv4 or IPv6, comma-separated —
+`192.168.1.42,10.0.0.0/8,fd00::/8` — the Pi's own loopback is always allowed
+without being listed, and an entry that doesn't parse (a stray `/33`, a typo
+in an address) is named in `journalctl` at startup instead of quietly leaving
+you locked out of your own account connects.
+
+Listing a network says "these computers may start an account connect". It
+doesn't change where the provider sends the browser back to, so that half
+still needs one of:
+
+- **A port forward**, which is what the
+  `ssh -L 3000:localhost:3000 pi@wallcaltodo.local` line under "Managing it
+  later" is for. Open `http://localhost:3000/companion` in the remote
+  computer's browser through that tunnel and `localhost` *is* the Pi, so the
+  registered redirect URI works untouched and no Google/Microsoft setting
+  changes at all. The forwarded request arrives from that computer's real
+  address, which is why its network needs to be in `TRUSTED_CIDRS` too.
+- **A real redirect URI**, if you'd rather not hold a tunnel open (a phone,
+  mostly): set `GOOGLE_REDIRECT_URI`/`MS_REDIRECT_URI` in `server/.env` to an
+  HTTPS address that reaches the Pi, register that same address with the
+  provider, and list the phone's/computer's network in `TRUSTED_CIDRS`. Both
+  providers refuse plain `http://` for anything but loopback, so this needs
+  TLS in front of the Pi — a reverse proxy on it, or Tailscale, or similar.
+  The credentials walkthrough in the companion app shows whichever URI is
+  actually configured, so it stays accurate either way.
 
 ## Hardware notes
 
@@ -390,8 +443,11 @@ cp server/.env.example server/.env
 ```
 
 That's it for `.env` — it only holds things like the port and poll
-interval now. Your Google/Microsoft credentials get entered through the
-companion app itself in step 7 below, not by hand-editing a file.
+interval now, plus the optional `TRUSTED_CIDRS` list of networks allowed to
+connect an account remotely (see "Connecting an account from a remote
+computer" above; not needed for a from-scratch setup). Your Google/Microsoft
+credentials get entered through the companion app itself in step 7 below,
+not by hand-editing a file.
 
 ### 5. Install dependencies and build both apps
 
@@ -429,7 +485,10 @@ Do this step on the Pi's own screen (i.e. with a keyboard/mouse on the
 monitor connected to the Pi, in its normal desktop — not kiosk mode yet,
 and not from your phone). This is required because the redirect URLs each
 provider needs are `localhost`-only, which only means something to a
-browser running on the Pi itself.
+browser running on the Pi itself. If you'd rather not walk over to the Pi,
+see "Connecting an account from a remote computer" above — it's the same
+steps, just with your computer's network added to `TRUSTED_CIDRS` and the
+provider's redirect getting back to the Pi through a port forward.
 
 1. Open the Pi's Chromium (Menu → Internet → Chromium) and go to:
    ```
@@ -528,11 +587,18 @@ automatically (see "Auto-update behavior" above).
 From your phone, on the same Wi-Fi, open
 `http://wallcaltodo.local:3000/companion` (swap in your own hostname) to
 toggle calendars or disconnect an account — this works fine from your
-phone. **Adding a brand-new account** still has to be done on the Pi's own
-screen, same as step 7 (or via an SSH tunnel —
-`ssh -L 3000:localhost:3000 pi@wallcaltodo.local`, then open
-`http://localhost:3000/companion` on your laptop through the
-tunnel — if you'd rather not walk over to the Pi).
+phone. **Adding a brand-new account** still has to come from a device
+allowed to run that flow: the Pi's own screen, same as step 7, or one of the
+networks in `TRUSTED_CIDRS` (see "Connecting an account from a remote
+computer" above). Over SSH rather than walking over:
+
+```
+ssh -L 3000:localhost:3000 pi@wallcaltodo.local
+```
+
+then open `http://localhost:3000/companion` on your laptop through the
+tunnel. Add your laptop's network to `TRUSTED_CIDRS` first (and restart the
+backend) or the request will be turned away.
 
 ### Troubleshooting
 
@@ -543,7 +609,22 @@ tunnel — if you'd rather not walk over to the Pi).
   `sudo journalctl -u wallcaltodo -n 50` for the actual error.
 - **Google/Microsoft connect fails** — the companion app shows the reason
   in a banner at the top of the page (wrong Client Secret, an account not
-  added as a Google test user yet, etc.) rather than leaving you guessing.
+  added as a Google test user yet, a device that isn't allowed to connect an
+  account, etc.) rather than leaving you guessing.
+- **"Adding a new account" buttons missing, or a connect attempt bounced
+  back with a banner** — that device isn't the Pi's own screen and its network
+  isn't in `TRUSTED_CIDRS`, which is the intended default rather than a bug.
+  Either open `http://localhost:3000/companion` on the Pi itself, or add the
+  address the banner names (or its `/24`) to `TRUSTED_CIDRS` in `server/.env`
+  and `sudo systemctl restart wallcaltodo`. If you added an entry and it's
+  still refused, `sudo journalctl -u wallcaltodo -n 50` prints the parsed
+  list at startup and names any entry it couldn't use.
+- **A connect from a listed computer still fails after the consent screen** —
+  the device got past the allowlist, so this is the redirect: it comes back
+  to `http://localhost:3000/...`, which only reaches the Pi if that browser
+  resolves `localhost` to it. Keep an SSH port forward open
+  (`ssh -L 3000:localhost:3000 pi@wallcaltodo.local`) or register a real
+  HTTPS redirect URI — see "Connecting an account from a remote computer".
 - **A Microsoft account's to-do lists work but its calendars don't** — it was
   connected before `Calendars.Read` was requested, so its existing token
   only carries `Tasks.Read`. The companion app's Microsoft section says so

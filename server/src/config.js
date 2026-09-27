@@ -13,6 +13,12 @@ export const DEFAULT_MS_TENANT_ID = 'common';
 export const config = {
   port: Number(process.env.PORT || 3000),
   pollIntervalMs: Number(process.env.POLL_INTERVAL_MS || 60000),
+  // Comma-separated networks allowed to run an account connect flow from a
+  // device other than the Pi's own screen (e.g. a laptop on the same
+  // Wi-Fi). Unset/blank means the Pi's own screen only, which is the default
+  // everything else in the README assumes -- see
+  // services/trustedNetworks.js for the parsing and the check itself.
+  trustedCidrs: process.env.TRUSTED_CIDRS || '',
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,

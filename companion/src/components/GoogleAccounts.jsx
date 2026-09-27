@@ -1,4 +1,4 @@
-import { CAN_ADD_ACCOUNTS } from '../constants.js';
+import AddAccountNote from './AddAccountNote.jsx';
 import ApiCredentialsForm from './ApiCredentialsForm.jsx';
 
 const GOOGLE_HELP_STEPS = [
@@ -30,6 +30,8 @@ export default function GoogleAccounts({
   loading,
   busyAccountId,
   credentialsStatus,
+  canAddAccounts,
+  clientAddress,
   onSaveCredentials,
   onToggleCalendar,
   onRefreshAccount,
@@ -52,7 +54,7 @@ export default function GoogleAccounts({
       {credentialsStatus && (
         <ApiCredentialsForm
           providerLabel="Google"
-          redirectUri="http://localhost:3000/auth/google/callback"
+          redirectUri={credentialsStatus.redirectUri}
           helpSteps={GOOGLE_HELP_STEPS}
           status={credentialsStatus}
           onSave={onSaveCredentials}
@@ -109,17 +111,17 @@ export default function GoogleAccounts({
         ))}
       </div>
 
+      {/* `!loading` on the blocked branch so it doesn't flash up while the
+          page's first /accounts call — the one carrying canAddAccounts — is
+          still in flight. */}
       {!configured ? (
         <p className="add-account-note">Enter your Google API credentials above before connecting an account.</p>
-      ) : CAN_ADD_ACCOUNTS ? (
+      ) : canAddAccounts ? (
         <a className="button button--primary add-account" href="/auth/google">
           + Add Google account
         </a>
       ) : (
-        <p className="add-account-note">
-          You can only add a new Google account on the Pi's own screen — open{' '}
-          <code>http://localhost:3000/companion</code> there.
-        </p>
+        !loading && <AddAccountNote what="Adding a new Google account" clientAddress={clientAddress} />
       )}
     </>
   );

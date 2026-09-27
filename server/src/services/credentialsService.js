@@ -67,15 +67,19 @@ export function setCredentials(provider, { clientId, clientSecret, tenantId }) {
 // What the companion app's credentials form reads/shows: the client ID
 // (not sensitive, safe to echo back so the field isn't blank after a
 // reload), the resolved tenant ID so an optional field can show what it
-// will actually use, and whether a secret is on file -- the secret itself
-// is write-only, never sent back out once saved.
+// will actually use, the redirect URI the walkthrough tells you to register
+// (so it reflects server/.env's *_REDIRECT_URI rather than a hardcoded
+// localhost URL, which would be the wrong thing to register once that has
+// been pointed somewhere else), and whether a secret is on file -- the
+// secret itself is write-only, never sent back out once saved.
 export function getCredentialsStatus() {
   const status = (provider) => {
     const stored = load()[provider];
     const fallback = envDefaults(provider);
     const clientId = stored?.clientId || fallback.clientId;
     const configured = Boolean((stored?.clientId && stored?.clientSecret) || (fallback.clientId && fallback.clientSecret));
-    return { clientId, configured, ...(provider === 'ms' ? { tenantId: resolveTenantId(stored) } : {}) };
+    const redirectUri = provider === 'google' ? config.google.redirectUri : config.ms.redirectUri;
+    return { clientId, configured, redirectUri, ...(provider === 'ms' ? { tenantId: resolveTenantId(stored) } : {}) };
   };
   return { google: status('google'), ms: status('ms') };
 }

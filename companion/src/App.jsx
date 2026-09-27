@@ -44,6 +44,14 @@ export default function App() {
   const [msCalendarAccess, setMsCalendarAccess] = useState('not_connected');
   const [msBusy, setMsBusy] = useState(false);
 
+  // Whether *this* device is allowed to run an account connect flow, as the
+  // server decides it (see its trustedNetworks.js) rather than as this app
+  // guesses from its own hostname: the answer is about the network the
+  // request came in on, and either provider section has to act on it. Null
+  // until /accounts has answered, so the sections show nothing about it in
+  // the meantime instead of claiming it's not allowed.
+  const [authAccess, setAuthAccess] = useState(null);
+
   const [credentials, setCredentials] = useState(null);
   // Separate from `error` below on purpose: `error` reflects live API call
   // failures and gets cleared to null the moment any of them next
@@ -79,6 +87,7 @@ export default function App() {
       setMsAccount(data.microsoft.account);
       setMsCalendars(data.microsoft.calendars);
       setMsCalendarAccess(data.microsoft.calendarAccess);
+      setAuthAccess(data.authAccess ?? null);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -408,6 +417,8 @@ export default function App() {
         loading={loading}
         busyAccountId={busyAccountId}
         credentialsStatus={credentials?.google}
+        canAddAccounts={authAccess?.canAddAccounts}
+        clientAddress={authAccess?.clientAddress}
         onSaveCredentials={(creds) => saveCredentials('google', creds)}
         onToggleCalendar={toggleCalendar}
         onRefreshAccount={refreshAccount}
@@ -422,6 +433,8 @@ export default function App() {
         loading={loading || todoLoading}
         busy={msBusy}
         credentialsStatus={credentials?.ms}
+        canAddAccounts={authAccess?.canAddAccounts}
+        clientAddress={authAccess?.clientAddress}
         onSaveCredentials={(creds, extra) => saveCredentials('ms', creds, extra)}
         onToggleCalendar={toggleMsCalendar}
         onRefreshCalendars={refreshMsCalendars}

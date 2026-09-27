@@ -4,13 +4,39 @@ import * as microsoftAuth from '../auth/microsoftAuth.js';
 import { pollCalendar, getCachedEvents } from '../services/calendarService.js';
 import { pollMsCalendar } from '../services/msCalendarService.js';
 import { pollTodo } from '../services/todoService.js';
+import { clientAddress, isTrustedRequest } from '../services/trustedNetworks.js';
 import { broadcast } from '../ws/hub.js';
 
 export const authRouter = Router();
 
-// These are meant to be visited from a laptop/phone on the same network as
-// the Pi to grant access — the "Add Google Account" button in the
-// companion app links here directly. A real page navigation, not a fetch
+// Every route below is part of the one flow that can hand a new account's
+// calendar to this display, so all of them -- the two starts and the two
+// callbacks, not just the starts -- are limited to the Pi's own screen and the
+// networks in server/.env's TRUSTED_CIDRS (see trustedNetworks.js). Gating
+// only the starts would be pointless: the callback is the leg that exchanges
+// the code for a token, so it's the one that actually has to be refused.
+//
+// A refusal redirects rather than answering 403, for the same reason the
+// handlers below redirect their errors: these are real page navigations
+// through a provider's own consent screen, and a bare status code would
+// replace the companion app with an error page. This lands back on it with
+// the reason in the query string, which the companion app shows as a
+// dismissible banner (see its App.jsx).
+authRouter.use((req, res, next) => {
+  if (isTrustedRequest(req)) return next();
+  const address = clientAddress(req);
+  res.redirect(
+    `/companion?authError=${encodeURIComponent(
+      `Connecting an account isn't allowed from this device${
+        address ? ` (${address})` : ''
+      }. Add its network to TRUSTED_CIDRS in server/.env to allow it, or do it on the Pi's own screen at http://localhost:3000/companion.`
+    )}`
+  );
+});
+
+// These are meant to be visited from a device allowed to connect accounts
+// (the guard above) — the "Add Google account" button in the companion app
+// links here directly. A real page navigation, not a fetch
 // (the browser has to land on Google's own consent screen), so a failure
 // here can't just be a JSON response — send the browser back to the
 // companion app with the reason in the query string instead of hanging or

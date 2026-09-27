@@ -8,6 +8,7 @@ import {
   dropAllCalendarsCache,
 } from '../services/msCalendarService.js';
 import { getCachedTasks, dropListCache, dropAllListsCache } from '../services/todoService.js';
+import { clientAddress, isTrustedRequest } from '../services/trustedNetworks.js';
 import { broadcast } from '../ws/hub.js';
 
 export const accountsRouter = Router();
@@ -29,6 +30,15 @@ export const accountsRouter = Router();
 // briefly down) is not evidence about consent, so it falls back to the last
 // thing we did establish rather than telling the user their permissions are
 // wrong when they aren't.
+//
+// `authAccess` is whether *this* device may run an account connect flow (see
+// trustedNetworks.js), which the companion app uses to decide between offering
+// the add/reconnect buttons and explaining why it can't. The server decides
+// rather than the app guessing from its own hostname, since the rule is about
+// the network the request came in on, not the address the page was loaded
+// from. The address comes along for the same reason the buttons need an
+// explanation: "add your network to TRUSTED_CIDRS" isn't actionable without
+// knowing which network you're on.
 accountsRouter.get('/accounts', async (req, res) => {
   const account = await microsoftAuth.getConnectedAccount();
   let calendarAccess = 'not_connected';
@@ -44,6 +54,7 @@ accountsRouter.get('/accounts', async (req, res) => {
   res.json({
     google: googleAuth.listAccounts(),
     microsoft: { account, calendars: microsoftAuth.listCalendars(), calendarAccess },
+    authAccess: { canAddAccounts: isTrustedRequest(req), clientAddress: clientAddress(req) },
   });
 });
 

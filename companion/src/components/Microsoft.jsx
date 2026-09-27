@@ -1,4 +1,4 @@
-import { CAN_ADD_ACCOUNTS } from '../constants.js';
+import AddAccountNote from './AddAccountNote.jsx';
 import ApiCredentialsForm from './ApiCredentialsForm.jsx';
 
 // Both delegated Graph permissions this section needs, in one walkthrough —
@@ -61,6 +61,8 @@ export default function Microsoft({
   loading,
   busy,
   credentialsStatus,
+  canAddAccounts,
+  clientAddress,
   onSaveCredentials,
   onToggleCalendar,
   onRefreshCalendars,
@@ -92,7 +94,7 @@ export default function Microsoft({
       {credentialsStatus && (
         <ApiCredentialsForm
           providerLabel="Microsoft"
-          redirectUri="http://localhost:3000/auth/microsoft/callback"
+          redirectUri={credentialsStatus.redirectUri}
           helpSteps={MICROSOFT_HELP_STEPS}
           status={credentialsStatus}
           optionalField={MICROSOFT_OPTIONAL_FIELD}
@@ -106,12 +108,10 @@ export default function Microsoft({
           lists still work. To fix it, add <code>Calendars.Read</code> to the app registration (Azure Portal → your app →
           <strong> API permissions</strong> → Microsoft Graph → <strong>Delegated permissions</strong>) if you haven't
           already, then reconnect to grant it:{' '}
-          {CAN_ADD_ACCOUNTS ? (
+          {canAddAccounts ? (
             <a href="/auth/microsoft">Reconnect</a>
           ) : (
-            <span>
-              Reconnect from the Pi's own screen (<code>http://localhost:3000/companion</code>).
-            </span>
+            <AddAccountNote what="Reconnecting" clientAddress={clientAddress} inline />
           )}
         </p>
       )}
@@ -180,7 +180,7 @@ export default function Microsoft({
         </section>
       )}
 
-      {configured && !connected && CAN_ADD_ACCOUNTS && (
+      {configured && !connected && canAddAccounts && (
         <a className="button button--primary add-account" href="/auth/microsoft">
           + Connect Microsoft account
         </a>
@@ -188,11 +188,11 @@ export default function Microsoft({
       {!configured && (
         <p className="add-account-note">Enter your Microsoft API credentials above before connecting an account.</p>
       )}
-      {configured && !CAN_ADD_ACCOUNTS && (
-        <p className="add-account-note">
-          You can only connect a new Microsoft account on the Pi's own screen — open{' '}
-          <code>http://localhost:3000/companion</code> there.
-        </p>
+      {/* `!loading` for the same reason as in GoogleAccounts.jsx: canAddAccounts
+          arrives with the first /accounts response, and showing "you can't"
+          before it lands would flash on every page load. */}
+      {configured && !canAddAccounts && !loading && (
+        <AddAccountNote what="Connecting a new Microsoft account" clientAddress={clientAddress} />
       )}
     </>
   );

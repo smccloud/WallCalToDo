@@ -4,10 +4,11 @@ import { resetClient as resetMsalClient } from '../auth/microsoftAuth.js';
 
 export const credentialsRouter = Router();
 
-// { google: { clientId, configured }, ms: { clientId, tenantId, configured } }
-// — never the client secret itself, just enough for the companion app's
-// credentials form to show what's already saved (and pre-fill the fields it
-// can) instead of always looking blank/unset.
+// { google: { clientId, configured, redirectUri }, ms: { clientId, configured,
+// redirectUri, tenantId } } — never the client secret itself, just enough for
+// the companion app's credentials form to show what's already saved (and
+// pre-fill the fields it can) instead of always looking blank/unset, plus the
+// redirect URI to register with the provider.
 credentialsRouter.get('/credentials', (req, res) => {
   res.json(getCredentialsStatus());
 });
