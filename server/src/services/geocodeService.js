@@ -7,7 +7,7 @@
 // or "Use my location" during setup — nowhere near Nominatim's "no bulk/
 // automated use" limit.
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
-const USER_AGENT = 'WallCalToDo (github.com/kevinclayland/WallCalToDo)';
+const USER_AGENT = 'WallCalToDo (github.com/smccloud/WallCalToDo)';
 
 async function nominatimFetch(path) {
   const res = await fetch(`${NOMINATIM_BASE}${path}`, { headers: { 'User-Agent': USER_AGENT } });

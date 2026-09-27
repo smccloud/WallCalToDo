@@ -332,7 +332,7 @@ node -v   # should print v20.x — if it doesn't, something above failed
 ### 4. Get the code onto the Pi
 
 ```
-git clone https://github.com/kevinclayland/WallCalToDo.git
+git clone https://github.com/smccloud/WallCalToDo.git
 cd WallCalToDo
 cp server/.env.example server/.env
 ```
