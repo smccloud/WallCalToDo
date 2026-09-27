@@ -192,28 +192,35 @@ landscape):
 A day carrying one of fifteen holidays gets its day number circled in the
 holiday calendar's own color — the same circle "today" gets, in that
 calendar's color instead of the fixed red, so the holidays in a month pick
-themselves out at a glance from across the room.
+themselves out at a glance from across the room. The ring says *something* is
+a holiday; the image beside the number says *which* one — beside the number
+rather than in place of it, so the day still reads as a day. Each is the image
+you'd reach for on a card for that holiday, deliberately the conventional
+first choice rather than a second-best stand-in, since the point is that the
+calendar names itself before anyone leans in to read a pill.
 
 No dates are hardcoded anywhere. The holidays arrive as ordinary all-day
 events from a holiday calendar — Google's "Holidays in United States" (under
 **Other calendars → Browse calendars** in Google Calendar) or Microsoft's
 equivalent, which carries the same name — and the display marks these fifteen
-by name: New Year's Day, Martin Luther King Jr. Day, Presidents' Day,
-Memorial Day, Juneteenth, Independence Day, Labor Day, Columbus Day, Veterans
-Day, Thanksgiving, Christmas Day, Halloween, Valentine's Day, Easter, and
-St. Patrick's Day. The name matching is deliberately loose, since the same
-holiday turns up as "Presidents' Day (Washington's Birthday)" in some years
-and "Washington's Birthday" in others, Easter as "Easter Sunday", and MLK
-Day as "Birthday of Martin Luther King, Jr." — a missing marker is a worse
-outcome than a slightly liberal match.
+by name, each with the image it's conventionally drawn with: New Year's Day 🎉,
+Martin Luther King Jr. Day ✊, Presidents' Day 🇺🇸, Memorial Day 🪻,
+Juneteenth 🖤, Independence Day 🎆, Labor Day 🛠️, Columbus Day ⛵, Veterans Day
+🎖️, Thanksgiving 🦃, Christmas Day 🎄, Halloween 🎃, Valentine's Day ❤️,
+Easter 🐣, and St. Patrick's Day 🍀. The name matching is deliberately loose,
+since the same holiday turns up as "Presidents' Day (Washington's Birthday)"
+in some years and "Washington's Birthday" in others, Easter as "Easter
+Sunday", and MLK Day as "Birthday of Martin Luther King, Jr." — a missing
+marker is a worse outcome than a slightly liberal match.
 
 So there's nothing to switch on: subscribe to that calendar and the markers
 appear with its events. Switching it off in the companion app takes the
 markers away too, since both come from the same events. Anything else that
 calendar happens to list stays unmarked.
 
-Privacy mode doesn't hide the markers. They mark a date rather than say what's
-on it, the same way the day numbers themselves stay visible; only titles go.
+Privacy mode doesn't hide the markers, or the images beside them. They mark a
+date rather than say what's on it, the same way the day numbers themselves
+stay visible; only titles go.
 
 <p align="center">
   <a href="docs/demo-holiday-landscape-dark.png"><img src="docs/demo-holiday-landscape-dark.png" alt="Landscape, dark theme: October 2026, with Columbus Day on the 12th and Halloween on the 31st ringed in the holidays calendar's green" width="380"></a>
@@ -228,7 +235,8 @@ on it, the same way the day numbers themselves stay visible; only titles go.
 a month with holidays in it is the one on screen. Columbus Day on the 12th and
 Halloween on the 31st are ringed in the Google holidays calendar's own green —
 the same green as their pills, and as the "H" in the legend. The 15th is
-today, in the fixed red it always uses.)*
+today, in the fixed red it always uses. These four predate the images beside
+the numbers, so only the rings show in them.)*
 
 
 A separate small app (`companion/`) served at `/companion` lets you manage

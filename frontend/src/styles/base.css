@@ -211,6 +211,38 @@ body {
   color: var(--color-text-muted);
 }
 
+/* The day number, and on a decorated holiday the image that holiday is
+   conventionally represented by beside it. A flex row rather than the icon
+   being another child of the cell, so it sits alongside the number instead of
+   under it and costing a row of the cell's own height.
+
+   It adds no height of its own: the row is exactly as tall as the day
+   number's 1.6em circle, which is all the vertical space this row had before
+   the icon existed. That matters because the cell's height is what decides how
+   many event pills fit (DayCell measures it), so anything the header grew by
+   would be a pill that stops showing on every holiday day in the month.
+   min-width:0 so the row can shrink inside a narrow portrait cell instead of
+   the icon forcing it wider. */
+.calendar-cell__header {
+  display: flex;
+  align-items: center;
+  gap: 0.15em;
+  min-width: 0;
+}
+
+/* The holiday's icon itself, at the day number's own font size — it's glanced
+   at from across the room rather than read, and an emoji is heavier on the
+   wall than the digits beside it at the same size, so matching the number is
+   enough. Not the cell's inherited body size (1.5rem), which overruns a
+   narrow portrait cell and pushes the pills below it. flex:none so it never
+   gets squeezed down out of recognition, and the cell's own overflow:hidden
+   clips it rather than letting it spill into the next day. */
+.calendar-cell__holiday-icon {
+  flex: none;
+  font-size: var(--font-size-small);
+  line-height: 1;
+}
+
 .calendar-cell__day {
   font-size: var(--font-size-small);
   width: 1.6em;

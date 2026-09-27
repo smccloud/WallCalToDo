@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { WEEKDAYS, addDays, buildMonthGrid, dateKey, parseLocalDate, sortDayEvents } from '../utils/date.js';
-import { isHolidayEvent } from '../utils/holidays.js';
+import { holidayFor } from '../utils/holidays.js';
 
 // Placeholder presentation only — swap this markup/styling for the real
 // design later. Data shape stays the same: [{ id, title, start, end, allDay, location, calendarLabel, color }]
@@ -103,7 +103,26 @@ function DayCell({ date, inMonth, isToday, dayEvents, barsSpace, gridRow, gridCo
       // rather than being a fixed color of its own.
       style={{ gridRow, gridColumn, '--holiday-color': holiday?.color || undefined }}
     >
-      <span className="calendar-cell__day">{date.getDate()}</span>
+      {/* Day number, and on a decorated holiday the image that holiday is
+          conventionally represented by beside it (which one that is per
+          holiday is in utils/holidays.js). The ring behind the number
+          already says a holiday is here; this says which one, without
+          reading the pill underneath — which on a busy day may be trimmed
+          to "+N more", and which nobody across the room can read anyway.
+
+          The icon is aria-hidden because it's decoration rather than
+          information the day number and the pill's own title don't already
+          carry (and a screen reader turns an emoji into a stream of "party
+          popper"). It stays visible in privacy mode for the same reason the
+          ring does: it marks a date. */}
+      <div className="calendar-cell__header">
+        <span className="calendar-cell__day">{date.getDate()}</span>
+        {holiday?.icon && (
+          <span className="calendar-cell__holiday-icon" aria-hidden="true">
+            {holiday.icon}
+          </span>
+        )}
+      </div>
       <ul className="calendar-cell__events" ref={listRef} style={barsSpace > 0 ? { marginTop: barsSpace } : undefined}>
         {visibleEvents.map((event) => (
           <li
@@ -292,12 +311,13 @@ export default function CalendarView({ events, privacyMode, onMeasureSplit }) {
           const week = Math.floor(i / 7);
           const dayEvents = sortDayEvents(singleDayEventsByKey[key] || []);
           const barsSpace = laneCountByCell[week][i % 7] * (BAR_HEIGHT + BAR_GAP);
-          // The holiday *event* rather than just a yes/no: its own color is
-          // what the day marker is drawn in. Searched over the full
+          // The matched holiday rather than just a yes/no: off the one
+          // match come the day's ring color (the event's own calendar color)
+          // and the icon beside the number. Searched over the full
           // dayEvents list rather than the trimmed visibleEvents below, so a
           // holiday whose pill doesn't fit on a busy day (and ends up behind
           // "+N more") still marks its day.
-          const holiday = dayEvents.find(isHolidayEvent) || null;
+          const holiday = dayEvents.map(holidayFor).find(Boolean) || null;
           return (
             <DayCell
               // Content-aware, not just the date: this day's own event IDs
