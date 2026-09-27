@@ -4,11 +4,19 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
+# Both of these assume a checkout at /home/pi owned by the user "pi" --
+# edit them (and User=) before copying to /etc/systemd/system/ if yours
+# differs.
 WorkingDirectory=/home/pi/WallCalToDo/server
 ExecStart=/usr/bin/node src/index.js
 Restart=on-failure
 RestartSec=5
 User=pi
+# The leading "-" makes this optional: without it, systemd refuses to start
+# the unit at all when the file is missing. It genuinely is optional now --
+# the Google/Microsoft credentials live in the companion app and
+# server/data/apiCredentials.json, and PORT/POLL_INTERVAL_MS both fall back
+# to defaults, so a Pi with no .env at all still serves correctly.
 EnvironmentFile=-/home/pi/WallCalToDo/server/.env
 
 [Install]
