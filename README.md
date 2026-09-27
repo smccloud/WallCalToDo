@@ -1,7 +1,9 @@
 # WallCalToDo
 
-A wall-mounted display (old monitor + Raspberry Pi) that shows a Google
-Calendar and a Microsoft To Do list at the same time. Works mounted either
+A wall-mounted display (old monitor + Raspberry Pi) that shows your calendars
+and a Microsoft To Do list at the same time. Calendars can come from Google
+and/or Microsoft, and the to-do list is Microsoft To Do — one Microsoft
+account can supply both halves. Works mounted either
 way — portrait puts the calendar on top with today's agenda and the to-do
 list below it; landscape puts the calendar on the left with today's agenda
 and to-do stacked in a column beside it. It picks whichever automatically
@@ -40,9 +42,9 @@ app just so it had something to show.
 
 So instead of inventing its own data model, WallCalToDo reads straight from
 the same accounts my phone already syncs against — the Google Calendar API
-and the Microsoft Graph To Do API — rather than iCloud. Anything I add,
-check off, or move on my phone shows up on the wall (see "How it works"
-below for the polling delay), because it's the exact same underlying
+and the Microsoft Graph calendar and To Do APIs — rather than iCloud. Anything
+I add, check off, or move on my phone shows up on the wall (see "How it
+works" below for the polling delay), because it's the exact same underlying
 data, not a copy of it. The wall display itself is read-only, though —
 there's no touch input, so it's a one-way mirror of what's on my phone,
 not something you edit from.
@@ -97,12 +99,12 @@ Microsoft Graph API                ─┘                                       
 
 ## Auto-update behavior
 
-There's no manual refresh step. The backend polls Google Calendar and
-Microsoft To Do every `POLL_INTERVAL_MS` (default 60s, see `server/.env`)
-using **sync tokens** (Google) and **delta queries** (Microsoft) — each
-poll asks "what changed since last time?" rather than re-downloading
-everything, so it's cheap enough to poll frequently if you want faster
-updates (e.g. drop it to 15–20s).
+There's no manual refresh step. The backend polls Google calendars, Microsoft
+calendars, and Microsoft To Do every `POLL_INTERVAL_MS` (default 60s, see
+`server/.env`) using **sync tokens** (Google) and **delta queries**
+(Microsoft) — each poll asks "what changed since last time?" rather than
+re-downloading everything, so it's cheap enough to poll frequently if you
+want faster updates (e.g. drop it to 15–20s).
 
 When a poll detects a change, the backend immediately pushes the new data
 to every connected display over its WebSocket connection
@@ -170,7 +172,10 @@ landscape):
   calendar it's from. If a calendar has events with a per-event color
   override (Google Calendar's "change color of this event"), those colors
   stack behind the main circle as plain swatches. Ordered to match the
-  order calendars appear in the companion app, not alphabetically.
+  order calendars appear in the companion app — Google accounts first, then
+  the Microsoft account's — not alphabetically. Two calendars from different
+  providers can share a name ("Work" in both Google and Microsoft); they're
+  still separate circles, told apart by color.
 - **Outside temperature** (bottom-right of the to-do panel) — current
   temperature plus a weather emoji, from [Open-Meteo](https://open-meteo.com/)
   (free, no API key), refreshed every 15 minutes. Switches to a moon-phase
@@ -186,7 +191,7 @@ landscape):
 A separate small app (`companion/`) served at `/companion` lets you manage
 everything from your phone or laptop, on the same Wi-Fi as the Pi:
 
-- **API credentials** — each of the Google Calendar and Microsoft To Do
+- **API credentials** — each of the Google Calendar and Microsoft
   sections has its own Client ID/Client Secret form, with a "Where do I
   get this?" panel that walks through creating your own free API
   credentials in that provider's console. No terminal/`.env` editing
@@ -200,23 +205,33 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   personal + work). Reconnecting an account you've already added updates
   its tokens instead of creating a duplicate.
 - **Toggle calendars on/off** — each connected account lists every
-  calendar Google returns for it (not just the primary one). Flipping a
-  switch hides or shows that calendar's events on the wall display
+  calendar the provider returns for it (not just the primary one). Flipping
+  a switch hides or shows that calendar's events on the wall display
   immediately — no polling delay, since filtering happens at read time
   against calendars already cached.
 - **Disconnect a Google account** — removes it and its cached events
   entirely.
-- **Refresh calendars** — Google doesn't notify us when you create a new
+- **Refresh calendars** — neither provider notifies us when you create a new
   calendar, so this button re-fetches an account's calendar list on
   demand (new calendars default to enabled).
-- **Connect a Microsoft account** — same idea as Google, but only one
-  account at a time. Discovers every To Do list on it (including ones
-  shared with you), each with its own on/off toggle. Completed tasks are
-  cleared out automatically once a week (the first poll after midnight on
-  a Monday) to keep the list from accumulating crossed-off items forever —
-  this only trims what the wall display shows, it never touches the real
-  task in Microsoft To Do, so un-completing or editing one afterward brings
-  it right back.
+- **Connect a Microsoft account** — one account at a time, supplying *both*
+  the calendars and the to-do lists from the single sign-in. Discovers
+  every calendar it can read (including ones shared with you) and every To
+  Do list, each with its own on/off toggle. Completed tasks are cleared out
+  automatically once a week (the first poll after midnight on a Monday) to
+  keep the list from accumulating crossed-off items forever — this only
+  trims what the wall display shows, it never touches the real task in
+  Microsoft To Do, so un-completing or editing one afterward brings it
+  right back. Microsoft calendar events are filtered the same way Google
+  ones are: cancelled events, drafts, and invitations you've declined
+  don't show up. Since Graph has no per-event colors, a Microsoft
+  calendar's own color is all its pills get.
+- **Reconnect for calendars** — an account connected before this read
+  Microsoft calendars has a token that was never consented to
+  `Calendars.Read`, so its to-do lists work but its calendars can't be
+  fetched. The companion app says so and offers a Reconnect link; the next
+  sign-in is the one that grants the extra permission. Nothing breaks in
+  the meantime.
 - **Privacy mode** — a single toggle that hides event titles (only their
   colored pills stay visible) and replaces today's agenda and the to-do
   list with a placeholder notice on the wall display, for whenever you'd
@@ -398,11 +413,16 @@ browser running on the Pi itself.
 
    ![A connected Google account in the companion app, showing its calendar list with per-calendar toggles](docs/setup-google-connected.png)
 
-4. Scroll to **Microsoft To Do Reminders** and do the same thing — expand
-   **Where do I get this?**, follow the Azure Portal steps, paste in the
-   Client ID/Secret it gives you, Save:
+4. Scroll to **Microsoft** and do the same thing — expand **Where do I get
+   this?**, follow the Azure Portal steps, paste in the Client ID/Secret it
+   gives you, Save:
 
-   ![Microsoft To Do Reminders section of the companion app, showing the expanded "Where do I get this?" steps and the Client ID/Client Secret fields](docs/setup-microsoft-credentials.png)
+   ![Microsoft section of the companion app, showing the expanded "Where do I get this?" steps and the Client ID/Client Secret fields](docs/setup-microsoft-credentials.png)
+
+   The permissions step in that panel asks for **two** delegated Graph
+   permissions, not one: **Tasks.Read** for the to-do lists and
+   **Calendars.Read** for the calendars. Both are requested by the same
+   sign-in, since one Microsoft account supplies both halves.
 
    There's also an optional **Tenant ID** field, which most people can leave
    blank: it decides which Entra directory the sign-in page points at, and
@@ -411,7 +431,14 @@ browser running on the Pi itself.
    sign-ins restricted to your own organization's directory, using the
    **Directory (tenant) ID** from the app's **Overview** page.
 
-5. Tap **+ Connect Microsoft account** and sign in.
+5. Tap **+ Connect Microsoft account** and sign in. The account then shows
+   its calendars and its to-do lists, each with its own toggle.
+
+   If you connected a Microsoft account *before* this read Microsoft
+   calendars, its existing sign-in only ever asked for `Tasks.Read`. The
+   section will say so and offer a **Reconnect** link — tap it and sign in
+   once more to grant the calendar permission. The to-do lists keep working
+   in the meantime.
 
 If anything about a connection attempt fails (wrong secret, an account
 that isn't added as a Google test user yet, etc.), the companion app shows
@@ -468,6 +495,11 @@ tunnel — if you'd rather not walk over to the Pi).
 - **Google/Microsoft connect fails** — the companion app shows the reason
   in a banner at the top of the page (wrong Client Secret, an account not
   added as a Google test user yet, etc.) rather than leaving you guessing.
+- **A Microsoft account's to-do lists work but its calendars don't** — it was
+  connected before `Calendars.Read` was requested, so its existing token
+  only carries `Tasks.Read`. The companion app's Microsoft section says so
+  and offers a **Reconnect** link; one more sign-in fixes it. See setup
+  step 7.
 - **Kiosk screen is blank or shows a desktop instead of the app** — SSH in
   and run `pi-setup/kiosk/kiosk.sh` by hand to see its output directly,
   and double check the autostart file syntax in `pi-setup/kiosk/README.md`.
@@ -519,7 +551,12 @@ styling changes stay confined to the style files and component markup.
 
 ## Roadmap
 
-**Multiple account providers per side** — right now the calendar side is
-Google-only and the to-do side is Microsoft-only. Supporting more than one
-provider on each side (so the calendar side isn't locked to Google, and
-the to-do side isn't locked to Microsoft) is planned for a future release.
+**A second Microsoft account** — the calendar side already takes Google
+(any number of accounts) and Microsoft, but Microsoft itself is still capped
+at one account, because its to-do half has nowhere to disambiguate between
+accounts. Lifting that means a second Microsoft identity on both sides.
+
+**More to-do providers** — the to-do side is still Microsoft-only. Google
+Tasks is the obvious candidate, given the calendar side already talks to
+Google.
+

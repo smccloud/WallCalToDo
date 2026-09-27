@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-// Shared by GoogleAccounts.jsx and MicrosoftTodo.jsx -- same shape of
+// Shared by GoogleAccounts.jsx and Microsoft.jsx -- same shape of
 // problem for both: before you can connect an account, this deployment's
 // own Google/Microsoft app needs to exist somewhere, and its Client ID/
 // Secret need to live on the server. This used to mean SSH'ing in and
@@ -15,7 +15,7 @@ import { useState } from 'react';
 // one.
 //
 // `optionalField` adds a third, non-required input for a provider that has
-// one (currently Microsoft's Entra tenant ID, see MicrosoftTodo.jsx) without
+// one (currently Microsoft's Entra tenant ID, see Microsoft.jsx) without
 // making the form itself Microsoft-specific: the provider supplies the
 // details via { name, label, summaryLabel, placeholder, hint }, and this form
 // just renders it and forwards whatever was typed as a second argument to

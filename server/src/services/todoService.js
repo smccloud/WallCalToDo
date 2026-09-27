@@ -1,4 +1,4 @@
-import { getAccessToken, graphFetch, isAuthorized, listTodoLists } from '../auth/microsoftAuth.js';
+import { getAccessToken, graphFetch, isAuthorized, listTodoLists, TODO_SCOPES } from '../auth/microsoftAuth.js';
 import { readJson, writeJson } from '../store/fileStore.js';
 
 const TASKS_CACHE_FILE = 'msTasksCache.json';
@@ -83,7 +83,7 @@ export async function pollTodo() {
   const lists = listTodoLists();
   if (lists.length === 0) return { changed: false, tasks: [] };
 
-  const accessToken = await getAccessToken();
+  const accessToken = await getAccessToken(TODO_SCOPES);
   const cache = loadTasks();
   const sync = loadSync();
   let changed = false;

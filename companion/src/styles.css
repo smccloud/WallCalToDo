@@ -23,6 +23,8 @@
   --color-hover: #f4f5f7;
   --color-danger-text: #991b1b;
   --color-danger-bg: #fee2e2;
+  --color-warning-text: #92400e;
+  --color-warning-bg: #fef3c7;
   --color-accent: #2563eb;
   --color-switch-off: #d1d5db;
   --color-switch-on: #22c55e;
@@ -45,6 +47,8 @@
   --color-hover: #1b1f1f;
   --color-danger-text: #ff6b6b;
   --color-danger-bg: #3a1414;
+  --color-warning-text: #fcd34d;
+  --color-warning-bg: #3a2f10;
   --color-accent: #4f8cff;
   --color-switch-off: #3a3f3f;
   --color-switch-on: #22c55e;
@@ -104,9 +108,9 @@ body {
   margin-bottom: 0.5rem;
 }
 
-/* Section-level headers (General settings, Google Calendar, Microsoft To
-   Do Reminders) — smaller than the main "WallCalToDo" title above, all
-   three sized and weighted the same as each other. */
+/* Section-level headers (General settings, Google Calendar, Microsoft) —
+   smaller than the main "WallCalToDo" title above, all three sized and
+   weighted the same as each other. */
 .page__header--sub h1 {
   font-size: 1rem;
 }
@@ -140,6 +144,19 @@ body {
 .banner--error {
   background: var(--color-danger-bg);
   color: var(--color-danger-text);
+}
+
+/* Not an error — something is connected and working, but isn't doing
+   everything it could until the user takes one action (see the Microsoft
+   section's "reconnect to grant calendar access" notice). Deliberately
+   calmer than the red above so it doesn't read as something broken. */
+.banner--warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
+
+.banner--warning a {
+  color: inherit;
 }
 
 .banner__dismiss {
@@ -185,6 +202,16 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* Sub-heading between the two row groups inside one account card — the
+   Microsoft card lists calendars and then to-do lists under the same one
+   connected account, so the two need labelling to stay tellable apart. */
+.account-card__label {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
 }
 
 .calendar-row {

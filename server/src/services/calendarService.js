@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { getAuthorizedClient, listAccounts } from '../auth/googleAuth.js';
+import { getCachedMsEvents } from './msCalendarService.js';
 import { readJson, writeJson } from '../store/fileStore.js';
 
 const EVENTS_CACHE_FILE = 'googleEventsCache.json';
@@ -68,6 +69,7 @@ function normalizeEvent(event, context) {
     end: event.end?.dateTime || event.end?.date,
     allDay: Boolean(event.start?.date && !event.start?.dateTime),
     location: event.location || null,
+    calendarKey: context.calendarKey,
     calendarLabel: context.calendarLabel,
     calendarColor: context.color,
     calendarOrder: context.calendarOrder,
@@ -207,7 +209,13 @@ export async function pollCalendar() {
 
     for (const cal of account.calendars) {
       const key = cacheKey(account.id, cal.id);
-      const context = { calendarLabel: cal.summary, color: cal.backgroundColor, eventColors, calendarOrder: calendarOrder++ };
+      const context = {
+        calendarKey: `google:calendar::${key}`,
+        calendarLabel: cal.summary,
+        color: cal.backgroundColor,
+        eventColors,
+        calendarOrder: calendarOrder++,
+      };
       try {
         const calChanged = await pollOneCalendar(calendarApi, key, cal.id, context, cache, sync);
         changed = changed || calChanged;
@@ -246,9 +254,16 @@ export function dropAccountCache(accountId) {
   saveSync(sync);
 }
 
-// Only events from currently-enabled calendars are returned — toggling a
-// calendar off in the companion app takes effect immediately, without
-// waiting for or triggering a new poll.
+// Only events from currently-enabled calendars are returned, from both
+// providers — toggling a calendar off in the companion app takes effect
+// immediately, without waiting for or triggering a new poll.
+//
+// The display gets one flat list of events regardless of where they came
+// from, so Microsoft's are appended to Google's here rather than the two
+// being kept apart all the way to the frontends. Each side already applies
+// its own enabled-calendar filter and numbers its calendars so the two
+// can't collide (see msCalendarService.js's calendarOrderOffset), and each
+// event carries a provider-unique id and calendarKey.
 export function getCachedEvents() {
   const cache = loadEvents();
   const enabledKeys = new Set();
@@ -263,5 +278,7 @@ export function getCachedEvents() {
     if (!enabledKeys.has(key)) continue;
     events.push(...Object.values(cache[key]));
   }
+
+  events.push(...getCachedMsEvents());
   return events.sort((a, b) => new Date(a.start) - new Date(b.start));
 }

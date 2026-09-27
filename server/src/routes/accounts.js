@@ -2,25 +2,56 @@ import { Router } from 'express';
 import * as googleAuth from '../auth/googleAuth.js';
 import * as microsoftAuth from '../auth/microsoftAuth.js';
 import { pollCalendar, getCachedEvents, dropAccountCache } from '../services/calendarService.js';
+import {
+  pollMsCalendar,
+  dropCalendarCache,
+  dropAllCalendarsCache,
+} from '../services/msCalendarService.js';
 import { getCachedTasks, dropListCache, dropAllListsCache } from '../services/todoService.js';
 import { broadcast } from '../ws/hub.js';
 
 export const accountsRouter = Router();
 
-accountsRouter.get('/accounts', (req, res) => {
-  res.json({ google: googleAuth.listAccounts() });
+// Both calendar providers in one response, so the companion app's single
+// load covers everything. Microsoft's half is a single account rather than a
+// list (there's only ever one Microsoft sign-in, shared by calendars and To
+// Do), carrying its calendars alongside it.
+//
+// `calendarAccess` is why that calendar list might be empty on an otherwise
+// connected account: an account connected before calendars existed holds a
+// token that was never consented to Calendars.Read, and asking for one
+// anyway just fails. Saying so lets the companion app ask for a reconnect
+// instead of showing an empty list with no explanation. Both checks are
+// needed — the granted-scope one catches a token that never had it, and the
+// flag catches a redemption that Graph rejected despite the scope looking
+// granted.
+accountsRouter.get('/accounts', async (req, res) => {
+  const account = await microsoftAuth.getConnectedAccount();
+  const calendarAccess = !account
+    ? 'not_connected'
+    : (await microsoftAuth.hasCalendarAccess()) && !microsoftAuth.isCalendarScopeMissing()
+      ? 'granted'
+      : 'missing';
+
+  res.json({
+    google: googleAuth.listAccounts(),
+    microsoft: { account, calendars: microsoftAuth.listCalendars(), calendarAccess },
+  });
 });
 
 accountsRouter.get('/todo/lists', async (req, res) => {
   res.json({ lists: microsoftAuth.listTodoLists(), account: await microsoftAuth.getConnectedAccount() });
 });
 
-// Only one Microsoft account is ever connected at a time, so this doesn't
-// need an :accountId param the way Google's DELETE /accounts/:id does.
-accountsRouter.delete('/todo/account', async (req, res) => {
+// Disconnecting drops both halves of the one Microsoft account — calendars
+// and To Do — and their cached events/tasks, then rebroadcasts each feed so
+// the wall display empties out immediately.
+accountsRouter.delete('/ms/account', async (req, res) => {
   try {
     await microsoftAuth.disconnectAccount();
+    dropAllCalendarsCache();
     dropAllListsCache();
+    broadcast({ type: 'calendar', data: getCachedEvents() });
     broadcast({ type: 'todo', data: getCachedTasks() });
     res.json({ ok: true });
   } catch (err) {
@@ -53,6 +84,40 @@ accountsRouter.post('/todo/refresh', async (req, res) => {
     }
     broadcast({ type: 'todo', data: getCachedTasks() });
     res.json({ lists });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Manual "check for new/removed calendars on the Microsoft account" —
+// neither Google nor Microsoft pushes calendar-list changes, so this is a
+// deliberate refresh rather than something polled automatically. Also how a
+// newly-shared calendar shows up without waiting for a reconnect. Mirrors
+// Google's POST /accounts/:id/refresh above, minus the account id.
+accountsRouter.post('/ms/calendars/refresh', async (req, res) => {
+  try {
+    const before = new Set(microsoftAuth.listCalendars().map((cal) => cal.id));
+    const calendars = await microsoftAuth.refreshCalendars();
+    for (const id of before) {
+      if (!calendars.some((cal) => cal.id === id)) dropCalendarCache(id);
+    }
+    const { changed } = await pollMsCalendar();
+    if (changed) broadcast({ type: 'calendar', data: getCachedEvents() });
+    res.json({ calendars });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Toggling a calendar takes effect on the display immediately — no repoll
+// needed, getCachedEvents() filters by the current enabled flags. No
+// :accountId param because there's only the one Microsoft account, the same
+// reason Google's equivalent is nested under an account id and this isn't.
+accountsRouter.patch('/ms/calendars/:calendarId', (req, res) => {
+  try {
+    microsoftAuth.setCalendarEnabled(req.params.calendarId, Boolean(req.body?.enabled));
+    broadcast({ type: 'calendar', data: getCachedEvents() });
+    res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

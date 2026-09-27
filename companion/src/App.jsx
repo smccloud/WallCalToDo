@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from './api.js';
 import GeneralSettings from './components/GeneralSettings.jsx';
 import GoogleAccounts from './components/GoogleAccounts.jsx';
-import MicrosoftTodo from './components/MicrosoftTodo.jsx';
+import Microsoft from './components/Microsoft.jsx';
 
 // Same logic as frontend/src/App.jsx's effectiveTheme() — kept as its own
 // copy here since the two apps are separate Vite builds with nothing
@@ -27,8 +27,22 @@ export default function App() {
 
   const [todoLists, setTodoLists] = useState([]);
   const [todoLoading, setTodoLoading] = useState(true);
-  const [todoBusy, setTodoBusy] = useState(false);
+  // One account supplies both halves of the Microsoft section, and the
+  // credentials/toggles for both live behind /accounts, so the connected
+  // account and its calendars are read from there rather than from
+  // /todo/lists (which still reports the account, but only because the To
+  // Do side has always needed to know who it's fetching for). `msBusy`
+  // covers every action in the section — a single connection being the one
+  // thing that state is about, so there's nothing to tell apart.
   const [msAccount, setMsAccount] = useState(null);
+  const [msCalendars, setMsCalendars] = useState([]);
+  // 'granted' | 'missing' | 'not_connected' -- whether the connected
+  // account's token actually carries Calendars.Read. An account connected
+  // before this feature existed has a perfectly valid token that was never
+  // consented to it, so this is the server telling us to ask the user to
+  // sign in again rather than the calendars list just coming back empty.
+  const [msCalendarAccess, setMsCalendarAccess] = useState('not_connected');
+  const [msBusy, setMsBusy] = useState(false);
 
   const [credentials, setCredentials] = useState(null);
   // Separate from `error` below on purpose: `error` reflects live API call
@@ -62,6 +76,9 @@ export default function App() {
     try {
       const data = await api('/accounts');
       setAccounts(data.google);
+      setMsAccount(data.microsoft.account);
+      setMsCalendars(data.microsoft.calendars);
+      setMsCalendarAccess(data.microsoft.calendarAccess);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -72,9 +89,7 @@ export default function App() {
 
   const loadTodoLists = useCallback(async () => {
     try {
-      const data = await api('/todo/lists');
-      setTodoLists(data.lists);
-      setMsAccount(data.account);
+      setTodoLists((await api('/todo/lists')).lists);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -282,31 +297,64 @@ export default function App() {
     }
   }
 
-  // Microsoft doesn't push list changes, so this is how a newly-shared
-  // list (e.g. one your spouse just shared with you) shows up without
-  // waiting for a reconnect.
+  // Same optimistic-update-then-reconcile as the Google toggles above. No
+  // account id in the path, since Microsoft's side is always the one
+  // connected account -- the same reason the server nests Google's toggles
+  // under one and this one isn't.
+  async function toggleMsCalendar(calendarId, enabled) {
+    setMsCalendars((prev) => prev.map((cal) => (cal.id === calendarId ? { ...cal, enabled } : cal)));
+    try {
+      await api(`/ms/calendars/${encodeURIComponent(calendarId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ enabled }),
+      });
+    } catch (err) {
+      setError(err.message);
+      loadAccounts();
+    }
+  }
+
+  // Microsoft doesn't push calendar or list changes either, so these are how
+  // a newly-shared calendar or list (e.g. one your spouse just shared with
+  // you) shows up without waiting for a reconnect.
   async function refreshTodoLists() {
-    setTodoBusy(true);
+    setMsBusy(true);
     try {
       await api('/todo/refresh', { method: 'POST' });
       await loadTodoLists();
     } catch (err) {
       setError(err.message);
     } finally {
-      setTodoBusy(false);
+      setMsBusy(false);
+    }
+  }
+
+  async function refreshMsCalendars() {
+    setMsBusy(true);
+    try {
+      await api('/ms/calendars/refresh', { method: 'POST' });
+      await loadAccounts();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setMsBusy(false);
     }
   }
 
   async function disconnectMsAccount(email) {
-    if (!window.confirm(`Disconnect ${email}? Its to-do items will disappear from the display.`)) return;
-    setTodoBusy(true);
+    if (!window.confirm(`Disconnect ${email}? Its events and to-do items will disappear from the display.`)) return;
+    setMsBusy(true);
     try {
-      await api('/todo/account', { method: 'DELETE' });
+      // Both halves share one sign-in, so this is a single route for both --
+      // leaving to-do items behind after disconnecting would just be a way to
+      // end up with a display showing one half of a disconnected account.
+      await api('/ms/account', { method: 'DELETE' });
+      await loadAccounts();
       await loadTodoLists();
     } catch (err) {
       setError(err.message);
     } finally {
-      setTodoBusy(false);
+      setMsBusy(false);
     }
   }
 
@@ -366,16 +414,20 @@ export default function App() {
         onDisconnectAccount={disconnectAccount}
       />
 
-      <MicrosoftTodo
+      <Microsoft
+        account={msAccount}
+        calendars={msCalendars}
+        calendarAccess={msCalendarAccess}
         todoLists={todoLists}
-        todoLoading={todoLoading}
-        todoBusy={todoBusy}
-        msAccount={msAccount}
+        loading={loading || todoLoading}
+        busy={msBusy}
         credentialsStatus={credentials?.ms}
         onSaveCredentials={(creds, extra) => saveCredentials('ms', creds, extra)}
+        onToggleCalendar={toggleMsCalendar}
+        onRefreshCalendars={refreshMsCalendars}
         onToggleTodoList={toggleTodoList}
         onRefreshTodoLists={refreshTodoLists}
-        onDisconnectMsAccount={disconnectMsAccount}
+        onDisconnect={disconnectMsAccount}
       />
     </div>
   );

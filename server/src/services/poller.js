@@ -1,4 +1,8 @@
-import { pollCalendar, resetSyncTokens as resetCalendarSyncTokens } from './calendarService.js';
+import { pollCalendar, resetSyncTokens as resetCalendarSyncTokens, getCachedEvents } from './calendarService.js';
+import {
+  pollMsCalendar,
+  resetSyncTokens as resetMsCalendarSyncTokens,
+} from './msCalendarService.js';
 import { pollTodo, clearCompletedTasks } from './todoService.js';
 import { getSettings } from './settingsService.js';
 import { pollWeather } from './weatherService.js';
@@ -21,6 +25,12 @@ async function runPoll() {
   const today = now.toDateString();
   if (lastFullResyncDay !== today) {
     resetCalendarSyncTokens();
+    // Graph pins a delta token to the date range of the request that started
+    // the round, exactly as Google pins its sync token to the original full
+    // sync's window -- so Microsoft's calendars need their tokens dropped on
+    // the same daily schedule for the same reason (their window rolling
+    // forward, and stale past events getting pruned).
+    resetMsCalendarSyncTokens();
     lastFullResyncDay = today;
   }
 
@@ -67,6 +77,19 @@ async function runPoll() {
     if (changed) broadcast({ type: 'calendar', data: events });
   } catch (err) {
     console.error('[poller] Calendar poll failed:', err.message);
+  }
+
+  // Second calendar provider, same display feed. Polled after Google's so
+  // the broadcast below lands last when both changed in the same cycle --
+  // it re-reads getCachedEvents() rather than using pollMsCalendar()'s own
+  // result, since the display needs all calendars from both providers in one
+  // message and the first broadcast above would have carried a Microsoft
+  // side that was still a poll behind.
+  try {
+    const { changed } = await pollMsCalendar();
+    if (changed) broadcast({ type: 'calendar', data: getCachedEvents() });
+  } catch (err) {
+    console.error('[poller] Microsoft calendar poll failed:', err.message);
   }
 
   try {

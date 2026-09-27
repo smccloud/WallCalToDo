@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import * as googleAuth from '../auth/googleAuth.js';
 import * as microsoftAuth from '../auth/microsoftAuth.js';
-import { pollCalendar } from '../services/calendarService.js';
+import { pollCalendar, getCachedEvents } from '../services/calendarService.js';
+import { pollMsCalendar } from '../services/msCalendarService.js';
 import { pollTodo } from '../services/todoService.js';
 import { broadcast } from '../ws/hub.js';
 
@@ -52,11 +53,19 @@ authRouter.get('/microsoft', async (req, res) => {
 authRouter.get('/microsoft/callback', async (req, res) => {
   try {
     await microsoftAuth.exchangeCode(req.query.code);
-    // Pull tasks in immediately rather than waiting for the next poll
-    // interval, then send the browser back to the companion app so the
-    // just-connected lists show up right away — same as the Google flow.
-    const { changed, tasks } = await pollTodo();
-    if (changed) broadcast({ type: 'todo', data: tasks });
+    // Pull calendars and tasks in immediately rather than waiting for the
+    // next poll interval, then send the browser back to the companion app so
+    // the just-connected calendars/lists show up right away — same as the
+    // Google flow.
+    //
+    // Polled in this order so the calendar broadcast lands last: the
+    // calendar feed is both providers merged, so Microsoft has to be the one
+    // that goes out or the display would briefly show Google's side with a
+    // Microsoft list from before the connect.
+    const { changed: tasksChanged, tasks } = await pollTodo();
+    if (tasksChanged) broadcast({ type: 'todo', data: tasks });
+    const { changed: calendarChanged } = await pollMsCalendar();
+    if (calendarChanged) broadcast({ type: 'calendar', data: getCachedEvents() });
     res.redirect('/companion');
   } catch (err) {
     // Same reasoning as the Google callback above.
