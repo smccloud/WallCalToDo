@@ -587,3 +587,21 @@ accounts. Lifting that means a second Microsoft identity on both sides.
 Tasks is the obvious candidate, given the calendar side already talks to
 Google.
 
+## Credits
+
+Built with [opencode](https://opencode.ai) (the `big-pickle` model) for code
+generation, refactoring, and debugging — most of the Microsoft calendar
+support in particular was written this way, as was the fix for the
+Calendars.Read consent check that was misreporting correctly-configured
+accounts as unconfigured.
+
+Attribution is also recorded in the commit history, via `Co-Authored-By`
+trailers on the commits that used it. Note that GitHub's own Contributors
+graph won't reflect those trailers, because it credits an email address only
+when it's attached to a GitHub account, and the addresses these tools
+publish for this purpose aren't. This section is the reliable record.
+
+Everything is MIT-licensed and yours to do with as you like — the tooling
+did the typing, the design decisions and the debugging of what it got wrong
+were the human's.
+
