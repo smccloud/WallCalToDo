@@ -51,6 +51,15 @@ const calendarKey = (calendarId) => `${ID_PREFIX}calendar::${calendarId}`;
 // query parameters but not the headers.
 const PREFER_HEADERS = { Prefer: 'outlook.timezone="UTC"' };
 
+// Stand-in for an event with no subject. Shared by the normalizer and the
+// read-time filter below, so the two can't drift apart and quietly stop
+// matching. calendarService.js has its own copy of the same idea, which is
+// deliberate -- the two providers are kept independent throughout, down to
+// mirroring isAcceptedByUser -- and both have to drop these or the merged
+// list would show untitled Google events while hiding untitled Microsoft
+// ones, for no reason a user could see.
+const UNTITLED = '(No title)';
+
 // calendarView/delta answers with a restricted default property set, and a
 // delta round that omits a field the code below reads is indistinguishable
 // from one where the event genuinely doesn't have it. That bit us twice:
@@ -154,7 +163,7 @@ function normalizeEvent(event, context) {
   const start = allDay ? toDateOnly(event.start?.dateTime) : toIsoInstant(event.start?.dateTime);
   return {
     id: eventKey(event),
-    title: event.subject || '(No title)',
+    title: event.subject || UNTITLED,
     start,
     end: allDay ? exclusiveAllDayEnd(event.end?.dateTime, start) : toIsoInstant(event.end?.dateTime),
     allDay,
@@ -399,6 +408,19 @@ function hiddenOrganizers(calendars) {
 // getCachedEvents() (new Date(undefined) is Invalid Date, which doesn't
 // throw, but the display's own date math downstream would).
 //
+// Untitled events are dropped here rather than at cache time on purpose. A
+// delta round only returns what *changed*, so an event excluded while caching
+// would never be offered again and could only be recovered by forcing a full
+// resync -- filtering at read time keeps this reversible by deleting a
+// condition, and is how the calendar toggles above already work. The match is
+// against the placeholder rather than a missing title, since every cached
+// event already has the placeholder baked in by normalizeEvent().
+//
+// The cost is that a genuinely untitled event disappears from the wall too --
+// focus-time blocks and some placeholder entries Outlook creates are empty by
+// design, and there is no way to tell those apart from the ones the user
+// doesn't want to see. That is the intended trade for a glanceable display.
+//
 // Reading a file with a fresh listCalendars() each time is deliberate: the
 // point of the exercise is that toggling a calendar takes effect immediately,
 // without waiting for or triggering a new poll.
@@ -414,6 +436,7 @@ export function getCachedMsEvents() {
     const fromOwnCalendar = owned.has(id);
     for (const event of Object.values(entries)) {
       if (!event) continue;
+      if (event.title === UNTITLED) continue;
       // An event cached before organizerEmail existed has none; leave those
       // alone rather than treat "unknown organizer" as "hidden organizer".
       if (fromOwnCalendar && event.organizerEmail && organizers.has(event.organizerEmail)) continue;

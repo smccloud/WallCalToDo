@@ -222,6 +222,16 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   yourself — a meeting you scheduled stays put no matter which shared
   calendars happen to be off. Disabling one of two shared calendars from the
   same person leaves the other one's events alone, too.
+- **Untitled events are hidden** — an event with no title at all (Graph's
+  `subject`, Google's `summary`) is dropped from the wall display rather than
+  shown as "(No title)", on both providers. Some shared-calendar items arrive
+  empty, and a wall display isn't the place to read a list of them. The cost is
+  that genuinely untitled entries — a focus-time block, an Outlook placeholder
+  — disappear as well, and there's no signal to tell those apart. Both sides
+  drop them so the rule doesn't look arbitrary. Removing the check in
+  `getCachedEvents()` and `getCachedMsEvents()` reverses it immediately, with
+  no resync, which is why the filter runs at read time rather than while
+  caching.
 - **Disconnect a Google account** — removes it and its cached events
   entirely.
 - **Refresh calendars** — neither provider notifies us when you create a new

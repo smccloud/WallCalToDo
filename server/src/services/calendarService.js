@@ -19,6 +19,12 @@ const saveSync = (sync) => writeJson(SYNC_FILE, sync);
 
 const cacheKey = (accountId, calendarId) => `${accountId}::${calendarId}`;
 
+// Stand-in for an event with no summary. Shared by the normalizer and the
+// read-time filter in getCachedEvents() so the two can't drift apart. See the
+// matching constant in msCalendarService.js for why each provider keeps its
+// own copy rather than sharing one.
+const UNTITLED = '(No title)';
+
 // Google Calendar's palette (colorId -> hex) is a small, effectively static
 // set shared across a whole account, not per-calendar — cheap to fetch once
 // per account per poll cycle and cache in memory rather than persisting it.
@@ -64,7 +70,7 @@ function normalizeEvent(event, context) {
   const overrideColor = event.colorId && context.eventColors?.[event.colorId]?.background;
   return {
     id: event.id,
-    title: event.summary || '(No title)',
+    title: event.summary || UNTITLED,
     start: event.start?.dateTime || event.start?.date,
     end: event.end?.dateTime || event.end?.date,
     allDay: Boolean(event.start?.date && !event.start?.dateTime),
@@ -258,6 +264,16 @@ export function dropAccountCache(accountId) {
 // providers — toggling a calendar off in the companion app takes effect
 // immediately, without waiting for or triggering a new poll.
 //
+// Untitled events are dropped at read time for the same reason as the
+// calendar filters, and for the same reason msCalendarService.js does it: an
+// incremental round only returns what changed, so excluding one while caching
+// would need a forced full resync to undo. Both sides drop them, since the
+// display shows one merged list and hiding them on one provider only would be
+// inexplicable to anyone looking at the result. The cost is the same on both
+// — a genuinely untitled entry (a focus-time block, a placeholder Outlook
+// creates) goes off the wall as well, and there's no way to tell it from one
+// the user simply doesn't want to see.
+//
 // The display gets one flat list of events regardless of where they came
 // from, so Microsoft's are appended to Google's here rather than the two
 // being kept apart all the way to the frontends. Each side already applies
@@ -276,7 +292,11 @@ export function getCachedEvents() {
   const events = [];
   for (const key of Object.keys(cache)) {
     if (!enabledKeys.has(key)) continue;
-    events.push(...Object.values(cache[key]));
+    // The null guard isn't new here, but msCalendarService.js explains why
+    // these files can end up with holes in them.
+    for (const event of Object.values(cache[key])) {
+      if (event && event.title !== UNTITLED) events.push(event);
+    }
   }
 
   events.push(...getCachedMsEvents());
