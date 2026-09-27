@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { WEEKDAYS, addDays, buildMonthGrid, dateKey, parseLocalDate, sortDayEvents } from '../utils/date.js';
-import { holidayFor } from '../utils/holidays.js';
+import { isHolidayEvent } from '../utils/holidays.js';
 
 // Placeholder presentation only — swap this markup/styling for the real
 // design later. Data shape stays the same: [{ id, title, start, end, allDay, location, calendarLabel, color }]
@@ -292,10 +292,12 @@ export default function CalendarView({ events, privacyMode, onMeasureSplit }) {
           const week = Math.floor(i / 7);
           const dayEvents = sortDayEvents(singleDayEventsByKey[key] || []);
           const barsSpace = laneCountByCell[week][i % 7] * (BAR_HEIGHT + BAR_GAP);
-          // Marked off the full dayEvents list rather than the trimmed
-          // visibleEvents below, so a holiday whose pill doesn't fit on a
-          // busy day (and ends up behind "+N more") still marks its day.
-          const holiday = dayEvents.map(holidayFor).find(Boolean) || null;
+          // The holiday *event* rather than just a yes/no: its own color is
+          // what the day marker is drawn in. Searched over the full
+          // dayEvents list rather than the trimmed visibleEvents below, so a
+          // holiday whose pill doesn't fit on a busy day (and ends up behind
+          // "+N more") still marks its day.
+          const holiday = dayEvents.find(isHolidayEvent) || null;
           return (
             <DayCell
               // Content-aware, not just the date: this day's own event IDs

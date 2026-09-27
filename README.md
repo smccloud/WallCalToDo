@@ -215,6 +215,21 @@ calendar happens to list stays unmarked.
 Privacy mode doesn't hide the markers. They mark a date rather than say what's
 on it, the same way the day numbers themselves stay visible; only titles go.
 
+<p align="center">
+  <a href="docs/demo-holiday-landscape-dark.png"><img src="docs/demo-holiday-landscape-dark.png" alt="Landscape, dark theme: October 2026, with Columbus Day on the 12th and Halloween on the 31st ringed in the holidays calendar's green" width="380"></a>
+  <a href="docs/demo-holiday-landscape-light.png"><img src="docs/demo-holiday-landscape-light.png" alt="Landscape, light theme: the same October 2026 month" width="380"></a>
+</p>
+<p align="center">
+  <a href="docs/demo-holiday-portrait-dark.png"><img src="docs/demo-holiday-portrait-dark.png" alt="Portrait, dark theme: October 2026 with the same two holiday days ringed" width="220"></a>
+  <a href="docs/demo-holiday-portrait-light.png"><img src="docs/demo-holiday-portrait-light.png" alt="Portrait, light theme: the same October 2026 month" width="220"></a>
+</p>
+
+*(Demo data again, like the four above, with the clock moved to mid-October so
+a month with holidays in it is the one on screen. Columbus Day on the 12th and
+Halloween on the 31st are ringed in the Google holidays calendar's own green —
+the same green as their pills, and as the "H" in the legend. The 15th is
+today, in the fixed red it always uses.)*
+
 
 A separate small app (`companion/`) served at `/companion` lets you manage
 everything from your phone or laptop, on the same Wi-Fi as the Pi:

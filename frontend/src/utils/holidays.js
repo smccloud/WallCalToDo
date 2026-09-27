@@ -59,22 +59,26 @@ function normalize(title) {
   return title.toLowerCase().replace(/['\u2019]/g, '').replace(/[^a-z0-9]+/g, ' ');
 }
 
-// The holiday an event is, or null if it isn't one. Two halves: it has to come
-// from a holiday calendar (so a personal all-day event called "Halloween
-// party" isn't mistaken for one) and match one of the twelve above. The
+// Whether an event is one of the holidays to decorate. Two halves: it has to
+// come from a holiday calendar (so a personal all-day event called "Halloween
+// party" isn't mistaken for one) and match one of the fifteen above. The
 // all-day check is belt-and-braces — the holiday calendars have no timed
 // events — but it also keeps a timed event sitting on a holiday calendar out
 // of it.
 //
-// Returns the canonical name rather than the calendar's own wording ("New
-// Year's Day" for an event titled "New Year's Day (observed)"), and is
-// computed per event rather than as a precomputed date list, so it can't
+// The matched entry's `name` is the canonical spelling rather than whatever
+// the calendar called it ("New Year's Day" for an event titled "New Year's Day
+// (observed)"), and is what the README's list is written from; the display
+// itself marks the day in the event's own color and leaves the naming to the
+// event's own pill, so nothing here has to agree with it.
+//
+// Asked per event rather than as a precomputed list of dates, so it can't
 // disagree with the events actually on the wall.
-export function holidayFor(event) {
-  if (!event.allDay) return null;
+export function isHolidayEvent(event) {
+  if (!event.allDay) return false;
   const fromHolidayCalendar =
     HOLIDAY_CALENDAR_ID.test(event.calendarKey || '') || HOLIDAY_CALENDAR_LABEL.test(event.calendarLabel || '');
-  if (!fromHolidayCalendar) return null;
+  if (!fromHolidayCalendar) return false;
   const title = normalize(event.title || '');
-  return HOLIDAYS.find((holiday) => holiday.match.some((needle) => title.includes(needle))) || null;
+  return HOLIDAYS.some((holiday) => holiday.match.some((needle) => title.includes(needle)));
 }
