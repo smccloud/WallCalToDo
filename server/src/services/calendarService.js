@@ -39,17 +39,19 @@ async function getEventColors(calendarApi, accountId) {
 }
 
 // True for events that should actually show up: ones the user created, or
-// invites they've explicitly accepted. Declining an invite you didn't
+// invites they've accepted or not yet answered. Declining an invite you didn't
 // organize (Google Calendar's "remove from this calendar" on someone
-// else's event) doesn't delete the event — it just flips your own RSVP to
+// else's event) doesn't delete the event - it just flips your own RSVP to
 // "declined", so the event keeps coming back from events.list() looking
-// unchanged unless this is checked. Same idea for invites still sitting at
-// "needsAction"/"tentative": not a yes, so not shown.
+// unchanged unless this is checked. Only that explicit "declined" drops it:
+// "tentative" and "needsAction" are an unanswered RSVP, not a refusal, and
+// hiding them made the wall disagree with both Google Calendar and Outlook,
+// which both list such invites dimmed rather than omitting them.
 function isAcceptedByUser(event) {
   if (event.organizer?.self) return true;
-  if (!event.attendees || event.attendees.length === 0) return true; // no invitees at all — a personal event
+  if (!event.attendees || event.attendees.length === 0) return true; // no invitees at all - a personal event
   const self = event.attendees.find((attendee) => attendee.self);
-  return self ? self.responseStatus === 'accepted' : true;
+  return self ? self.responseStatus !== 'declined' : true;
 }
 
 // Shared by fullSync/incrementalSync: cancelled and non-accepted events are

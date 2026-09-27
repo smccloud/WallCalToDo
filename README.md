@@ -250,9 +250,13 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   trims what the wall display shows, it never touches the real task in
   Microsoft To Do, so un-completing or editing one afterward brings it
   right back. Microsoft calendar events are filtered the same way Google
-  ones are: cancelled events, drafts, and invitations you've declined
-  don't show up. Since Graph has no per-event colors, a Microsoft
-  calendar's own color is all its pills get.
+  ones are: cancelled events, drafts, and invitations you've explicitly
+  declined don't show up. Invitations you're still sitting on — a tentative
+  or unanswered RSVP — *do* show up, on both providers, because both Outlook
+  and Google Calendar list those dimmed rather than hiding them, and treating
+  an unanswered invite as a no made the wall look like it had lost a week of
+  meetings that were plainly on the calendar. Since Graph has no per-event
+  colors, a Microsoft calendar's own color is all its pills get.
 - **Reconnect for calendars** — an account connected before this read
   Microsoft calendars has a token that was never consented to
   `Calendars.Read`, so its to-do lists work but its calendars can't be

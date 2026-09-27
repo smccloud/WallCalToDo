@@ -157,20 +157,26 @@ function exclusiveAllDayEnd(endDateTime, startDateOnly) {
   return addDays(endDate, 1);
 }
 
-// Same idea as calendarService.js's isAcceptedByUser: only show events the
-// user actually agreed to. Graph's equivalent is responseStatus, which has
-// more than just the four values one might expect from Outlook's own UI --
-// 'none' means the event has no attendees (a personal entry) and
-// 'organizer' means this copy is the one belonging to whoever created it,
-// neither of which is an unanswered invitation. Both are the user's own
-// events and belong on the display, so both have to be let through or every
-// meeting the user scheduled with attendees would silently vanish.
-// 'tentative' is treated as not-yet-yes, matching how Google treats a
-// tentative RSVP.
+// Same idea as calendarService.js's isAcceptedByUser: show events the user
+// agreed to, plus ones they haven't answered yet. Graph's equivalent is
+// responseStatus, which has more than just the four values one might expect
+// from Outlook's own UI -- 'none' means the event has no attendees (a
+// personal entry) and 'organizer' means this copy is the one belonging to
+// whoever created it, neither of which is an unanswered invitation. Both are
+// the user's own events and belong on the display, so both have to be let
+// through or every meeting the user scheduled with attendees would silently
+// vanish.
+//
+// 'tentative' and 'needsAction' both count as shown. Treating a tentative RSVP
+// as a no was defensible on paper -- a wall is a commitment reminder, not an
+// inbox -- but it quietly diverged from Outlook, which lists tentative invites
+// greyed out rather than hiding them, so the wall looked like it had lost a
+// week of meetings that were plainly on the calendar. Only an explicit
+// 'declined' is a decision to not attend, and that still drops the event.
 function isAcceptedByUser(event) {
   const response = event.responseStatus?.response;
   if (!response || response === 'none' || response === 'organizer') return true;
-  return response === 'accepted';
+  return response === 'accepted' || response === 'tentative' || response === 'needsAction';
 }
 
 // Cancelled events, drafts, and events the user declined are all "shouldn't
