@@ -64,12 +64,12 @@ for (const entry of entries) {
   if (problem) rejected.push(`${entry} (${problem})`);
 }
 
-console.log(
-  `[trustedNetworks] account connects allowed from 127.0.0.0/8, ::1` +
-    (entries.length
-      ? `, and TRUSTED_CIDRS: ${entries.join(', ')}`
-      : ' — TRUSTED_CIDRS is unset, so remote computers are not allowed')
-);
+// No startup summary of the parsed list: a normal restart should say nothing
+// at all, and a list that's working needs no announcement. The one thing that
+// still speaks up is an entry that couldn't be used -- silence there would
+// mean a typo quietly leaving someone locked out of their own account
+// connects with nothing to explain it, which is the failure this reporting
+// exists to prevent.
 if (rejected.length) {
   console.warn(`[trustedNetworks] ignoring unusable TRUSTED_CIDRS entries: ${rejected.join('; ')}`);
 }

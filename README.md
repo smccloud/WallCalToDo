@@ -231,7 +231,9 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   nothing on screen could reveal. See
   [Microsoft calendar fetching](#microsoft-calendar-fetching) for the
   provider-side fix. A genuinely untitled entry — a focus-time block, an
-  Outlook placeholder — now stays visible, and `journalctl` reports an
+  Outlook placeholder — now stays visible, and setting
+  `LOG_MS_CALENDAR_ROUNDS=1` in `server/.env` (off by default, so the journal
+  isn't written to every poll for no reason) makes `journalctl` report an
   untitled count if that number ever climbs.
 - **Disconnect a Google account** — removes it and its cached events
   entirely.
@@ -617,8 +619,9 @@ backend) or the request will be turned away.
   Either open `http://localhost:3000/companion` on the Pi itself, or add the
   address the banner names (or its `/24`) to `TRUSTED_CIDRS` in `server/.env`
   and `sudo systemctl restart wallcaltodo`. If you added an entry and it's
-  still refused, `sudo journalctl -u wallcaltodo -n 50` prints the parsed
-  list at startup and names any entry it couldn't use.
+  still refused, `sudo journalctl -u wallcaltodo -n 50` names any entry it
+  couldn't use — that's the only thing this service logs about its network
+  config, since a correct list has nothing to report.
 - **A connect from a listed computer still fails after the consent screen** —
   the device got past the allowlist, so this is the redirect: it comes back
   to `http://localhost:3000/...`, which only reaches the Pi if that browser

@@ -19,6 +19,12 @@ export const config = {
   // everything else in the README assumes -- see
   // services/trustedNetworks.js for the parsing and the check itself.
   trustedCidrs: process.env.TRUSTED_CIDRS || '',
+  // Per-round tally of what the Microsoft calendar poll dropped (cancelled,
+  // draft, declined, pruned, untitled). Off by default so a busy week of
+  // declined invites doesn't fill the journal every interval; it's a
+  // diagnostic for when the wall looks emptier than it should, so it only
+  // needs to be on while you're actually looking for that.
+  logMsCalendarRounds: process.env.LOG_MS_CALENDAR_ROUNDS === '1',
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,

@@ -49,7 +49,8 @@ app.get('*', (req, res, next) => {
 const server = http.createServer(app);
 initWebSocket(server);
 
-server.listen(config.port, () => {
-  console.log(`WallCalToDo server listening on http://localhost:${config.port}`);
-  startPolling();
-});
+// Silent on a successful start: this is a service that's restarted routinely
+// (and `systemctl status` says whether it's running), so a startup line in
+// the journal is just noise to scroll past. Anything that actually went
+// wrong still says so, both here and from the pollers below.
+server.listen(config.port, startPolling);

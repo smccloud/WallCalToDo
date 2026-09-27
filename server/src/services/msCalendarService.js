@@ -7,6 +7,7 @@ import {
 } from '../auth/microsoftAuth.js';
 import { listAccounts } from '../auth/googleAuth.js';
 import { readJson, writeJson } from '../store/fileStore.js';
+import { config } from '../config.js';
 
 const EVENTS_CACHE_FILE = 'msCalendarEventsCache.json';
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
@@ -92,9 +93,14 @@ function resetDropTally() {
 }
 
 // One line per round, and only when something was actually dropped or came
-// back without a subject. Steady-state incremental rounds usually only walk
-// changes, so this stays quiet until there is a reason to look.
+// back without a subject. Opt-in via LOG_MS_CALENDAR_ROUNDS=1 in
+// server/.env rather than on by default: the tally exists to answer "why is
+// the wall missing events", and when that isn't the question a week of
+// declined invites shouldn't write a line to the journal every minute. Read
+// from config, which is built once at startup, so it needs a restart to take
+// effect.
 function logDropTally() {
+  if (!config.logMsCalendarRounds) return;
   const dropped = dropTally.cancelled + dropTally.draft + dropTally.notAccepted
     + dropTally.pruned + dropTally.noKey;
   if (dropped === 0 && dropTally.keptUntitled === 0) return;
