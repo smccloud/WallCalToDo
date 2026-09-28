@@ -81,60 +81,79 @@ body {
 
 /* ---------- Rotation: calendar <-> weather ---------- */
 
-/* The handover between the two views (see useViewSwap.js, which puts one of
-   these two classes on whichever view is mounted, and why only ever one view
-   is mounted at a time).
+/* The dither that hands one view over to the other (see useViewSwap.js, which
+   mounts both views for its duration and puts this class on the incoming
+   one).
 
-   Both views are a single full-screen block filling #root, so taking one out
-   of flow for the length of a swap doesn't move it: inset: 0 is the same box
-   its height: 100% already resolved to, and the grids and flex columns
-   inside still get a definite height to divide up. */
-.view-layer--leaving,
-.view-layer--entering {
+   Registered so the dot radius can be interpolated. Without @property a
+   custom property is just a string as far as animation is concerned: it
+   would jump from one value to the other at the halfway point instead of
+   growing, and the view would appear in a single step. */
+@property --dither-dot {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+.view-layer--dither {
+  /* Out of flow for the length of the dither, and it doesn't move: both
+     views are a single full-screen block filling #root, so inset: 0 is the
+     same box its height: 100% already resolved to, and the grids and flex
+     columns inside still get a definite height to divide up. */
   position: absolute;
   inset: 0;
+  /* One dot per 8px tile, revealed as the radius grows. 8px divides both
+     1920 and 1080, so the pattern lands exactly on the panel's pixel grid —
+     a tile size that doesn't would shimmer against it, which on a wall
+     display read from across a room is the whole effect ruined. At this
+     size a dot is a couple of millimetres: it reads as texture rather than
+     as polka dots.
+
+     The radius runs to 5.7px, which is the tile's corner distance
+     (4 * sqrt(2)) — the point at which neighbouring dots have just merged
+     and the tile is completely covered. Short of it the last row of pixels
+     along the tile edges stays transparent and the finished transition
+     keeps a faint grid of hairlines over the incoming view. The 0.6px
+     between the two stops is the soft edge, so a dot's rim is a gradient
+     rather than a hard circle.
+
+     -webkit- longhands alongside the standard ones because a Pi on an older
+     Debian gets a Chromium from apt that predates unprefixed mask-image.
+     Where neither is understood the view simply isn't masked, which is the
+     old hard cut — the transition fails to nothing, not to an invisible
+     view. */
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 var(--dither-dot, 0px), transparent calc(var(--dither-dot, 0px) + 0.6px));
+  mask-image: radial-gradient(circle at 50% 50%, #000 var(--dither-dot, 0px), transparent calc(var(--dither-dot, 0px) + 0.6px));
+  -webkit-mask-size: 8px 8px;
+  mask-size: 8px 8px;
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  /* 1800ms is DITHER_MS in useViewSwap.js. Ease in and out rather than
+     linear, so the pattern crawls at the start, opens fastest through the
+     middle where the two views are interleaved and the dither is doing its
+     actual work, and settles at the end instead of stopping dead. */
+  animation: view-dither-in 1800ms ease-in-out both;
 }
 
-/* 350ms is SWAP_MS in useViewSwap.js — the same number, and it has to be: the
-   incoming view is mounted by that timer, so a fade that outlasted it would
-   be cut off mid-fade and one that fell short would leave a frame of bare
-   background between the two. */
-.view-layer--leaving {
-  animation: view-fade-out 350ms ease-in both;
-}
-
-.view-layer--entering {
-  animation: view-fade-in 350ms ease-out both;
-}
-
-@keyframes view-fade-out {
+@keyframes view-dither-in {
   from {
-    opacity: 1;
+    --dither-dot: 0px;
   }
   to {
-    opacity: 0;
+    --dither-dot: 5.7px;
   }
 }
 
-@keyframes view-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* The same query the hook checks to skip the swap entirely (see
-   utils/motion.js). Belt and braces: the hook already swaps instantly, so
-   this only matters if someone flips the preference while the page is open,
-   which would otherwise leave a view sitting at zero opacity waiting on a
-   timer that is no longer animating anything. */
+/* The same query the hook checks to skip the transition entirely (see
+   utils/motion.js). The mask has to go with the animation rather than just
+   standing the animation down: cancelled, --dither-dot would sit at its
+   initial 0px and the incoming view would be masked to nothing at all,
+   which is the one failure mode worse than having no dither. */
 @media (prefers-reduced-motion: reduce) {
-  .view-layer--leaving,
-  .view-layer--entering {
+  .view-layer--dither {
     animation: none;
-    opacity: 1;
+    -webkit-mask-image: none;
+    mask-image: none;
   }
 }
 
@@ -211,7 +230,12 @@ body {
   height: 0.6rem;
   border-radius: 50%;
   background: var(--color-offline);
-  z-index: 1;
+  /* 0, not 1: enough to sit above the calendar's own in-flow content, but
+     not enough to escape it. During the dither handover the calendar and the
+     weather view are stacked, and the incoming one is the later sibling, so
+     anything at 1 or above would paint over it and this dot would hang in
+     the corner of the weather view for the length of the transition. */
+  z-index: 0;
 }
 
 .calendar-header__dot.is-connected {

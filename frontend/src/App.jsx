@@ -101,29 +101,36 @@ export default function App() {
   // reason WeatherWidget renders nothing at all without a reading.
   const showWeather = weatherSince !== null && Boolean(weather?.hourly?.length || weather?.daily?.length);
 
-  // The handover between the two views. Only one is ever mounted: the
-  // calendar is the fallback, so it's up whenever the weather isn't, and the
-  // weather replaces it for its window. The class is what fades the view
-  // currently on the wall off or the new one up (see useViewSwap.js and
-  // .view-layer--leaving/.view-layer--entering in base.css) — empty whenever
-  // there's no handover in progress, which is almost always.
+  // Which view belongs on the wall, and — while one is dithering in over the
+  // other — the one it's covering, which stays mounted and readable
+  // underneath until the pattern has finished opening (see useViewSwap.js).
   const swap = useViewSwap(showWeather ? 'weather' : 'calendar');
-  const layerClass = swap.phase === 'idle' ? '' : `view-layer--${swap.phase}`;
 
-  if (swap.view === 'weather') {
-    return <WeatherView weather={weather} settings={settings} className={layerClass} />;
-  }
-
-  return (
-    <div className={layerClass ? `app ${layerClass}` : 'app'}>
-      <CalendarHeader connected={connected} />
-      <div className="body">
-        <CalendarView events={calendar} privacyMode={privacyMode} onMeasureSplit={setTodayHeight} />
-        <div className="secondary" style={{ '--today-height': todayHeight ? `${todayHeight}px` : undefined }}>
-          <DayAgenda events={calendar} privacyMode={privacyMode} />
-          <TodoView tasks={todo} privacyMode={privacyMode} weather={weather} settings={settings} />
+  // One renderer for both views rather than an early return each, because a
+  // dither needs them on screen at the same time. Keyed by view name, so
+  // React keeps whichever one is already mounted rather than tearing it down
+  // and building it again mid-transition.
+  const renderView = (name, layerClass) =>
+    name === 'weather' ? (
+      <WeatherView key={name} weather={weather} settings={settings} className={layerClass} />
+    ) : (
+      <div key={name} className={layerClass ? `app ${layerClass}` : 'app'}>
+        <CalendarHeader connected={connected} />
+        <div className="body">
+          <CalendarView events={calendar} privacyMode={privacyMode} onMeasureSplit={setTodayHeight} />
+          <div className="secondary" style={{ '--today-height': todayHeight ? `${todayHeight}px` : undefined }}>
+            <DayAgenda events={calendar} privacyMode={privacyMode} />
+            <TodoView tasks={todo} privacyMode={privacyMode} weather={weather} settings={settings} />
+          </div>
         </div>
       </div>
-    </div>
+    );
+
+  return (
+    <>
+      {/* Outgoing first, so the incoming one paints over it. */}
+      {swap.from && renderView(swap.from, '')}
+      {renderView(swap.view, swap.from ? 'view-layer--dither' : '')}
+    </>
   );
 }

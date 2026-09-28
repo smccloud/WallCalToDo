@@ -61,8 +61,11 @@ fi
 # A kiosk display that always shows the same one page has no use for
 # persisting any of that between boots anyway.
 #
-# --disable-gpu forces fully software rendering. This page has no
-# animation/scrolling that needs GPU accel, so it's free to keep.
+# --disable-gpu forces fully software rendering. This page does animate —
+# the weather intro and the calendar/weather dither handover — but each frame
+# of both is cheap fills and 8px dot lattices, and the Pi's GPU stack
+# (firmware/DRM drivers) has been more prone to lockups under accelerated
+# scroll than the CPU rasterizer is to being slow, so it stays off.
 #
 # The flags below (--disable-background-networking through
 # --disable-domain-reliability) turn off Chromium's own phone-home
