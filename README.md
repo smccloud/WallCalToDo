@@ -165,10 +165,10 @@ doesn't take effect.
 ## Calendar legend and outside temperature
 
 Two small widgets round out the wall display, both pinned to a bottom
-corner of their panel (bottom-left/right in portrait, mirrored in
-landscape):
+corner of their panel:
 
-- **Calendar legend** (bottom-left of the agenda panel) — one letter-circle
+- **Calendar legend** (bottom-left of the agenda panel; mirrored onto the
+  same panel's bottom-right in landscape) — one letter-circle
   per calendar, in its own color, so a glance at a pill tells you which
   calendar it's from. If a calendar has events with a per-event color
   override (Google Calendar's "change color of this event"), those colors
@@ -222,7 +222,7 @@ already had, rather than half-faded.
 
 Each appearance opens with a short intro: the current temperature counts the
 rest of the way up to its real value while the sky icon scales in and the two
-strips slide up behind it, about a second and a half in total. It plays every
+strips slide up behind it, a little over a second in total. It plays every
 time rather than once a session, since the view mounts afresh each time the
 rotation brings it back and each appearance is meant to be worth a look — the
 default minute on screen has to stay mostly readable, so it's kept short. The
@@ -573,8 +573,10 @@ connecting your accounts, and mounting it on the wall.
    - **Hostname** — pick something memorable, e.g. `wallcaltodo` (you'll
      use `wallcaltodo.local` to reach it later).
    - **Username/password** — this guide uses `pi` throughout; if you pick
-     something else, swap it in every command below and in the two
-     `pi-setup/*.service` files (they reference `/home/pi/...` and `User=pi`).
+     something else, swap it in every command below, in the server's unit
+     file `pi-setup/wallcaltodo.service` (it sets `User=pi` and
+     `/home/pi/...` paths), and in the `/home/pi` paths under
+     `pi-setup/kiosk/`.
    - **Wi-Fi** — your network name and password, so it connects on first boot.
    - **Enable SSH** — with password authentication.
 6. Write the image, wait for it to finish, then eject the card.
@@ -852,7 +854,8 @@ needed. Widen it back out (wider than tall) to preview landscape instead.
 The visual design lives directly in this repo now — `frontend/src/styles/
 tokens.css` for the base color/spacing/type scale, `frontend/src/styles/
 base.css` and the component files (`CalendarView.jsx`, `CalendarHeader.jsx`,
-`DayAgenda.jsx`, `TodoView.jsx`, `Legend.jsx`, `WeatherWidget.jsx`) for the
+`DayAgenda.jsx`, `TodoView.jsx`, `Legend.jsx`, `WeatherWidget.jsx`,
+`WeatherView.jsx`, `BirthdayMark.jsx`) for the
 actual layout and styling. It's been iterated on in place rather than
 built separately and dropped in: the calendar grid, event pill styling (a
 stroke in the event's own color over a tinted background, not a solid
