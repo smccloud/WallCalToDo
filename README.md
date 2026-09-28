@@ -332,13 +332,26 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   Hiding them by organizer as well was tried and reverted: it made no
   measurable difference, because the meetings worth hiding live in *your*
   calendar, not the shared one.
+- **Birthdays get a cake** — a contacts-derived birthday is marked with 🎂 on
+  its pill, and in today's agenda, so the one day of the year that's about
+  someone rather than about a meeting is legible at a glance. Google flags
+  these with an `eventType` rather than anything in the title, which is what
+  makes it reliable: an event someone called "Birthday party" is a party,
+  and the same contact's own birthday says whatever the calendar's language
+  says. Microsoft can't do this — its `event` resource has no birthday field
+  at all, and Outlook's birthday "calendar" is a view over contacts rather
+  than real events, so there is nothing for the API to hand over. The cake is
+  a sibling of the title rather than part of it, so it survives a title
+  truncated to three lines in a narrow cell; and it goes away in privacy mode
+  along with the title it decorates.
 - **Birthdays are already on the wall** — there is no Birthdays calendar to
   subscribe to, and none to go looking for in the list above. Google builds
   birthdays from your Google Contacts and hands them to the API as ordinary
-  all-day events on your own calendars, tagged `eventType: "birthday"`, which
-  the display doesn't need to special-case to draw them: they appear under
-  whichever calendar they arrived on, in that calendar's color. The Birthdays
-  calendar you can see in the Google Calendar UI is a *separate* thing, and it
+  all-day events on your own calendars, tagged `eventType: "birthday"`. Apart
+  from the cake above they need nothing special: they appear under whichever
+  calendar they arrived on, in that calendar's color, like any other
+  all-day event. The Birthdays calendar you can see in the Google Calendar UI
+  is a *separate* thing, and it
   is not merely absent from the API's calendar listing — it's unreadable
   outright. With a valid `calendar.readonly` token, both `calendarList.get`
   and `events.list` on its well-known id (`contacts#group.v.calendar.google.com`)

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useEffect, useRef, useState } from 'react';
 import { dateKey, formatClock, ordinalSuffix, parseLocalDate, sortDayEvents } from '../utils/date.js';
 import Legend from './Legend.jsx';
+import BirthdayMark from './BirthdayMark.jsx';
 
 // The agenda list's own default text size (matches the design), and the
 // smallest it's ever allowed to shrink to on a day packed with events —
@@ -95,6 +96,7 @@ export default function DayAgenda({ events, privacyMode }) {
               <li key={event.id} className={`agenda__item${isPast ? ' agenda__item--past' : ''}`}>
                 <span className="agenda__time">{event.allDay ? 'All day' : formatClock(new Date(event.start))}</span>
                 <span className="event-pill agenda__pill" style={{ '--event-color': event.color || 'var(--color-accent)' }}>
+                  {event.isBirthday && <BirthdayMark />}
                   {event.title}
                 </span>
               </li>

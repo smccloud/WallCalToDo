@@ -77,6 +77,14 @@ function normalizeEvent(event, context) {
     end: event.end?.dateTime || event.end?.date,
     allDay: Boolean(event.start?.date && !event.start?.dateTime),
     location: event.location || null,
+    // A contacts-derived birthday — the display marks these with a cake.
+    // Google's own `eventType` rather than anything in the title, which is
+    // the only reliable tell: an event someone called "Birthday party" is a
+    // party, the same contact's own birthday says whatever the calendar's
+    // language says ("Geburtstag", "Anniversaire"), and the two are
+    // otherwise indistinguishable. Set only when true, not as `false` --
+    // that's nearly every event, and the cache holds a copy of each.
+    ...(event.eventType === 'birthday' ? { isBirthday: true } : {}),
     calendarKey: context.calendarKey,
     calendarLabel: context.calendarLabel,
     calendarColor: context.color,

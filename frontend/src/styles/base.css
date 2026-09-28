@@ -1043,3 +1043,15 @@ body {
   min-height: 1.4em;
   white-space: nowrap;
 }
+
+/* The birthday cake, on a calendar pill and on an agenda pill alike. Sized
+   with the text it sits beside rather than scaled up: at pill size the two
+   are within a pixel or two of each other anyway, and a larger glyph reads as
+   a separate badge rather than as part of the title. flex:none in both, so
+   it's the one thing in the pill that never gets squeezed when the title
+   beside it runs out of room. */
+.birthday-mark {
+  flex: none;
+  margin-right: 0.3em;
+  line-height: 1;
+}

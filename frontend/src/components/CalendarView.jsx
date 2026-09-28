@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { WEEKDAYS, addDays, buildMonthGrid, dateKey, parseLocalDate, sortDayEvents } from '../utils/date.js';
 import { holidayFor } from '../utils/holidays.js';
+import BirthdayMark from './BirthdayMark.jsx';
 
 // Placeholder presentation only — swap this markup/styling for the real
 // design later. Data shape stays the same: [{ id, title, start, end, allDay, location, calendarLabel, color }]
@@ -133,8 +134,18 @@ function DayCell({ date, inMonth, isToday, dayEvents, barsSpace, gridRow, gridCo
             {/* Privacy mode: keep the colored pill itself (that's the
                 point — at a glance there's still "something at 2pm"),
                 just never render the title text that would say what
-                it is. */}
-            {!privacyMode && <span className="calendar-cell__event-text">{event.title}</span>}
+                it is. The birthday cake goes with the title: it decorates
+                the text rather than standing in for it. */}
+            {!privacyMode && (
+              <>
+                {/* A sibling of the text, not part of it: the text below is
+                    clamped to three lines and clipped, so a cake inside it
+                    would be the first thing truncated away on a narrow cell —
+                    which is exactly where marking the day matters most. */}
+                {event.isBirthday && <BirthdayMark />}
+                <span className="calendar-cell__event-text">{event.title}</span>
+              </>
+            )}
           </li>
         ))}
       </ul>
