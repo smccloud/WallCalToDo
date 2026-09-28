@@ -61,9 +61,6 @@ fi
 # A kiosk display that always shows the same one page has no use for
 # persisting any of that between boots anyway.
 #
-# --disable-gpu forces fully software rendering. This page has no
-# animation/scrolling that needs GPU accel, so it's free to keep.
-#
 # The flags below (--disable-background-networking through
 # --disable-domain-reliability) turn off Chromium's own phone-home
 # traffic — update checks, GCM registration, optimization-guide model
@@ -91,7 +88,6 @@ log "launching $BROWSER"
   --disable-session-crashed-bubble \
   --autoplay-policy=no-user-gesture-required \
   --check-for-update-interval=31536000 \
-  --disable-gpu \
   --disable-background-networking \
   --disable-component-update \
   --disable-domain-reliability \
