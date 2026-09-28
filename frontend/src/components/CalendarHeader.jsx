@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { formatClock } from '../utils/date.js';
+import SunTimes from './SunTimes.jsx';
 
 // Split out of CalendarView so it can sit as its own full-width row above
 // everything else (calendar + today/to-do) in both portrait and landscape,
@@ -7,7 +8,7 @@ import { formatClock } from '../utils/date.js';
 // App.jsx. Its own clock, same pattern as every other view in this app
 // (CalendarView/DayAgenda/TodoView's WeatherWidget) rather than one shared
 // timer passed down.
-export default function CalendarHeader({ connected }) {
+export default function CalendarHeader({ connected, settings }) {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -21,6 +22,12 @@ export default function CalendarHeader({ connected }) {
         <span className="calendar-header__month">{now.toLocaleDateString(undefined, { month: 'long' })}</span>
         <span className="calendar-header__year"> {now.getFullYear()}</span>
       </h1>
+      {/* Sunrise/sunset, between the month/year and the clock — the one gap in
+          the header that was doing nothing. Renders nothing at all without a
+          saved location, and both outer elements are pinned to their own
+          columns (see .calendar-header), so the header then lays out exactly
+          as it did before this existed. */}
+      <SunTimes settings={settings} />
       <div className="calendar-header__right">
         <span className={`calendar-header__dot ${connected ? 'is-connected' : 'is-disconnected'}`} />
         <span className="calendar-header__clock">{formatClock(now)}</span>

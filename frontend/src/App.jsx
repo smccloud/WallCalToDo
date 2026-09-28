@@ -116,7 +116,7 @@ export default function App() {
 
   return (
     <div className={layerClass ? `app ${layerClass}` : 'app'}>
-      <CalendarHeader connected={connected} />
+      <CalendarHeader connected={connected} settings={settings} />
       <div className="body">
         <CalendarView events={calendar} privacyMode={privacyMode} onMeasureSplit={setTodayHeight} />
         <div className="secondary" style={{ '--today-height': todayHeight ? `${todayHeight}px` : undefined }}>

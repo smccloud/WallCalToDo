@@ -168,10 +168,22 @@ body {
   }
 }
 
+/* A 3-column grid rather than a space-between flex row (which is what this
+   was) now that sunrise/sunset sits between the month/year and the clock:
+   flex would have put the sun times in a leftover gap sized by how wide the
+   other two happen to be, rather than actually centered on the screen. The
+   two outer columns are equal (1fr each) so the middle one is centered
+   between them.
+
+   The clock is pinned to column 3 explicitly rather than auto-placed,
+   because SunTimes renders nothing at all when no location is set — with
+   plain auto-placement the clock would slide into column 2 and end up
+   centered over the calendar. Pinned, the empty middle column collapses
+   and the header looks exactly as it did before the sun times existed. */
 .calendar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
   /* Right inset is 5px, not --space-sm: it needs to line up exactly
      with .calendar-header__dot's own 5px-from-the-screen-edge position
      below, so the clock's last character (the "m" in am/pm) ends up
@@ -180,6 +192,7 @@ body {
 }
 
 .calendar-header__date {
+  grid-column: 1;
   margin: 0;
   font-size: var(--font-size-title);
 }
@@ -193,9 +206,33 @@ body {
 }
 
 .calendar-header__right {
+  grid-column: 3;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  gap: 0.3em;
+}
+
+/* Sunrise and sunset, in the middle column (see .calendar-header). Muted like
+   the clock rather than full-brightness: they're context for the day, not
+   the thing to read across a room, and full-brightness would put a third
+   bright block in the header next to two that already compete. */
+.calendar-header__sun {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-body);
+  white-space: nowrap;
+}
+
+/* Each emoji then its time, sharing one baseline. Emoji sit on their own
+   baseline rather than the text's by default, which is what makes a mixed
+   emoji/text pair look misaligned rather than deliberately so. */
+.calendar-header__sun-time {
+  display: inline-flex;
+  align-items: baseline;
   gap: 0.3em;
 }
 
