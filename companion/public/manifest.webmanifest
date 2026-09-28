@@ -1,0 +1,10 @@
+{
+  "name": "WallCalToDo Settings",
+  "short_name": "WallCalToDo",
+  "display": "standalone",
+  "start_url": "/companion/",
+  "icons": [
+    { "src": "/companion/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/companion/favicon-32.png", "sizes": "32x32", "type": "image/png" }
+  ]
+}

@@ -3,12 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="WallCalToDo" />
-    <link rel="icon" type="image/png" href="/favicon-32.png" />
-    <!-- The icon iOS actually uses for "Add to Home Screen" -- without
-         this, iOS falls back to a screenshot of the page as the icon. -->
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/companion/manifest.webmanifest" />
+    <link rel="icon" type="image/png" href="/companion/favicon-32.png" />
+    <!-- The icon Android Chrome uses for the "Add to Home Screen" shortcut
+         (also listed in manifest.webmanifest) -- without it, the browser
+         falls back to a screenshot of the page as the icon. -->
+    <link rel="icon" sizes="180x180" type="image/png" href="/companion/icon-180.png" />
     <title>WallCalToDo Settings</title>
   </head>
   <body>

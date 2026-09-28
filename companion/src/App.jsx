@@ -386,7 +386,7 @@ export default function App() {
             served at /companion/ in production (see vite.config.js's
             base), and unlike index.html's own <link> tags, Vite doesn't
             rewrite a plain runtime string here to add that prefix. */}
-        <img src={`${import.meta.env.BASE_URL}apple-touch-icon.png`} alt="" className="page__logo" />
+        <img src={`${import.meta.env.BASE_URL}icon-180.png`} alt="" className="page__logo" />
         <h1>WallCalToDo</h1>
       </header>
 

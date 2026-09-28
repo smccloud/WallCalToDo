@@ -34,37 +34,33 @@ due dates.)*
 
 The point of this project isn't a new to-do app — it's to get a wall
 calendar without giving up the one I already have. My actual calendar and
-to-do list live in the stock iOS apps: Calendar (backed by a Google/Gmail
-account) and Reminders (backed by a Microsoft account, which is what "To
-Do" runs on under the hood). That's genuinely how I organize my life day to
-day, and I didn't want a wall display that meant switching to yet another
-app just so it had something to show.
+to-do list live in the stock Android apps: Calendar (backed by a
+Google/Gmail account) and Microsoft To Do (backed by my Microsoft
+account, which is what "To Do" runs on under the hood). That's genuinely
+how I organize my life day to day, and I didn't want a wall display that
+meant switching to yet another app just so it had something to show.
 
 So instead of inventing its own data model, WallCalToDo reads straight from
 the same accounts my phone already syncs against — the Google Calendar API
-and the Microsoft Graph calendar and To Do APIs — rather than iCloud. Anything
+and the Microsoft Graph calendar and To Do APIs. Anything
 I add, check off, or move on my phone shows up on the wall (see "How it
 works" below for the polling delay), because it's the exact same underlying
 data, not a copy of it. The wall display itself is read-only, though —
 there's no touch input, so it's a one-way mirror of what's on my phone,
 not something you edit from.
 
-Reminders specifically needed Microsoft, not Google: the iOS Reminders app
-only syncs with accounts that support the underlying task-sync protocol —
-iCloud natively, and Microsoft via Exchange. Google was never an option
-there; adding a Google account in iOS only exposes Mail, Contacts,
-Calendars, and Notes, with no Reminders toggle at all. So Microsoft ended
-up being the practical alternative to iCloud for this. I linked my
-Microsoft account in Reminders' account settings, set it as the default
-account for new reminders, and moved my actual to-do list over to it — so
-Reminders on my phone and the to-do side of this wall display are now
-reading the same Microsoft-backed list.
+The to-do side runs on Microsoft To Do because that's the app I actually
+use: it's a proper Android app, and its public Graph API is what the wall
+reads. I linked my Microsoft account in the To Do app's settings, made it
+the home of my to-do list, and moved the real list over to it — so To Do
+on my phone and the to-do side of this wall display are now reading the
+same Microsoft-backed list, the same way Calendar on my phone and the
+calendar on the wall are reading the same Google account.
 
-The only one-time cost is connecting a Google account in the iOS
-Mail/Calendar settings and a Microsoft account in Reminders' account
-settings if you haven't already — after that, nothing about how you
-actually use your phone changes. The wall display is just another window
-onto accounts you're already keeping up with.
+The only one-time cost is connecting your Google account to the Calendar
+app and your Microsoft account to the To Do app if you haven't already —
+after that, nothing about how you actually use your phone changes. The wall
+display is just another window onto accounts you're already keeping up with.
 
 ## How it works
 
@@ -384,6 +380,22 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   back to probing whether events could be read from it; on a real account that
   path can never fire, so it has been reverted rather than left behind as a
   promise this document would have to keep making.
+
+<p align="center">
+  <a href="docs/demo-birthday-landscape-dark.png"><img src="docs/demo-birthday-landscape-dark.png" alt="Landscape, dark theme: November 2026 with the 3rd, 8th and 20th ringed with a cake in the Family calendar's color, and Alex's birthday on the 8th (today) also in the agenda with cakes on its pill" width="380"></a>
+  <a href="docs/demo-birthday-landscape-light.png"><img src="docs/demo-birthday-landscape-light.png" alt="Landscape, light theme: the same November 2026 month" width="380"></a>
+</p>
+<p align="center">
+  <a href="docs/demo-birthday-portrait-dark.png"><img src="docs/demo-birthday-portrait-dark.png" alt="Portrait, dark theme: November 2026 with the same three cakes and the birthday in today's agenda" width="220"></a>
+  <a href="docs/demo-birthday-portrait-light.png"><img src="docs/demo-birthday-portrait-light.png" alt="Portrait, light theme: the same November 2026 month" width="220"></a>
+</p>
+
+*(Demo data again, with the clock moved to 8 November so a Family-calendar
+birthday is today's: Dana on the 3rd, Alex's on the 8th — in the agenda, with
+a cake beside its pill — and Jordan on the 20th. The Birthdays calendar itself
+is unreadable over the API, as above, so these stand in for the ordinary
+all-day events Google really hands over, tagged the same way.)*
+
 - **Untitled events are shown** — an event with no title at all (Graph's
   `subject`, Google's `summary`) displays as "(No title)" on both providers
   rather than being hidden. This reverses an earlier version of this doc that
