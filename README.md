@@ -207,22 +207,18 @@ displays on the same network agree without talking to each other. With an
 hourly setting the weather appears *on* the hour, every hour, which is
 predictable enough to wait for.
 
-The handover itself is a slow dither in both directions: the two views share
-the wall for the length of the transition, with the incoming one opening in
-over the other through a growing pattern of dots — one per 8px cell, so the
-lattice lands exactly on the panel's pixel grid — over about 1.8 seconds.
-Both are dense grids of text, and this is exactly why the cross works where a
-plain cross-fade could not: a fade compounds the two, leaving every row of
-both legible at once, which from across a room reads as a glitch, whereas the
-pattern interleaves them so each view keeps its own pixels for the whole
-transition. The background is the same colour behind both, so a dot open over
-the incoming view's empty margin reads as weather, and the wall settles
-without a visible join when the outgoing view unmounts. The swap is
-symmetric, and a swap that gets called off partway — the reading briefly
-arriving empty, say — settles the wall on the view it already had, with no
-half-open pattern left behind. Anyone who has asked their system to reduce
-motion gets a straight handover instead, with no dither and never two views
-at once.
+The handover itself is a transition in both directions: the outgoing view fades
+out over half a second, and the incoming one fades up over as much again,
+passing through the background colour in between rather than through the
+other view. Both are dense grids of text, and dissolving one into the other
+would leave every row of both legible at once, which from across a room reads
+as a glitch. Sequential also means only one view is ever mounted, and no frame
+of the display is spent rendering the calendar grid and 34 forecast columns at
+the same time. On the way back it reads as the display blinking rather than
+switching; on the way out the weather's own intro starts as it fades up, so the
+number is counting as the view arrives. A swap that gets called off partway —
+the reading briefly arriving empty, say — leaves the wall settled on the view it
+already had, rather than half-faded.
 
 Each appearance opens with a short intro: the current temperature counts the
 rest of the way up to its real value while the sky icon scales in and the two
