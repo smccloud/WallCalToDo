@@ -33,13 +33,13 @@ export default function SunTimes({ settings }) {
     <div className="calendar-header__sun">
       {sunrise && (
         <span className="calendar-header__sun-time">
-          <span aria-hidden="true">🌅</span> <span className="calendar-header__sun-label">Sunrise</span>
+          <span aria-hidden="true">🌅</span> <span className="calendar-header__sun-label">Sunrise at</span>
           {formatClock(sunrise)}
         </span>
       )}
       {sunset && (
         <span className="calendar-header__sun-time">
-          <span aria-hidden="true">🌇</span> <span className="calendar-header__sun-label">Sunset</span>
+          <span aria-hidden="true">🌇</span> <span className="calendar-header__sun-label">Sunset at</span>
           {formatClock(sunset)}
         </span>
       )}

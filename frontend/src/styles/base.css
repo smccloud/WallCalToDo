@@ -231,9 +231,9 @@ body {
    on their own baseline rather than the text's by default, which is what makes
    a mixed emoji/text pair look misaligned rather than deliberately so.
 
-   The word itself is dimmer than its time. It's there to name the pictogram
-   next to it, and the number is the part someone actually reads, so the two
-   shouldn't compete at the same weight. */
+   The words are dimmer than the time. They name the pictogram next to them
+   and introduce the number ("Sunrise at 6:12 am"), but the number is the part
+   someone actually reads, so the two shouldn't compete at the same weight. */
 .calendar-header__sun-time {
   display: inline-flex;
   align-items: baseline;
