@@ -10,6 +10,11 @@ body,
   height: 100%;
   margin: 0;
   overflow: hidden;
+  /* The containing block for the two views during a rotation swap (see
+     .view-layer--leaving below), which keeps them filling the app rather than
+     the viewport. Identical box either way here — #root is exactly the
+     viewport — but it says which of the two it means. */
+  position: relative;
 }
 
 body {
@@ -71,6 +76,65 @@ body {
        above) — otherwise it only reaches as far as the calendar's own
        column. */
     border-top: 1px solid var(--color-border);
+  }
+}
+
+/* ---------- Rotation: calendar <-> weather ---------- */
+
+/* The handover between the two views (see useViewSwap.js, which puts one of
+   these two classes on whichever view is mounted, and why only ever one view
+   is mounted at a time).
+
+   Both views are a single full-screen block filling #root, so taking one out
+   of flow for the length of a swap doesn't move it: inset: 0 is the same box
+   its height: 100% already resolved to, and the grids and flex columns
+   inside still get a definite height to divide up. */
+.view-layer--leaving,
+.view-layer--entering {
+  position: absolute;
+  inset: 0;
+}
+
+/* 350ms is SWAP_MS in useViewSwap.js — the same number, and it has to be: the
+   incoming view is mounted by that timer, so a fade that outlasted it would
+   be cut off mid-fade and one that fell short would leave a frame of bare
+   background between the two. */
+.view-layer--leaving {
+  animation: view-fade-out 350ms ease-in both;
+}
+
+.view-layer--entering {
+  animation: view-fade-in 350ms ease-out both;
+}
+
+@keyframes view-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes view-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The same query the hook checks to skip the swap entirely (see
+   utils/motion.js). Belt and braces: the hook already swaps instantly, so
+   this only matters if someone flips the preference while the page is open,
+   which would otherwise leave a view sitting at zero opacity waiting on a
+   timer that is no longer animating anything. */
+@media (prefers-reduced-motion: reduce) {
+  .view-layer--leaving,
+  .view-layer--entering {
+    animation: none;
+    opacity: 1;
   }
 }
 

@@ -207,6 +207,19 @@ displays on the same network agree without talking to each other. With an
 hourly setting the weather appears *on* the hour, every hour, which is
 predictable enough to wait for.
 
+The handover itself is a transition in both directions: the outgoing view fades
+out over about a third of a second, and the incoming one fades up over as much
+again, passing through the background colour in between rather than through the
+other view. Both are dense grids of text, and dissolving one into the other
+would leave every row of both legible at once, which from across a room reads
+as a glitch. Sequential also means only one view is ever mounted, and no frame
+of the display is spent rendering the calendar grid and 34 forecast columns at
+the same time. On the way back it reads as the display blinking rather than
+switching; on the way out the weather's own intro starts as it fades up, so the
+number is counting as the view arrives. A swap that gets called off partway —
+the reading briefly arriving empty, say — leaves the wall settled on the view it
+already had, rather than half-faded.
+
 Each appearance opens with a short intro: the current temperature counts the
 rest of the way up to its real value while the sky icon scales in and the two
 strips slide up behind it, about a second and a half in total. It plays every

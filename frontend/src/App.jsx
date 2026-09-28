@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useWebSocket } from './hooks/useWebSocket.js';
+import { useViewSwap } from './hooks/useViewSwap.js';
 import CalendarHeader from './components/CalendarHeader.jsx';
 import CalendarView from './components/CalendarView.jsx';
 import DayAgenda from './components/DayAgenda.jsx';
@@ -100,12 +101,21 @@ export default function App() {
   // reason WeatherWidget renders nothing at all without a reading.
   const showWeather = weatherSince !== null && Boolean(weather?.hourly?.length || weather?.daily?.length);
 
-  if (showWeather) {
-    return <WeatherView weather={weather} settings={settings} />;
+  // The handover between the two views. Only one is ever mounted: the
+  // calendar is the fallback, so it's up whenever the weather isn't, and the
+  // weather replaces it for its window. The class is what fades the view
+  // currently on the wall off or the new one up (see useViewSwap.js and
+  // .view-layer--leaving/.view-layer--entering in base.css) — empty whenever
+  // there's no handover in progress, which is almost always.
+  const swap = useViewSwap(showWeather ? 'weather' : 'calendar');
+  const layerClass = swap.phase === 'idle' ? '' : `view-layer--${swap.phase}`;
+
+  if (swap.view === 'weather') {
+    return <WeatherView weather={weather} settings={settings} className={layerClass} />;
   }
 
   return (
-    <div className="app">
+    <div className={layerClass ? `app ${layerClass}` : 'app'}>
       <CalendarHeader connected={connected} />
       <div className="body">
         <CalendarView events={calendar} privacyMode={privacyMode} onMeasureSplit={setTodayHeight} />

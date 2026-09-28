@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { WEEKDAYS, dateKey, formatClock, ordinalSuffix } from '../utils/date.js';
+import { REDUCED_MOTION } from '../utils/motion.js';
 import { formatPrecipChance, formatPrecipitation, formatWind } from '../utils/units.js';
 
 // The two windows the wall shows, per the feature's shape: the rest of today
@@ -87,17 +88,6 @@ function easeOut(t) {
   return 1 - (1 - t) ** 3;
 }
 
-// Someone who has asked their system to reduce motion shouldn't get a wall
-// that animates at them every hour, so the whole intro is skipped for them --
-// the number arrives at its value and the CSS below stands down via the same
-// query. Read once at module load rather than per render: it can't change
-// without a reload, and the alternative is a matchMedia listener for a
-// preference that is fixed for the life of the page.
-const REDUCED_MOTION =
-  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    : false;
-
 // Full-screen weather, shown in place of the calendar for a configurable
 // stretch of time (see the rotation in App.jsx).
 //
@@ -109,7 +99,13 @@ const REDUCED_MOTION =
 // its own faster timer, and re-rendering the whole display every few seconds
 // to keep a clock fresh is not a trade worth making when the calendar is the
 // thing not being shown.
-export default function WeatherView({ weather, settings }) {
+//
+// className goes on the root, which in practice is the fade-in/out class the
+// handover between the views applies (see useViewSwap.js) — this view has no
+// say in whether it's on its way in or out, only in what it looks like while
+// it gets there. Reduced motion is read from utils/motion.js, shared with that
+// handover so the two can't disagree about whether anything moves at all.
+export default function WeatherView({ weather, settings, className = '' }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30_000);
@@ -163,14 +159,14 @@ export default function WeatherView({ weather, settings }) {
   // empty strip would read as a rendering bug rather than as "no data".
   if (!hourly.length && !daily.length) {
     return (
-      <div className="weather-view weather-view--empty">
+      <div className={`weather-view weather-view--empty${className ? ` ${className}` : ''}`}>
         <p className="weather-view__empty">No forecast for this location yet.</p>
       </div>
     );
   }
 
   return (
-    <div className={`weather-view${REDUCED_MOTION ? '' : ' weather-view--intro'}`}>
+    <div className={`weather-view${REDUCED_MOTION ? '' : ' weather-view--intro'}${className ? ` ${className}` : ''}`}>
       <header className="weather-view__head">
         <div className="weather-view__now">
           {place && <span className="weather-view__place">{place}</span>}
