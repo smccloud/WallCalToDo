@@ -227,6 +227,28 @@ Needs a location set in the companion app, like the temperature widget — with
 no location the view never takes over, rather than replacing the calendar
 with an empty screen.
 
+<p align="center">
+  <a href="docs/demo-weather-landscape-dark.png"><img src="docs/demo-weather-landscape-dark.png" alt="Landscape, dark theme, US units: the weather view full screen, 71 degrees and 8 mph east at the top left, the next 24 hours hour by hour across the middle, and the next 10 days day by day underneath" width="380"></a>
+  <a href="docs/demo-weather-landscape-light.png"><img src="docs/demo-weather-landscape-light.png" alt="Landscape, light theme, metric units: the same view showing 22 degrees, 13 km/h, and rainfall in millimetres" width="380"></a>
+</p>
+<p align="center">
+  <a href="docs/demo-weather-portrait-dark.png"><img src="docs/demo-weather-portrait-dark.png" alt="Portrait, dark theme: the same weather view, which fills a tall screen as one centred column" width="220"></a>
+  <a href="docs/demo-weather-portrait-light.png"><img src="docs/demo-weather-portrait-light.png" alt="Portrait, light theme: the same view in metric units" width="220"></a>
+</p>
+
+*(Unlike the calendar captures above, the forecast in these is real rather
+than invented: an actual [Open-Meteo](https://open-meteo.com/) reading for
+Olathe, Kansas, frozen the moment it was fetched, with the clock pinned to
+the hour that reading was taken in so the column marked "Now" really is now
+(Sunday 27 September, 8:00 pm). The left pair is in US units and the right
+pair metric, which is the Units section doing its job. No calendar is visible
+in any of them because the view replaces the display outright — the clock
+stays, though, since a wall that stops telling the time once an hour is a
+worse wall. Rendered through a throwaway harness that pinned the clock
+inside the rotation's window and fed the frontend canned data in place of the
+WebSocket feed, not committed, same as the fixture behind the calendar
+captures.)*
+
 ## Holiday decoration
 
 A day carrying one of fifteen holidays gets its day number circled in the
