@@ -259,14 +259,7 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   personal + work). Reconnecting an account you've already added updates
   its tokens instead of creating a duplicate.
 - **Toggle calendars on/off** — each connected account lists every
-  calendar the provider returns for it (not just the primary one), plus one
-  Google deliberately leaves out: your own **Birthdays** calendar. Google never
-  returns that one from the API's calendar listing, so it's asked for by its
-  well-known id instead and merged in — otherwise it would be sitting right
-  there in Google Calendar, ticked on and full of birthdays, and never reach the
-  wall. Nothing to subscribe to and nothing to tick on your side: it appears in
-  the list the next time you tap **Refresh calendars** (or reconnect), and if
-  the account has it switched off in Google Calendar it stays out. Flipping
+  calendar the provider returns for it (not just the primary one). Flipping
   a switch hides or shows that calendar's events on the wall display
   immediately — no polling delay, since filtering happens at read time
   against calendars already cached. Note this means "hide *this calendar*",
@@ -277,6 +270,21 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   Hiding them by organizer as well was tried and reverted: it made no
   measurable difference, because the meetings worth hiding live in *your*
   calendar, not the shared one.
+- **Birthdays are already on the wall** — there is no Birthdays calendar to
+  subscribe to, and none to go looking for in the list above. Google builds
+  birthdays from your Google Contacts and hands them to the API as ordinary
+  all-day events on your own calendars, tagged `eventType: "birthday"`, which
+  the display doesn't need to special-case to draw them: they appear under
+  whichever calendar they arrived on, in that calendar's color. The Birthdays
+  calendar you can see in the Google Calendar UI is a *separate* thing, and it
+  is not merely absent from the API's calendar listing — it's unreadable
+  outright. With a valid `calendar.readonly` token, both `calendarList.get`
+  and `events.list` on its well-known id (`contacts#group.v.calendar.google.com`)
+  return 404, while the same calls on any listed calendar return 200. An
+  earlier version added that calendar anyway, by asking for the id and falling
+  back to probing whether events could be read from it; on a real account that
+  path can never fire, so it has been reverted rather than left behind as a
+  promise this document would have to keep making.
 - **Untitled events are shown** — an event with no title at all (Graph's
   `subject`, Google's `summary`) displays as "(No title)" on both providers
   rather than being hidden. This reverses an earlier version of this doc that
@@ -296,9 +304,7 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   entirely.
 - **Refresh calendars** — neither provider notifies us when you create a new
   calendar, so this button re-fetches an account's calendar list on
-  demand (new calendars default to enabled). It also picks up the
-  Birthdays calendar, which is the way to get it onto a display that's
-  already been running against an older backend.
+  demand (new calendars default to enabled).
 - **Connect a Microsoft account** — one account at a time, supplying *both*
   the calendars and the to-do lists from the single sign-in. Discovers
   every calendar it can read (including ones shared with you) and every To
