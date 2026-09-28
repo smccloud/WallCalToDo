@@ -461,7 +461,8 @@ body {
    between Privacy mode and Location (.privacy-toggle__hint's own
    border-bottom). */
 .theme-settings,
-.temperature-settings {
+.units-settings,
+.weather-view-settings {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid var(--color-border-subtle);

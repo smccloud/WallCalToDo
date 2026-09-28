@@ -184,8 +184,48 @@ landscape):
   times driving Automatic theme, and swaps in a 😷 mask instead of the
   weather icon when the local air quality is unhealthy (wildfire smoke,
   etc. — EPA US AQI ≥ 151). Needs a location set in the companion app
-  (Location section) to show anything at all; Fahrenheit or Celsius is a
-  toggle in that same app's Temperature section.
+  (Location section) to show anything at all; which units it prints in is a
+  toggle in that same app's Units section, alongside wind speed and
+  precipitation.
+
+## Weather view
+
+The display can hand the whole screen over to a weather view for a while and
+then give the calendar back — the next **24 hours** broken out hour by hour
+across the top, the next **10 days** broken out day by day underneath, and
+today's conditions, wind and clock across the top. How often that happens is
+set in the companion app (**Weather view**): an interval — off, every 15
+minutes, half an hour, hourly, 2, 3 or 6 hours — and how long each appearance
+lasts, from 30 seconds to 5 minutes. Off is the default, since it's a change
+to what the wall shows between the calendar and something else.
+
+The window is measured against the clock rather than counted down by a timer,
+which is what makes it work on a display nobody is looking after: no state to
+keep, nothing to drift, and a display that restarts mid-window lands back in
+the right place instead of skipping its turn or starting a fresh one. Two
+displays on the same network agree without talking to each other. With an
+hourly setting the weather appears *on* the hour, every hour, which is
+predictable enough to wait for.
+
+A 24-hour strip is bound by its own width, not its height — 24 columns across
+a portrait panel is about 45px each — so the view is one centred column
+rather than two panels each claiming half the screen, and the leftover space
+becomes equal margin above and below instead of a strip marooned in hundreds
+of pixels of black. Landscape has little of that space to spare, so the same
+rule reads as the two-panel split it was meant to be. The clock comes along
+even though the view replaces the whole display: a wall that stops telling
+the time once an hour is a worse wall.
+
+One forecast fetch covers all of it. The hourly series is fetched a day deeper
+than the view uses (48 hours, displayed as 24) because the cache only
+refreshes every 15 minutes, so a view that asked for exactly its own window
+would start short whenever the reading underneath it was more than an hour
+old; the extra depth costs about 2KB and means the strip is never short of
+hours however stale the cache is.
+
+Needs a location set in the companion app, like the temperature widget — with
+no location the view never takes over, rather than replacing the calendar
+with an empty screen.
 
 ## Holiday decoration
 
@@ -349,9 +389,17 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   real sun event (e.g. Sunset + 30 min "After" so it doesn't go dark right
   at sunset) — the displayed time on each row is already offset-adjusted,
   i.e. the moment the switch actually happens.
-- **Temperature units** — F°/C° for the outside temperature widget (see
-  "Calendar legend and outside temperature" above); disabled with an
-  explanatory notice until a location is set.
+- **Units** — one section for the three things the wall measures:
+  **temperature** (°F/°C), **wind speed** (mph/km/h/m/s/knots) and
+  **precipitation** (inches/millimetres), the latter two feeding the [weather
+  view](#weather-view) as well as the corner temperature widget. All three
+  are disabled with an explanatory notice until a location is set, since every
+  reading comes from that location. Defaults are the US ones throughout
+  (°F, mph, inches).
+- **Weather view** — how often the full-screen forecast takes over the
+  display, and for how long; see [Weather view](#weather-view). The interval
+  is timed from the clock, not from when you turned it on, so an hourly
+  setting appears on the hour.
 
 Every change here pushes to the wall display immediately over the same
 WebSocket connection used for calendar/to-do updates — no refresh needed

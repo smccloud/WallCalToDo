@@ -4,6 +4,7 @@ import CalendarHeader from './components/CalendarHeader.jsx';
 import CalendarView from './components/CalendarView.jsx';
 import DayAgenda from './components/DayAgenda.jsx';
 import TodoView from './components/TodoView.jsx';
+import WeatherView from './components/WeatherView.jsx';
 
 // 'light'/'dark' settings are direct; 'auto' switches at sunrise/sunset for
 // the location saved in the companion app. Falls back to 'dark' (this
@@ -18,6 +19,33 @@ function effectiveTheme(settings, now) {
   return now >= sunrise && now < sunset ? 'light' : 'dark';
 }
 
+// Is the wall supposed to be showing the weather right now?
+//
+// Measured against the clock rather than counted down by a timer, which is
+// what makes this work at all on a display nobody is looking after: no state
+// to keep, nothing to drift, nothing to reset, and a display that restarts
+// mid-window lands back in the right place instead of either skipping its
+// turn or starting a fresh one. Two displays on the same network also agree
+// without talking to each other, since they share a clock.
+//
+// The window is anchored to the interval rather than to whenever the setting
+// was turned on, so with an hourly interval the weather appears on the hour
+// and at the same minute past it every hour — predictable to wait for, which
+// matters more than it sounds for something on a wall in a room someone
+// walks through.
+function isWeatherTime(settings, now) {
+  const intervalMs = Number(settings?.weatherIntervalMinutes || 0) * 60_000;
+  if (intervalMs <= 0) return false;
+  const durationMs = Number(settings?.weatherDurationSeconds || 0) * 1000;
+  return now.getTime() % intervalMs < durationMs;
+}
+
+// How often the rotation is re-checked while it's enabled. Shorter than the
+// smallest duration the companion app offers (30s), because a check that ran
+// less often than the shortest window could step clean over it and the view
+// would never appear at all.
+const WEATHER_CHECK_MS = 5_000;
+
 export default function App() {
   const { calendar, todo, settings, weather, connected } = useWebSocket();
 
@@ -29,6 +57,27 @@ export default function App() {
     const timer = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(timer);
   }, []);
+
+  // Whether the full-screen weather view is up, and the moment it went up.
+  // Only ever transitions between "off" (null) and "on" (a timestamp): a new
+  // Date is stamped in on the way in and then left alone, so the 5s check
+  // below doesn't re-render the display twelve times a minute while the
+  // weather is up. The view keeps its own clock for the time readout.
+  const [weatherSince, setWeatherSince] = useState(null);
+  useEffect(() => {
+    if (!settings?.weatherIntervalMinutes) {
+      setWeatherSince(null);
+      return;
+    }
+    const check = () =>
+      setWeatherSince((upSince) => {
+        if (!isWeatherTime(settings, new Date())) return null;
+        return upSince || new Date();
+      });
+    check();
+    const timer = setInterval(check, WEATHER_CHECK_MS);
+    return () => clearInterval(timer);
+  }, [settings?.weatherIntervalMinutes, settings?.weatherDurationSeconds]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = effectiveTheme(settings, now);
@@ -44,6 +93,16 @@ export default function App() {
   // CalendarView measures in useLayoutEffect, before paint) or if it's
   // ever unmeasurable, in which case .secondary's own CSS fallback covers it.
   const [todayHeight, setTodayHeight] = useState(null);
+
+  // The weather view replaces the display outright, so it needs something to
+  // show: a location, and a reading fetched for it. Without either the
+  // calendar stays up rather than the wall blanking to an error — the same
+  // reason WeatherWidget renders nothing at all without a reading.
+  const showWeather = weatherSince !== null && Boolean(weather?.hourly?.length || weather?.daily?.length);
+
+  if (showWeather) {
+    return <WeatherView weather={weather} settings={settings} />;
+  }
 
   return (
     <div className="app">

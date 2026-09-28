@@ -752,3 +752,294 @@ body {
   line-height: 28px;
   font-weight: 600;
 }
+
+/* ---------------------------------------------------------------------------
+   Full-screen weather view
+   ---------------------------------------------------------------------------
+   Replaces the whole display for a configurable stretch of time (the rotation
+   lives in App.jsx, its interval in settingsService.js). Two fixed halves —
+   the next 24 hours on top, the next 10 days underneath — so the view reads
+   the same in either orientation: a vertical split is the one arrangement
+   that needs no media query to be correct, since the two orientations differ
+   in which way round the screen is, not in what shape it is.
+
+   Type here is sized in vw rather than off the rem scale the rest of the app
+   uses, and deliberately so. A rem-based size would be one number for both
+   orientations, and it can only be right for one of them: 24 columns across
+   a 1080px-wide portrait screen are less than half the width of the same 24
+   across 1920px of landscape. Sizing off the viewport width instead ties the
+   text to the thing it has to fit inside — the strip — so the columns can't
+   collide in the tighter orientation or look undersized in the roomier one.
+   The clamps at each end stop that from becoming unreadably small on a phone
+   or absurdly large on a 4K panel. */
+.weather-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  /* The whole view -- headline, hourly strip, daily strip -- is one centred
+     column, rather than two panels each claiming half the screen. On a
+     portrait panel a 24-column hourly strip is width-bound to about 45px a
+     column and so cannot fill 960px of height no matter how big the type
+     gets; a literal top-half/bottom-half split would therefore leave each
+     strip marooned in hundreds of pixels of black. Centred as a group, the
+     leftover space becomes equal margin above and below instead, which is
+     what deliberate whitespace looks like and what a stranded strip doesn't.
+     Landscape has little of that space to spare, so the same rule reads as
+     the two-panel split it was meant to be. */
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  overflow: hidden;
+}
+
+.weather-view--empty {
+  align-items: center;
+  justify-content: center;
+}
+
+.weather-view__empty {
+  font-size: var(--font-size-title);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.weather-view__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: none;
+}
+
+.weather-view__now {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.weather-view__place {
+  font-size: var(--font-size-body);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.weather-view__now-reading {
+  display: flex;
+  align-items: center;
+  gap: 0.1em;
+}
+
+.weather-view__now-emoji {
+  font-size: clamp(2rem, 5vw, 4.5rem);
+  line-height: 1;
+}
+
+.weather-view__now-temp {
+  font-size: clamp(3rem, 9vw, 8rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Mirrors .calendar-header's own right-hand stack (date over clock, both
+   right-aligned and muted) so the wall's time reads identically whether the
+   calendar or the weather is up — the one thing on this screen that isn't
+   weather, as the component's comment says. */
+.weather-view__clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: none;
+}
+
+.weather-view__date {
+  font-size: var(--font-size-body);
+  color: var(--color-text-muted);
+}
+
+.weather-view__time {
+  font-size: var(--font-size-title);
+  color: var(--color-text-muted);
+  line-height: 1.1;
+}
+
+/* The two halves, sized to their own content and centred together rather
+   than each claiming half the screen -- see the matching comment in
+   WeatherView.jsx for why a literal 50/50 split looks broken on a portrait
+   panel. */
+.weather-view__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.weather-view__half {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+/* The line between the two halves, matching the border the calendar draws
+   between itself and the agenda/todo section below it (see .secondary). */
+.weather-view__half--daily {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-xs);
+}
+
+.weather-view__label {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex: none;
+}
+
+.weather-view__hours,
+.weather-view__days {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.weather-view__hours {
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+}
+
+.weather-view__days {
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+}
+
+.weather-view__hour,
+.weather-view__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15em;
+  min-width: 0;
+  text-align: center;
+  /* Hairlines between columns rather than gaps: 23 of them close together
+     read as one continuous strip of forecast rather than 24 separate facts,
+     which is what this is. Skipped on the first, so the left edge aligns
+     with the label above it instead of floating in from nowhere. */
+  border-left: 1px solid var(--color-border);
+}
+
+.weather-view__hour:first-child,
+.weather-view__day:first-child {
+  border-left: none;
+}
+
+/* The hour in progress, and today in the daily strip — the same "you are
+   here" the calendar marks with its red circle, in a color that doesn't
+   compete with the forecast's own. */
+.weather-view__hour:first-child,
+.weather-view__day:first-child {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.weather-view__hour-label,
+.weather-view__day-name {
+  font-size: clamp(0.8rem, 1.2vw, 1.4rem);
+  color: var(--color-text-muted);
+}
+
+.weather-view__hour-emoji {
+  font-size: clamp(1.2rem, 2.7vw, 2.9rem);
+  line-height: 1.1;
+}
+
+.weather-view__hour-temp {
+  font-size: clamp(1rem, 2vw, 2.2rem);
+  font-weight: 600;
+}
+
+.weather-view__day-date {
+  font-size: clamp(0.8rem, 1.2vw, 1.4rem);
+  color: var(--color-text-muted);
+}
+
+.weather-view__day-emoji {
+  font-size: clamp(1.6rem, 3.8vw, 4rem);
+  line-height: 1.1;
+}
+
+.weather-view__day-temps {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3em;
+}
+
+.weather-view__day-high {
+  font-size: clamp(1.25rem, 2.6vw, 2.8rem);
+  font-weight: 600;
+}
+
+/* Muted rather than dimmer: the low is the second half of a pair the eye
+   reads left to right, so it stays legible and just recedes. */
+.weather-view__day-low {
+  font-size: clamp(1rem, 2vw, 2.1rem);
+  color: var(--color-text-muted);
+}
+
+/* Wind and rain under the current temperature. Sits inside .weather-view__now
+   as a third line, so the headline block grows downward rather than pushing
+   the two forecast halves off the bottom of a fixed-height screen. */
+.weather-view__now-details {
+  display: flex;
+  align-items: baseline;
+  gap: 1.2em;
+  font-size: clamp(0.9rem, 1.6vw, 1.7rem);
+  color: var(--color-text-muted);
+  min-height: 1.4em;
+}
+
+.weather-view__detail {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35em;
+  white-space: nowrap;
+}
+
+.weather-view__detail-label {
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75em;
+  font-weight: 600;
+}
+
+/* The compass point after the speed, spaced off it so "12 mph E" doesn't read
+   as one run-on number. */
+.weather-view__detail-dir {
+  margin-left: 0.4em;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+/* Chance of rain under an hourly temperature. Muted and small: it's context
+   for the temperature above it, not the thing the eye should land on -- only
+   the non-zero ones render at all (see WeatherView.jsx). */
+.weather-view__hour-precip {
+  font-size: clamp(0.65rem, 1vw, 1.1rem);
+  color: var(--color-text-muted);
+  /* Reserves the line even when the span is empty, which is the point: the
+     component always renders the element (see WeatherView.jsx) so that all
+     24 cells are the same height and the temperature row lines up. */
+  min-height: 1.3em;
+}
+
+/* A day's rain chance and wind, on one line under the high/low pair. */
+.weather-view__day-extras {
+  display: flex;
+  gap: 0.5em;
+  font-size: clamp(0.65rem, 1vw, 1.1rem);
+  color: var(--color-text-muted);
+  /* Reserves the line even on a dry, still day, so the ten cells stay on a
+     shared baseline instead of each one sitting wherever its content ends. */
+  min-height: 1.4em;
+  white-space: nowrap;
+}

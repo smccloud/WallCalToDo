@@ -1,9 +1,13 @@
 import LocationSettings from './LocationSettings.jsx';
 import ThemeSettings from './ThemeSettings.jsx';
-import TemperatureSettings from './TemperatureSettings.jsx';
+import UnitsSettings from './UnitsSettings.jsx';
+import WeatherViewSettings from './WeatherViewSettings.jsx';
 
-// Privacy, then location (shared by theme and temperature below, so it
-// comes before both), then theme, then temperature units.
+// Privacy, then location (shared by theme and the units below, so it comes
+// before both), then theme, then units, then the full-screen weather view —
+// last, because it's the one setting here that depends on everything above it:
+// it needs a location, and it's about what the display does with one rather
+// than how it looks.
 export default function GeneralSettings({
   settings,
   settingsLoading,
@@ -12,6 +16,10 @@ export default function GeneralSettings({
   onSetAdvancedEnabled,
   onSetOffset,
   onSetTempUnit,
+  onSetWindUnit,
+  onSetPrecipUnit,
+  onSetWeatherInterval,
+  onSetWeatherDuration,
   onSaveLocation,
   onError,
 }) {
@@ -44,7 +52,20 @@ export default function GeneralSettings({
         onSetOffset={onSetOffset}
       />
 
-      <TemperatureSettings settings={settings} settingsLoading={settingsLoading} onSetTempUnit={onSetTempUnit} />
+      <UnitsSettings
+        settings={settings}
+        settingsLoading={settingsLoading}
+        onSetTempUnit={onSetTempUnit}
+        onSetWindUnit={onSetWindUnit}
+        onSetPrecipUnit={onSetPrecipUnit}
+      />
+
+      <WeatherViewSettings
+        settings={settings}
+        settingsLoading={settingsLoading}
+        onSetWeatherInterval={onSetWeatherInterval}
+        onSetWeatherDuration={onSetWeatherDuration}
+      />
     </section>
   );
 }

@@ -13,15 +13,35 @@ const DEFAULT_SETTINGS = {
   theme: 'dark',
   location: null,
   privacyMode: false,
-  // 'F' is the first option in the companion app's Temperature segmented
-  // control, matching the usual "first option starts selected" convention.
+  // 'F' is the first option in the companion app's Units segmented control,
+  // matching the usual "first option starts selected" convention. Temperature
+  // was its own Temperature section until wind speed and precipitation
+  // joined it (see windUnit/precipUnit below).
   tempUnit: 'F',
+  // Wind and precipitation units for the same reason, and with the same US
+  // bias as tempUnit above -- the reading is cached in one canonical unit
+  // (km/h, mm) and converted by the display, so these only decide what the
+  // wall prints. mph and inches because everything else here defaults to the
+  // same side of the Atlantic.
+  windUnit: 'mph',
+  precipUnit: 'inch',
   advancedEnabled: false,
   // 'before' is the first option in the companion app's segmented control
   // for both, so it's the default direction -- standard segmented-control
   // behavior is the first item starts selected.
   sunriseOffset: { minutes: 0, direction: 'before' },
   sunsetOffset: { minutes: 0, direction: 'before' },
+  // How often the display hands the whole screen over to the weather view
+  // (see frontend/src/components/WeatherView.jsx), and for how long it keeps
+  // it. 0 is "never", and is the default on purpose: this changes what the
+  // wall shows between the calendar and something else, which is a thing to
+  // opt into rather than have happen to someone who upgrades. The duration
+  // exists because an interval alone doesn't define a rotation — without it
+  // the view would either flash past unreadably or never give the calendar
+  // back — and 60s is long enough to read 24 hours of forecast from across a
+  // room and short enough not to feel like the wall has changed its mind.
+  weatherIntervalMinutes: 0,
+  weatherDurationSeconds: 60,
 };
 
 function loadSettings() {

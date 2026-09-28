@@ -8,6 +8,21 @@ export const settingsRouter = Router();
 
 const OFFSET_MINUTES = [0, 15, 30, 45, 60, 120, 180];
 
+// How often the full-screen weather view takes over the display, and how long
+// it holds it. 0 minutes means it never appears. These lists are the
+// authority on what's accepted; the companion app's segmented controls offer
+// the same values with friendlier labels ("Off", "Every hour"), which is why
+// this validates against numbers rather than the labels.
+const WEATHER_INTERVAL_MINUTES = [0, 15, 30, 60, 120, 180, 360];
+const WEATHER_DURATION_SECONDS = [30, 60, 120, 300];
+
+// Wind and precipitation units. The reading is cached in km/h and mm and
+// converted by the display (frontend/src/utils/units.js), so this only picks
+// what the wall prints. 'mph'/'inch' are the defaults for the same reason
+// temperature defaults to Fahrenheit.
+const WIND_UNITS = ['mph', 'kmh', 'ms', 'kn'];
+const PRECIP_UNITS = ['inch', 'mm'];
+
 function isValidOffset(offset) {
   return (
     offset &&
@@ -47,7 +62,19 @@ settingsRouter.get('/geocode/reverse', async (req, res) => {
 });
 
 settingsRouter.patch('/settings', (req, res) => {
-  const { theme, location, privacyMode, tempUnit, advancedEnabled, sunriseOffset, sunsetOffset } = req.body || {};
+  const {
+    theme,
+    location,
+    privacyMode,
+    tempUnit,
+    advancedEnabled,
+    sunriseOffset,
+    sunsetOffset,
+    weatherIntervalMinutes,
+    weatherDurationSeconds,
+    windUnit,
+    precipUnit,
+  } = req.body || {};
   const patch = {};
 
   if (theme !== undefined) {
@@ -79,6 +106,26 @@ settingsRouter.patch('/settings', (req, res) => {
   if (sunsetOffset !== undefined) {
     if (!isValidOffset(sunsetOffset)) return res.status(400).json({ error: 'Invalid sunsetOffset' });
     patch.sunsetOffset = sunsetOffset;
+  }
+  if (weatherIntervalMinutes !== undefined) {
+    if (!WEATHER_INTERVAL_MINUTES.includes(weatherIntervalMinutes)) {
+      return res.status(400).json({ error: 'Invalid weatherIntervalMinutes' });
+    }
+    patch.weatherIntervalMinutes = weatherIntervalMinutes;
+  }
+  if (weatherDurationSeconds !== undefined) {
+    if (!WEATHER_DURATION_SECONDS.includes(weatherDurationSeconds)) {
+      return res.status(400).json({ error: 'Invalid weatherDurationSeconds' });
+    }
+    patch.weatherDurationSeconds = weatherDurationSeconds;
+  }
+  if (windUnit !== undefined) {
+    if (!WIND_UNITS.includes(windUnit)) return res.status(400).json({ error: 'Invalid windUnit' });
+    patch.windUnit = windUnit;
+  }
+  if (precipUnit !== undefined) {
+    if (!PRECIP_UNITS.includes(precipUnit)) return res.status(400).json({ error: 'Invalid precipUnit' });
+    patch.precipUnit = precipUnit;
   }
 
   const settings = updateSettings(patch);

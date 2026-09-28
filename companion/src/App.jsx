@@ -211,8 +211,20 @@ export default function App() {
   // placeholder notice -- their headings stay so the display still reads
   // as "there's a calendar/to-do here", just not what's on it.
   const setPrivacyMode = (enabled) => patchSetting({ privacyMode: enabled });
-  // 'F' or 'C' -- which unit the outside-temperature display uses.
+  // 'F' or 'C' -- which unit the temperature display uses.
   const setTempUnit = (tempUnit) => patchSetting({ tempUnit });
+  // Wind speed and precipitation units, same idea. The reading itself is
+  // cached in km/h and mm; these only pick what the wall prints (see
+  // frontend/src/utils/units.js for the conversions themselves).
+  const setWindUnit = (windUnit) => patchSetting({ windUnit });
+  const setPrecipUnit = (precipUnit) => patchSetting({ precipUnit });
+  // How often the full-screen weather view takes over the display, in
+  // minutes, and how long it holds it in seconds. 0 minutes means it never
+  // appears; the wall works out which window it's in from the clock (see
+  // isWeatherTime in the frontend's App.jsx), so nothing is sent to displays
+  // beyond the settings themselves.
+  const setWeatherInterval = (weatherIntervalMinutes) => patchSetting({ weatherIntervalMinutes });
+  const setWeatherDuration = (weatherDurationSeconds) => patchSetting({ weatherDurationSeconds });
 
   // Unlike the settings above, a location save isn't optimistic (there's no
   // sensible "local" value to show before the server geocodes/validates
@@ -408,6 +420,10 @@ export default function App() {
         onSetAdvancedEnabled={setAdvancedEnabled}
         onSetOffset={setOffset}
         onSetTempUnit={setTempUnit}
+        onSetWindUnit={setWindUnit}
+        onSetPrecipUnit={setPrecipUnit}
+        onSetWeatherInterval={setWeatherInterval}
+        onSetWeatherDuration={setWeatherDuration}
         onSaveLocation={saveLocation}
         onError={setError}
       />
