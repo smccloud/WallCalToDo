@@ -227,13 +227,22 @@ body {
   white-space: nowrap;
 }
 
-/* Each emoji then its time, sharing one baseline. Emoji sit on their own
-   baseline rather than the text's by default, which is what makes a mixed
-   emoji/text pair look misaligned rather than deliberately so. */
+/* Each emoji, then the word, then the time, sharing one baseline. Emoji sit
+   on their own baseline rather than the text's by default, which is what makes
+   a mixed emoji/text pair look misaligned rather than deliberately so.
+
+   The word itself is dimmer than its time. It's there to name the pictogram
+   next to it, and the number is the part someone actually reads, so the two
+   shouldn't compete at the same weight. */
 .calendar-header__sun-time {
   display: inline-flex;
   align-items: baseline;
   gap: 0.3em;
+}
+
+.calendar-header__sun-label {
+  color: var(--color-text-muted);
+  opacity: 0.75;
 }
 
 .calendar-header__dot {

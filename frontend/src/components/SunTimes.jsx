@@ -12,6 +12,12 @@ import { formatClock } from '../utils/date.js';
 // and the server rebroadcasts them once the day rolls over (see the daily
 // settings broadcast in server/src/services/poller.js) -- unlike the day/night
 // boundary itself, which has to be watched live by whoever switches on it.
+//
+// The words are spelled out rather than left to the emoji alone. Two
+// pictograms that differ only in which way the sun is sitting are not
+// something to decode from across a room, and this row is exactly where the
+// header had room to say so -- which also leaves the emoji purely decorative,
+// hence aria-hidden.
 export default function SunTimes({ settings }) {
   const sunrise = settings?.sunrise ? new Date(settings.sunrise) : null;
   const sunset = settings?.sunset ? new Date(settings.sunset) : null;
@@ -27,12 +33,14 @@ export default function SunTimes({ settings }) {
     <div className="calendar-header__sun">
       {sunrise && (
         <span className="calendar-header__sun-time">
-          <span aria-hidden="true">🌅</span> {formatClock(sunrise)}
+          <span aria-hidden="true">🌅</span> <span className="calendar-header__sun-label">Sunrise</span>
+          {formatClock(sunrise)}
         </span>
       )}
       {sunset && (
         <span className="calendar-header__sun-time">
-          <span aria-hidden="true">🌇</span> {formatClock(sunset)}
+          <span aria-hidden="true">🌇</span> <span className="calendar-header__sun-label">Sunset</span>
+          {formatClock(sunset)}
         </span>
       )}
     </div>
