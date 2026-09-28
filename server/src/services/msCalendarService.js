@@ -383,6 +383,98 @@ export function dropAllCalendarsCache() {
   saveEvents({});
 }
 
+// How many events from Microsoft calendars a single day is allowed to
+// contribute to the display, kept in the same order the display itself sorts
+// a day's events (see sortDayEvents in the frontend's utils/date.js).
+//
+// A work calendar carries a lot more per day than a wall has room for, and
+// the overflow is invisible: DayCell measures the cell and trims to "+N
+// more", so a heavy day silently becomes a month of "+N more" badges that say
+// nothing about what's actually on. Capping at the wall's own capacity means
+// the days that still fit say the same thing they always did, and the ones
+// that don't stop pretending to.
+//
+// Deliberately not counted against Google's events: the two providers are
+// kept independent throughout (see isAcceptedByUser), and a busy Google
+// calendar is the user's own doing in a way a shared work calendar isn't.
+// Google is left exactly as it was.
+const MS_EVENTS_PER_DAY = 2;
+
+// The display's own per-day ordering, mirrored so "the first two" means the
+// first two the day cell would have rendered. All-day first, then timed by
+// start time, with all-day ones by title -- same as sortDayEvents, and for
+// the same reason: capping in an order the display doesn't use would drop the
+// event it was going to show and keep one it was going to trim.
+function compareLikeDisplay(a, b) {
+  if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+  if (a.allDay) return a.title.localeCompare(b.title);
+  return new Date(a.start) - new Date(b.start);
+}
+
+// A local YYYY-MM-DD, for a timed event. Deliberately not toDateOnly() or the
+// UTC-parsing the frontend's parseLocalDate exists to avoid: an ISO instant is
+// in UTC, and reading its date straight off the string would put an evening
+// event on the wrong day for anyone west of UTC. Read through local getters,
+// which is also the timezone the day cell buckets it in.
+function localDayKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+// Every local day an event covers, in order. A multi-day event counts against
+// each of its days, not just the one it starts on, because a bar does occupy
+// a lane in every cell it crosses -- capping by start date alone would let a
+// week-long trip through alongside a full day of meetings on its last day.
+//
+// Walks the day keys as plain date arithmetic (addDays above), never as Date
+// objects, so crossing a DST boundary -- 23-hour and 25-hour days -- can't
+// skip or repeat a day the way stepping real timestamps through local
+// midnights would.
+function* eachEventDay(event) {
+  if (event.allDay) {
+    // Already YYYY-MM-DD, so no timezone handling is needed or wanted here --
+    // see toDateOnly(). The end is exclusive (exclusiveAllDayEnd above), so
+    // the last covered day is the one before it.
+    const start = event.start;
+    if (!start) return;
+    const last = event.end && event.end > start ? addDays(event.end, -1) : start;
+    for (let day = start; day <= last; day = addDays(day, 1)) yield day;
+    return;
+  }
+
+  const start = new Date(event.start);
+  if (Number.isNaN(start.getTime())) return;
+  const end = new Date(event.end || event.start);
+  // A zero-width or backwards range (a bad end upstream) covers just its own
+  // start day rather than looping forever below.
+  const last = Number.isNaN(end.getTime()) || end <= start ? start : end;
+  const lastKey = localDayKey(last);
+  for (let day = localDayKey(start); ; day = addDays(day, 1)) {
+    yield day;
+    if (day >= lastKey) break;
+  }
+}
+
+// Keeps at most MS_EVENTS_PER_DAY per day, in the display's own order. A Set
+// rather than a flat "first N wins" pass so an event covering several days is
+// kept whole wherever it survives -- trimming it to one day would split a
+// trip in half, which is worse on the wall than the cap was meant to prevent.
+function limitToPerDay(events) {
+  const byDay = new Map();
+  for (const event of events) {
+    for (const day of eachEventDay(event)) {
+      if (!byDay.has(day)) byDay.set(day, []);
+      byDay.get(day).push(event);
+    }
+  }
+
+  const kept = new Set();
+  for (const bucket of byDay.values()) {
+    bucket.sort(compareLikeDisplay);
+    for (const event of bucket.slice(0, MS_EVENTS_PER_DAY)) kept.add(event);
+  }
+  return events.filter((event) => kept.has(event));
+}
+
 // Only events from currently-enabled calendars, and no null entries: like
 // todoService's, this is a plain JSON file on an SD card with no atomic
 // write guarantee, and a bad entry would otherwise reach the sort in
@@ -413,6 +505,11 @@ export function dropAllCalendarsCache() {
 // Reading a file with a fresh listCalendars() each time is deliberate: the
 // point of the exercise is that toggling a calendar takes effect immediately,
 // without waiting for or triggering a new poll.
+//
+// The per-day cap (MS_EVENTS_PER_DAY above) is applied here, at read time,
+// for the same reason: the cache on disk stays complete, so the limit is a
+// display decision rather than data loss, and changing it takes effect on the
+// next poll with no resync of anything.
 export function getCachedMsEvents() {
   const cache = loadEvents();
   const enabled = new Set(listCalendars().filter((calendar) => calendar.enabled).map((calendar) => calendar.id));
@@ -423,5 +520,5 @@ export function getCachedMsEvents() {
       if (event) events.push(event);
     }
   }
-  return events;
+  return limitToPerDay(events);
 }
