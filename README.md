@@ -207,6 +207,17 @@ displays on the same network agree without talking to each other. With an
 hourly setting the weather appears *on* the hour, every hour, which is
 predictable enough to wait for.
 
+Each appearance opens with a short intro: the current temperature counts the
+rest of the way up to its real value while the sky icon scales in and the two
+strips slide up behind it, about a second and a half in total. It plays every
+time rather than once a session, since the view mounts afresh each time the
+rotation brings it back and each appearance is meant to be worth a look — the
+default minute on screen has to stay mostly readable, so it's kept short. The
+count starts a fixed interval below the real reading rather than at zero, which
+would be a lie about a warm day and would count from the wrong end of the scale
+below freezing. Anyone who has asked their system to reduce motion gets the
+value straight away, with the rest of the intro stood down to match.
+
 A 24-hour strip is bound by its own width, not its height — 24 columns across
 a portrait panel is about 45px each — so the view is one centred column
 rather than two panels each claiming half the screen, and the leftover space

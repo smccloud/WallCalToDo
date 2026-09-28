@@ -1055,3 +1055,62 @@ body {
   margin-right: 0.3em;
   line-height: 1;
 }
+
+/* ---------- Weather view: the intro ---------- */
+/* Plays as the view comes up, on every appearance (see WeatherView.jsx for
+   why every appearance rather than once a session, and why it's kept to about
+   a second). The temperature count itself is JS — CSS can't count a number —
+   so this is only the parts CSS can do: the sky icon scaling in, the wind and
+   rain detail fading up, and the two forecast strips sliding in behind them,
+   staggered so the eye is led top-left to bottom-right in the same order the
+   eye reads the screen. */
+@keyframes weather-view-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes weather-view-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.weather-view--intro .weather-view__now-emoji {
+  animation: weather-view-pop-in 520ms cubic-bezier(0.2, 0.9, 0.3, 1.5) both;
+}
+
+.weather-view--intro .weather-view__now-details {
+  animation: weather-view-fade-up 420ms 240ms ease-out both;
+}
+
+.weather-view--intro .weather-view__half--hourly {
+  animation: weather-view-fade-up 480ms 160ms ease-out both;
+}
+
+.weather-view--intro .weather-view__half--daily {
+  animation: weather-view-fade-up 480ms 300ms ease-out both;
+}
+
+/* The same query the component checks in JS to skip the count-up, so the two
+   halves of the intro stand down together: the number would otherwise sit
+   frozen at its starting value for someone who asked for less motion, which
+   is worse than no animation at all. */
+@media (prefers-reduced-motion: reduce) {
+  .weather-view--intro .weather-view__now-emoji,
+  .weather-view--intro .weather-view__now-details,
+  .weather-view--intro .weather-view__half--hourly,
+  .weather-view--intro .weather-view__half--daily {
+    animation: none;
+  }
+}

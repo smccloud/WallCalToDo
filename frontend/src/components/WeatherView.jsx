@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { WEEKDAYS, dateKey, formatClock, ordinalSuffix } from '../utils/date.js';
 import { formatPrecipChance, formatPrecipitation, formatWind } from '../utils/units.js';
 
@@ -55,6 +55,49 @@ function visibleForecast(weather, now) {
   };
 }
 
+// The intro, played as the view comes up: the current temperature counts the
+// rest of the way to its real value while the sky icon pops in and the two
+// forecast strips slide up behind it. It runs on every appearance, not once
+// per session, because the whole point of a rotation is that each appearance
+// should be worth looking at -- and the view mounts afresh each time the
+// rotation brings it back, so there's nothing to remember.
+//
+// Deliberately short. The default time on screen is a minute, and this has to
+// leave most of it readable from across a room; a number that takes two seconds
+// to arrive is a number nobody reads before it moves on.
+const INTRO_MS = 1300;
+
+// How far below the real reading the count starts, in the unit actually being
+// shown -- a fixed-looking sweep rather than "from zero", which for a warm day
+// is a lie about the temperature and for a below-freezing one would count from
+// the wrong end of the scale entirely.
+//
+// Always subtract, whatever the sign of the reading: "start below the target"
+// is just that on the number line, and it means the count rises toward the real
+// value every time. (The first version of this subtracted a signed span, which
+// quietly put a -5°C day at +1 and had it counting downwards.)
+function introStart(target) {
+  return target - (Math.abs(target) < 6 ? 6 : 12);
+}
+
+// Decelerating ease, so the number settles into place instead of stopping dead
+// — which is the difference between a dial finding its value and a slot
+// machine hitting the bottom.
+function easeOut(t) {
+  return 1 - (1 - t) ** 3;
+}
+
+// Someone who has asked their system to reduce motion shouldn't get a wall
+// that animates at them every hour, so the whole intro is skipped for them --
+// the number arrives at its value and the CSS below stands down via the same
+// query. Read once at module load rather than per render: it can't change
+// without a reload, and the alternative is a matchMedia listener for a
+// preference that is fixed for the life of the page.
+const REDUCED_MOTION =
+  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    : false;
+
 // Full-screen weather, shown in place of the calendar for a configurable
 // stretch of time (see the rotation in App.jsx).
 //
@@ -81,6 +124,32 @@ export default function WeatherView({ weather, settings }) {
   const place = placeName(settings?.location);
   const windUnit = settings?.windUnit;
   const precipUnit = settings?.precipUnit;
+
+  // The reading the headline counts up to, in the unit on screen.
+  const nowTemp = Math.round(celsius ? weather.tempC : weather.tempF);
+  // Counts up once per mount. A ref rather than state so a fresh reading
+  // arriving mid-view (the forecast refreshes every 15 minutes) just replaces
+  // the number instead of replaying the whole intro over a wall someone is
+  // reading.
+  const countingRef = useRef(false);
+  const [shownTemp, setShownTemp] = useState(() => (REDUCED_MOTION ? nowTemp : introStart(nowTemp)));
+  useEffect(() => {
+    if (REDUCED_MOTION || countingRef.current) {
+      setShownTemp(nowTemp);
+      return;
+    }
+    countingRef.current = true;
+    const from = introStart(nowTemp);
+    const startedAt = performance.now();
+    let frame;
+    const step = (at) => {
+      const progress = Math.min(1, (at - startedAt) / INTRO_MS);
+      setShownTemp(Math.round(from + (nowTemp - from) * easeOut(progress)));
+      if (progress < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [nowTemp]);
   // Today's own numbers, for the headline. The current-hour precipitation
   // amount is almost always 0 and says nothing useful ("0.00 in" now, rain at
   // 4pm), so the headline quotes the day instead: what fell or is coming, and
@@ -101,7 +170,7 @@ export default function WeatherView({ weather, settings }) {
   }
 
   return (
-    <div className="weather-view">
+    <div className={`weather-view${REDUCED_MOTION ? '' : ' weather-view--intro'}`}>
       <header className="weather-view__head">
         <div className="weather-view__now">
           {place && <span className="weather-view__place">{place}</span>}
@@ -112,7 +181,11 @@ export default function WeatherView({ weather, settings }) {
             <span className="weather-view__now-emoji" aria-hidden="true">
               {weather.isUnhealthyAir ? '😷' : weather.weatherEmoji}
             </span>
-            <span className="weather-view__now-temp">{temp(weather.tempC, weather.tempF)}</span>
+            {/* The counting number. `temp`'s unit conversion is bypassed here
+                because the value is already in the unit on screen -- going
+                back through the C/F fields would re-round an already-rounded
+                count and fight the interpolation. */}
+            <span className="weather-view__now-temp">{shownTemp}°</span>
           </span>
           {/* Wind and rain, in the units the companion app was told to use.
               Spelled out rather than given an emoji: the wind glyphs in the
