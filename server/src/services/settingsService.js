@@ -60,21 +60,41 @@ function applyOffset(date, offset) {
   return new Date(date.getTime() + (offset.direction === 'before' ? -ms : ms));
 }
 
-// Settings plus today's sunrise/sunset (already offset-adjusted) for the
-// saved location — what every consumer (the settings API, the WebSocket
-// push) actually wants. Computed fresh on every call rather than cached:
-// it's cheap pure math, and this way it's never stale even if the server's
-// been running since yesterday.
+// Settings plus today's and tomorrow's sunrise/sunset for the saved location —
+// what every consumer (the settings API, the WebSocket push) actually wants.
+// Computed fresh on every call rather than cached: it's cheap pure math, and
+// this way it's never stale even if the server's been running since yesterday.
+//
+// Today's pair carries the companion app's offsets, since those decide when
+// the display actually switches; tomorrow's pair does not, because nothing
+// today is deciding anything about tomorrow. Tomorrow's exists at all so the
+// display can show the *next* sun event rather than today's, which is the one
+// left once both of today's are behind us (see frontend/src/components/
+// SunTimes.jsx) — after sunset, "sunrise" is not something that already
+// happened an hour ago, it's tomorrow morning.
 export function getSettings() {
   const settings = loadSettings();
-  if (!settings.location) return { ...settings, sunrise: null, sunset: null };
-  const { sunrise, sunset } = getSunTimes(settings.location.lat, settings.location.lon);
-  if (!settings.advancedEnabled) return { ...settings, sunrise, sunset };
-  return {
-    ...settings,
-    sunrise: applyOffset(sunrise, settings.sunriseOffset),
-    sunset: applyOffset(sunset, settings.sunsetOffset),
-  };
+  if (!settings.location) {
+    return { ...settings, sunrise: null, sunset: null, sunriseTomorrow: null, sunsetTomorrow: null };
+  }
+  const { lat, lon } = settings.location;
+  const now = new Date();
+  const { sunrise, sunset } = getSunTimes(lat, lon, now);
+
+  // Calendar arithmetic on a local Date rather than adding 24 hours, so a DST
+  // change overnight can't land tomorrow's times on the wrong date.
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const { sunrise: sunriseTomorrow, sunset: sunsetTomorrow } = getSunTimes(lat, lon, tomorrow);
+
+  const today = settings.advancedEnabled
+    ? {
+        sunrise: applyOffset(sunrise, settings.sunriseOffset),
+        sunset: applyOffset(sunset, settings.sunsetOffset),
+      }
+    : { sunrise, sunset };
+
+  return { ...settings, ...today, sunriseTomorrow, sunsetTomorrow };
 }
 
 export function updateSettings(patch) {

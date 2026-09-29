@@ -16,6 +16,25 @@ let lastFullResyncDay = null;
 let lastSettingsDay = null;
 let lastCompletedCleanupDay = null;
 let lastWeatherPollAt = 0;
+let lastCalendarSignature = null;
+
+// Pushes the display's calendar feed if it isn't already what every connected
+// display last received.
+//
+// Keyed on the contents rather than on either provider's "did anything change"
+// flag, because the feed is no longer a pure function of what the providers
+// hold: the Microsoft per-day cap is relative to the current time (see
+// limitToPerDay in msCalendarService.js), so on a quiet day the list a
+// display should be showing changes as the morning's meetings pass and the
+// polls themselves report no change at all. Diffing the actual list is what
+// catches that, and it makes the providers' own `changed` flags unnecessary
+// here — they only ever claim something moved, which is the same question.
+function pushCalendar(events) {
+  const signature = events.map((event) => `${event.id}@${event.start}`).join(',');
+  if (signature === lastCalendarSignature) return;
+  lastCalendarSignature = signature;
+  broadcast({ type: 'calendar', data: events });
+}
 
 async function runPoll() {
   const now = new Date();
@@ -69,21 +88,22 @@ async function runPoll() {
   }
 
   try {
-    const { changed, events } = await pollCalendar();
-    if (changed) broadcast({ type: 'calendar', data: events });
+    const { events } = await pollCalendar();
+    pushCalendar(events);
   } catch (err) {
     console.error('[poller] Calendar poll failed:', err.message);
   }
 
-  // Second calendar provider, same display feed. Polled after Google's so
-  // the broadcast below lands last when both changed in the same cycle --
-  // it re-reads getCachedEvents() rather than using pollMsCalendar()'s own
-  // result, since the display needs all calendars from both providers in one
-  // message and the first broadcast above would have carried a Microsoft
-  // side that was still a poll behind.
+  // Second calendar provider, same display feed. Polled after Google's so the
+  // push below lands last when both moved in the same cycle -- it re-reads
+  // getCachedEvents() rather than using pollMsCalendar()'s own result, since
+  // the display needs all calendars from both providers in one message and the
+  // first push above would have carried a Microsoft side that was still a poll
+  // behind. pushCalendar's own diffing makes that second call a no-op when
+  // nothing actually moved, so this costs a cache read, not a second push.
   try {
-    const { changed } = await pollMsCalendar();
-    if (changed) broadcast({ type: 'calendar', data: getCachedEvents() });
+    await pollMsCalendar();
+    pushCalendar(getCachedEvents());
   } catch (err) {
     console.error('[poller] Microsoft calendar poll failed:', err.message);
   }

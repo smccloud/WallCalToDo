@@ -458,7 +458,14 @@ function* eachEventDay(event) {
 // rather than a flat "first N wins" pass so an event covering several days is
 // kept whole wherever it survives -- trimming it to one day would split a
 // trip in half, which is worse on the wall than the cap was meant to prevent.
-function limitToPerDay(events) {
+//
+// Today picks the next two still to happen rather than the day's first two.
+// On a wall nobody is standing in front of, "what's next" is the only part of
+// a day that carries any information -- at 3pm the 9am meeting happened
+// hours ago, and spending both slots on the morning means the wall says
+// nothing at all about the rest of the day. Past days and future days keep the
+// first two, which is all there is to say about them.
+function limitToPerDay(events, now) {
   const byDay = new Map();
   for (const event of events) {
     for (const day of eachEventDay(event)) {
@@ -470,9 +477,25 @@ function limitToPerDay(events) {
   const kept = new Set();
   for (const bucket of byDay.values()) {
     bucket.sort(compareLikeDisplay);
-    for (const event of bucket.slice(0, MS_EVENTS_PER_DAY)) kept.add(event);
+    // A day with one event left still shows that one rather than padding the
+    // slot back up with something that already happened.
+    const upcoming = bucket.filter((event) => isUpcoming(event, now));
+    for (const event of (upcoming.length ? upcoming : bucket).slice(0, MS_EVENTS_PER_DAY)) kept.add(event);
   }
   return events.filter((event) => kept.has(event));
+}
+
+// Whether an event is still to come, as of `now`. Ends rather than starts, so
+// a meeting in progress still counts — it's the one you might be walking to.
+function isUpcoming(event, now) {
+  if (event.allDay) {
+    // Both sides are plain YYYY-MM-DD (exclusive end -- see
+    // exclusiveAllDayEnd), so this is a string comparison against today's own
+    // local key with no timezone in the way at all.
+    return event.end ? localDayKey(now) < event.end : true;
+  }
+  const end = new Date(event.end || event.start);
+  return Number.isNaN(end.getTime()) || end > now;
 }
 
 // Only events from currently-enabled calendars, and no null entries: like
@@ -510,6 +533,13 @@ function limitToPerDay(events) {
 // for the same reason: the cache on disk stays complete, so the limit is a
 // display decision rather than data loss, and changing it takes effect on the
 // next poll with no resync of anything.
+//
+// `now` is the server's own clock rather than something passed in, and is read
+// at call time because the cap is relative to it: every read re-decides what
+// "the next two" means. That also means this list can differ from the one a
+// display was last sent without any provider having changed anything, which is
+// why the poller re-broadcasts on a changed list rather than only on a changed
+// poll (see runPoll in poller.js).
 export function getCachedMsEvents() {
   const cache = loadEvents();
   const enabled = new Set(listCalendars().filter((calendar) => calendar.enabled).map((calendar) => calendar.id));
@@ -520,5 +550,5 @@ export function getCachedMsEvents() {
       if (event) events.push(event);
     }
   }
-  return limitToPerDay(events);
+  return limitToPerDay(events, new Date());
 }
