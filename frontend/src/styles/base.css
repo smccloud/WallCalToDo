@@ -226,7 +226,10 @@ body {
    A literal rem rather than a token: it deliberately isn't the clock's size,
    and tying it to --font-size-title would quietly undo that the next time
    someone changes that token. --font-size-body (1.5rem) is the next size down
-   and was too small — this wants to be readable across a room, not a caption.
+   and is too small — 1.5rem is legible from close to rather than across a
+   room. 2rem is the round number in between, and lands where it should:
+   clearly subordinate to the date and the clock, without reading as a
+   caption.
 
    This is the only header child allowed to shrink, and it shrinks by
    wrapping to a line of its own (see flex-wrap above) rather than by being
@@ -237,7 +240,7 @@ body {
    row's own font size rather than drifting from it as a pixel count. */
 .calendar-header__sun {
   flex: 0 1 auto;
-  min-width: 11em;
+  min-width: 12em;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -245,7 +248,7 @@ body {
   gap: 0.3em var(--space-sm);
   margin: 0 auto;
   color: var(--color-text-muted);
-  font-size: 2.5rem;
+  font-size: 2.0rem;
 }
 
 /* Each emoji, then the word, then the time, sharing one baseline. Emoji sit
