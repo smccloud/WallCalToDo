@@ -216,26 +216,21 @@ body {
   gap: 0.3em;
 }
 
-/* Sunrise and sunset, centered in the gap between the month/year and the
-   clock (see .calendar-header). Muted like the clock rather than
-   full-brightness: they're context for the day, not the thing to read across
-   a room, and full-brightness would put a third bright block in the header
-   next to two that already compete.
+/* The next sunrise or sunset (see SunTimes.jsx), centered in the gap between
+   the month/year and the clock. Muted like the clock, and at the clock's own
+   size — it's the same kind of information, read at the same distance, and
+   a third size in this header would be a third thing to calibrate against.
 
    This is the only header child allowed to shrink, and it shrinks by
-   wrapping to one time per line rather than by clipping either of them --
-   the two auto margins are what drop to zero first when the row runs out of
-   room, so on a narrow screen this becomes a two-line stack instead of
-   costing the date or the clock a single pixel of width.
-
-   min-width is wide enough that the row prefers dropping to a line of its
-   own (see flex-wrap above) over being squeezed into whatever sliver happens
-   to be left -- at 600px the leftover was 44px, which is not a width a pair
-   of times can say anything in. Expressed in em so it tracks this row's own
-   font size rather than being a pixel count that drifts from it. */
+   wrapping to a line of its own (see flex-wrap above) rather than by being
+   clipped or by costing the date and the clock any of their width. The
+   "tomorrow" wording makes the row wider than today's, and on the narrowest
+   screens that is exactly when it should move down a line rather than
+   squeeze. min-width is roughly one whole entry, in em so it tracks this
+   row's own font size rather than drifting from it as a pixel count. */
 .calendar-header__sun {
   flex: 0 1 auto;
-  min-width: 17em;
+  min-width: 10em;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -243,15 +238,14 @@ body {
   gap: 0.3em var(--space-sm);
   margin: 0 auto;
   color: var(--color-text-muted);
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-title);
 }
 
 /* Each emoji, then the word, then the time, sharing one baseline. Emoji sit
    on their own baseline rather than the text's by default, which is what makes
-   a mixed emoji/text pair look misaligned rather than deliberately so. A pair
-   is never split across lines by the wrap above -- each one stays whole,
-   since "Sunrise at" with a time on the next line would be worse than either
-   stacking them or clipping. */
+   a mixed emoji/text pair look misaligned rather than deliberately so. The
+   entry never splits across lines, since "Sunrise tomorrow at" with its time
+   on the next line would be worse than either wrapping the row or clipping. */
 .calendar-header__sun-time {
   display: inline-flex;
   align-items: baseline;
@@ -259,7 +253,7 @@ body {
   white-space: nowrap;
 }
 
-/* The word is dimmer than the time it introduces ("Sunrise at 6:12 am"). It
+/* The word is dimmer than the time it introduces ("Sunset at 7:01 pm"). It
    names the pictogram beside it, but the number is the part someone actually
    reads, so the two shouldn't compete at the same weight. */
 .calendar-header__sun-label {
