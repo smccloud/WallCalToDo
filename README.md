@@ -28,7 +28,8 @@ these to see it fullscreen).
 *(The four screenshots above use demo data, not a real calendar — shown
 with a lot going on to demonstrate multi-day events, the "+N more"
 overflow on a busy day, and a mix of completed/pending to-do items with
-due dates.)*
+due dates. A location is set, which is what puts the sunrise and sunset
+times in the header.)*
 
 ## Why this exists
 
@@ -157,6 +158,68 @@ software rotation, some HDMI/DSI displays also support rotation via
 `/boot/firmware/config.txt` (`display_rotate` or `video=` framebuffer
 params) — check your specific display's docs if `wlr-randr`/`xrandr`
 doesn't take effect.
+
+## Sunrise and sunset in the header
+
+The header carries the day's sunrise and sunset between the month/year and the
+clock — `🌅 Sunrise at 7:09 am  🌇 Sunset at 7:01 pm`. Same for both: the
+whole point of a wall display is knowing whether it's still light outside
+without walking to a window, and sunrise is the other half of that after dark.
+
+These are the *same* two times the Automatic theme already switches on, not a
+second calculation. The backend works them out from the saved location with
+the public-domain sunrise equation (`server/src/services/sunService.js`,
+accurate to a minute or two — no API call, so nothing about this needs the
+Pi to reach a sunrise service), hands them over with every settings push, and
+the display prints them. What the wall says therefore cannot drift from what
+the display is actually doing, which is the failure a separate calculation
+would eventually have.
+
+Nothing is shown until a location is set in the companion app, and either time
+can be missing on its own at a latitude where the sun currently doesn't quite
+clear the horizon in either direction — the row shows what exists rather than
+guessing. If **Advanced** is on in the theme settings, these are the shifted
+times the display is acting on, not the raw astronomical ones; with Advanced
+off (the default) they're the real thing.
+
+The times roll over with the day: the backend rebroadcasts them once the date
+changes, so a display left running for weeks doesn't sit on yesterday's.
+
+## Microsoft calendar fetching
+
+Microsoft Graph needs a few things spelled out that Google Calendar's API
+doesn't, so the two providers are handled separately all the way through
+(Google in `calendarService.js`, Microsoft in `msCalendarService.js`).
+
+- **It polls on its own slower interval** (10 minutes, against the 60s default
+  for everything else), because a round re-reads each calendar's whole window
+  rather than asking what changed — see the point below.
+- **It reads `calendarView`, not `calendarView/delta`.** The delta variant
+  answers with a restricted property set: in one measured round, 1146 of 1488
+  events came back with no `subject` at all, and it doesn't reliably expand
+  recurring series, so whole weeks of recurring meetings were simply absent.
+  The plain endpoint returns complete events and expands recurrences, the same
+  thing Google's `singleEvents: true` gives on the other side. The cost is
+  re-reading the whole window each round, which is what the slower interval
+  pays for — and, as a bonus, there's no delta token to expire.
+- **Events are filtered the same way Google's are** — cancelled, draft, and
+  explicitly-declined events don't show; tentative and unanswered invitations
+  do, because Outlook lists those dimmed rather than hiding them.
+- **Each day is capped at two events.** A work calendar carries far more per
+  day than a wall has room for, and the overflow is invisible: the day cells
+  measure themselves and trim to "+N more", so a heavy day quietly becomes a
+  month of "+N more" badges that say nothing about what's actually on. Capping
+  at the display's own capacity keeps the days that still fit saying what they
+  always did, and stops the ones that don't from pretending to.
+
+  The two are chosen in the same order the day cell would have rendered them
+  (all-day first, then by start time) — otherwise the cap would drop the event
+  that was going to be shown and keep the one that was about to be trimmed. A
+  multi-day trip counts against every day it crosses, and an event that loses
+  its place on one day is dropped whole rather than left showing on the days
+  where it did fit. Google's calendars are untouched, and the cap is applied
+  when the list is read, not when it's cached, so nothing is lost: the cache
+  on disk stays complete and today's agenda and the to-do list are unaffected.
 
 ## Calendar legend and outside temperature
 
@@ -305,20 +368,20 @@ date rather than say what's on it, the same way the day numbers themselves
 stay visible; only titles go.
 
 <p align="center">
-  <a href="docs/demo-holiday-landscape-dark.png"><img src="docs/demo-holiday-landscape-dark.png" alt="Landscape, dark theme: October 2026, with Columbus Day on the 12th and Halloween on the 31st ringed in the holidays calendar's green, a sailboat and a jack-o'-lantern beside their day numbers" width="380"></a>
-  <a href="docs/demo-holiday-landscape-light.png"><img src="docs/demo-holiday-landscape-light.png" alt="Landscape, light theme: the same October 2026 month" width="380"></a>
+  <a href="docs/demo-holiday-landscape-dark.png"><img src="docs/demo-holiday-landscape-dark.png" alt="Landscape, dark theme: September 2026, with Labor Day on the 7th and Columbus Day on the 14th ringed in the holidays calendar's own gold, a hammer-and-wrench and a sailboat beside their day numbers" width="380"></a>
+  <a href="docs/demo-holiday-landscape-light.png"><img src="docs/demo-holiday-landscape-light.png" alt="Landscape, light theme: the same September 2026 month" width="380"></a>
 </p>
 <p align="center">
-  <a href="docs/demo-holiday-portrait-dark.png"><img src="docs/demo-holiday-portrait-dark.png" alt="Portrait, dark theme: October 2026 with the same two holiday days ringed and their images beside the numbers" width="220"></a>
-  <a href="docs/demo-holiday-portrait-light.png"><img src="docs/demo-holiday-portrait-light.png" alt="Portrait, light theme: the same October 2026 month" width="220"></a>
+  <a href="docs/demo-holiday-portrait-dark.png"><img src="docs/demo-holiday-portrait-dark.png" alt="Portrait, dark theme: September 2026 with the same two holiday days ringed and their images beside the numbers" width="220"></a>
+  <a href="docs/demo-holiday-portrait-light.png"><img src="docs/demo-holiday-portrait-light.png" alt="Portrait, light theme: the same September 2026 month" width="220"></a>
 </p>
 
-*(Demo data again, like the four above, with the clock moved to mid-October so
-a month with holidays in it is the one on screen. Columbus Day on the 12th and
-Halloween on the 31st are ringed in the Google holidays calendar's own green —
-the same green as their pills, and as the "H" in the legend — with the image
-each holiday is conventionally represented by sitting beside the number, at the
-number's own size. The 15th is today, in the fixed red it always uses.)*
+*(Demo data again, like the four above, with a third calendar added carrying
+the two US holidays that fall in September 2026. Labor Day on the 7th and
+Columbus Day on the 14th are ringed in that calendar's own gold — the same gold
+as their pills, and as the "H" in the legend — with the image each holiday is
+conventionally represented by sitting beside the number, at the number's own
+size. The 15th is today, in the fixed red it always uses.)*
 
 
 A separate small app (`companion/`) served at `/companion` lets you manage
@@ -425,13 +488,10 @@ all-day events Google really hands over, tagged the same way.)*
   trims what the wall display shows, it never touches the real task in
   Microsoft To Do, so un-completing or editing one afterward brings it
   right back. Microsoft calendar events are filtered the same way Google
-  ones are: cancelled events, drafts, and invitations you've explicitly
-  declined don't show up. Invitations you're still sitting on — a tentative
-  or unanswered RSVP — *do* show up, on both providers, because both Outlook
-  and Google Calendar list those dimmed rather than hiding them, and treating
-  an unanswered invite as a no made the wall look like it had lost a week of
-  meetings that were plainly on the calendar. Since Graph has no per-event
-  colors, a Microsoft calendar's own color is all its pills get.
+  ones are, and each day is capped at two of them — see
+  [Microsoft calendar fetching](#microsoft-calendar-fetching) for why, and for
+  the polling difference behind it. Since Graph has no per-event colors, a
+  Microsoft calendar's own color is all its pills get.
 - **Reconnect for calendars** — an account connected before this read
   Microsoft calendars has a token that was never consented to
   `Calendars.Read`, so its to-do lists work but its calendars can't be
@@ -647,6 +707,11 @@ cd ~/WallCalToDo/companion && npm install && npm run build
 
 This takes a few minutes on a Pi — that's normal.
 
+The two `npm run build` steps are what actually produce what the display and
+the companion app serve; the backend picks both up from those directories
+(`server/src/index.js`). Nothing rebuilds them on its own later, so they have
+to be re-run after every `git pull` — see "Managing it later" below.
+
 ### 6. Run the backend as a background service
 
 ```
@@ -779,6 +844,26 @@ automatically (see "Auto-update behavior" above).
 
 ### Managing it later
 
+**To update to a newer version of this project**, `git pull` on its own is
+*not* enough. Both frontends are served as built output (`frontend/dist` and
+`companion/dist`), and those directories are gitignored, so a pull updates the
+source and leaves the files the display is actually running untouched — which
+shows up as a feature that "didn't take", with the old version still on the
+wall. After pulling, rebuild both and restart the backend:
+
+```
+cd ~/WallCalToDo && git pull
+cd ~/WallCalToDo/frontend && npm install && npm run build
+cd ~/WallCalToDo/companion && npm install && npm run build
+sudo systemctl restart wallcaltodo
+```
+
+Any change under `server/` needs only the restart; anything under `frontend/`
+or `companion/` needs its rebuild, and the browser on the Pi is running
+fullscreen with no page reload, so the restart (or a reboot) is what actually
+puts it on screen. Skipping the rebuild is safe in the sense that nothing
+breaks — you just keep running the version you had.
+
 From your phone, on the same Wi-Fi, open
 `http://wallcaltodo.local:3000/companion` (swap in your own hostname) to
 toggle calendars or disconnect an account — this works fine from your
@@ -866,7 +951,8 @@ needed. Widen it back out (wider than tall) to preview landscape instead.
 The visual design lives directly in this repo now — `frontend/src/styles/
 tokens.css` for the base color/spacing/type scale, `frontend/src/styles/
 base.css` and the component files (`CalendarView.jsx`, `CalendarHeader.jsx`,
-`DayAgenda.jsx`, `TodoView.jsx`, `Legend.jsx`, `WeatherWidget.jsx`,
+`SunTimes.jsx`, `DayAgenda.jsx`, `TodoView.jsx`, `Legend.jsx`,
+`WeatherWidget.jsx`,
 `WeatherView.jsx`, `BirthdayMark.jsx`) for the
 actual layout and styling. It's been iterated on in place rather than
 built separately and dropped in: the calendar grid, event pill styling (a
