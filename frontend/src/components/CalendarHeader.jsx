@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { formatClock } from '../utils/date.js';
+import WallClock from './WallClock.jsx';
 import SunTimes from './SunTimes.jsx';
 
 // Split out of CalendarView so it can sit as its own full-width row above
@@ -8,6 +8,11 @@ import SunTimes from './SunTimes.jsx';
 // App.jsx. Its own clock, same pattern as every other view in this app
 // (CalendarView/DayAgenda/TodoView's WeatherWidget) rather than one shared
 // timer passed down.
+//
+// The month/year only needs to change when the month does, so *this* timer
+// stays at 30 seconds and the seconds are WallClock's own problem — see
+// WallClock.jsx for why the ticking clock is its own component rather than a
+// field read off the `now` here.
 export default function CalendarHeader({ connected, settings }) {
   const [now, setNow] = useState(() => new Date());
 
@@ -30,7 +35,7 @@ export default function CalendarHeader({ connected, settings }) {
       <SunTimes settings={settings} />
       <div className="calendar-header__right">
         <span className={`calendar-header__dot ${connected ? 'is-connected' : 'is-disconnected'}`} />
-        <span className="calendar-header__clock">{formatClock(now)}</span>
+        <WallClock className="calendar-header__clock" />
       </div>
     </div>
   );

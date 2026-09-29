@@ -217,9 +217,16 @@ body {
 }
 
 /* The next sunrise or sunset (see SunTimes.jsx), centered in the gap between
-   the month/year and the clock. Muted like the clock, and at the clock's own
-   size — it's the same kind of information, read at the same distance, and
-   a third size in this header would be a third thing to calibrate against.
+   the month/year and the clock. Muted like the clock and close to its size,
+   a step down from --font-size-title: the same kind of information read at
+   the same distance, but the clock and the month/year are the two things the
+   header exists to show, and at a matching size this is a third block
+   competing with both rather than sitting under them.
+
+   A literal rem rather than a token: it deliberately isn't the clock's size,
+   and tying it to --font-size-title would quietly undo that the next time
+   someone changes that token. --font-size-body (1.5rem) is the next size down
+   and was too small — this wants to be readable across a room, not a caption.
 
    This is the only header child allowed to shrink, and it shrinks by
    wrapping to a line of its own (see flex-wrap above) rather than by being
@@ -230,7 +237,7 @@ body {
    row's own font size rather than drifting from it as a pixel count. */
 .calendar-header__sun {
   flex: 0 1 auto;
-  min-width: 10em;
+  min-width: 11em;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -238,7 +245,7 @@ body {
   gap: 0.3em var(--space-sm);
   margin: 0 auto;
   color: var(--color-text-muted);
-  font-size: var(--font-size-title);
+  font-size: 2.5rem;
 }
 
 /* Each emoji, then the word, then the time, sharing one baseline. Emoji sit

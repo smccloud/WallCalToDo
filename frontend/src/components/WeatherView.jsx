@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { WEEKDAYS, dateKey, formatClock, ordinalSuffix } from '../utils/date.js';
+import { WEEKDAYS, dateKey, ordinalSuffix } from '../utils/date.js';
 import { REDUCED_MOTION } from '../utils/motion.js';
 import { formatPrecipChance, formatPrecipitation, formatWind } from '../utils/units.js';
+import WallClock from './WallClock.jsx';
 
 // The two windows the wall shows, per the feature's shape: the rest of today
 // and the whole of tomorrow broken out hour by hour across the top, and ten
@@ -12,7 +13,7 @@ import { formatPrecipChance, formatPrecipitation, formatWind } from '../utils/un
 const HOURLY_COUNT = 24;
 const DAILY_COUNT = 10;
 
-// "7p" rather than formatClock()'s "7:00 pm": twenty-four of those across the
+// "7p" rather than the clock's "7:00:07 pm": twenty-four of those across the
 // top of a wall display is far too much text per column, and the minutes are
 // always :00 in an hourly series anyway. "12a"/"12p" rather than a 24-hour
 // clock because the rest of the display (the header, the agenda) is 12-hour,
@@ -211,7 +212,7 @@ export default function WeatherView({ weather, settings, className = '' }) {
             {now.toLocaleDateString(undefined, { month: 'long' })} {now.getDate()}
             {ordinalSuffix(now.getDate())}
           </span>
-          <span className="weather-view__time">{formatClock(now)}</span>
+          <WallClock className="weather-view__time" />
         </div>
       </header>
 

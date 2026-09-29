@@ -64,12 +64,33 @@ export function ordinalSuffix(day) {
 
 // "5:21 pm" — 12-hour, lowercase am/pm, no seconds. toLocaleTimeString()
 // varies by locale/browser; spelling this out keeps it exact.
+//
+// No seconds, deliberately: every *event* time on the display goes through
+// this, and a meeting's start time is not a thing that happens at 10:30:47.
+// The one place that does want them has its own function below.
 export function formatClock(date) {
   let hours = date.getHours();
   const minutes = String(date.getMinutes()).padStart(2, '0');
   const period = hours >= 12 ? 'pm' : 'am';
   hours = hours % 12 || 12;
   return `${hours}:${minutes} ${period}`;
+}
+
+// "5:21:07 pm" — the wall's own clock, which is the only time on the display
+// that is genuinely passing as you watch it. Seconds are what make a clock on
+// a wall read as running rather than stuck; without them a display that
+// refreshes a few times a minute looks broken between refreshes.
+//
+// A separate function rather than an option on formatClock, so that asking
+// for seconds is a visible decision at the call site instead of a flag
+// someone has to go and read the implementation to find out about.
+export function formatClockSeconds(date) {
+  let hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  const period = hours >= 12 ? 'pm' : 'am';
+  hours = hours % 12 || 12;
+  return `${hours}:${minutes}:${seconds} ${period}`;
 }
 
 // "9/15/26" — numeric month/day, 2-digit year to save space on a to-do
