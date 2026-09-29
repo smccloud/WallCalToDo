@@ -28,8 +28,8 @@ these to see it fullscreen).
 *(The four screenshots above use demo data, not a real calendar — shown
 with a lot going on to demonstrate multi-day events, the "+N more"
 overflow on a busy day, and a mix of completed/pending to-do items with
-due dates. A location is set, which is what puts the sunrise and sunset
-times in the header.)*
+due dates. A location is set, which is what puts the next sunrise or sunset
+in the header.)*
 
 ## Why this exists
 
@@ -161,29 +161,42 @@ doesn't take effect.
 
 ## Sunrise and sunset in the header
 
-The header carries the day's sunrise and sunset between the month/year and the
-clock — `🌅 Sunrise at 7:09 am  🌇 Sunset at 7:01 pm`. Same for both: the
-whole point of a wall display is knowing whether it's still light outside
-without walking to a window, and sunrise is the other half of that after dark.
+The header carries the day's next sun event between the month/year and the
+clock — `🌅 Sunrise at 7:09 am`, `🌇 Sunset at 7:01 pm`, in the clock's own
+size. One of them rather than both, because which one matters depends on the
+hour: at 3pm "sunrise 7:09 am" is something that already happened, and at 8pm
+"sunset 7:01 pm" likewise. What you want off a wall is when it next gets light
+or dark, which is always exactly one of them. So the row shows whichever is
+still ahead — today's sunrise before it, today's sunset in between, and after
+sunset, **tomorrow's** sunrise, which is why the backend sends tomorrow's pair
+as well as today's. Showing today's sunrise at 9pm would be an hour-old event
+presented as a future one.
 
-These are the *same* two times the Automatic theme already switches on, not a
-second calculation. The backend works them out from the saved location with
-the public-domain sunrise equation (`server/src/services/sunService.js`,
-accurate to a minute or two — no API call, so nothing about this needs the
-Pi to reach a sunrise service), hands them over with every settings push, and
-the display prints them. What the wall says therefore cannot drift from what
-the display is actually doing, which is the failure a separate calculation
-would eventually have.
+The whole point of a wall display is knowing whether it's still light outside
+without walking to a window, and after dark the question becomes when it will
+get light again.
 
-Nothing is shown until a location is set in the companion app, and either time
-can be missing on its own at a latitude where the sun currently doesn't quite
-clear the horizon in either direction — the row shows what exists rather than
-guessing. If **Advanced** is on in the theme settings, these are the shifted
-times the display is acting on, not the raw astronomical ones; with Advanced
-off (the default) they're the real thing.
+These are the *same* times the Automatic theme already switches on, not a
+second calculation. The backend works them out from the saved location with the
+public-domain sunrise equation (`server/src/services/sunService.js`, accurate
+to a minute or two — no API call, so nothing about this needs the Pi to reach
+a sunrise service), hands them over with every settings push, and the display
+prints them. What the wall says therefore cannot drift from what the display
+is actually doing, which is the failure a separate calculation would eventually
+have.
 
-The times roll over with the day: the backend rebroadcasts them once the date
-changes, so a display left running for weeks doesn't sit on yesterday's.
+Nothing is shown until a location is set in the companion app, and every one of
+the four times can come back missing — no location, or a latitude where the
+sun neither rises nor sets — in which case the row is simply absent rather than
+showing a time that isn't going to happen. If **Advanced** is on in the theme
+settings, today's times are the shifted ones the display is actually acting on
+rather than the raw astronomical ones; tomorrow's never are, since nothing
+today decides anything about tomorrow.
+
+The row updates itself as the day goes, on its own half-minute clock, rather
+than waiting for the once-a-day settings push: which event is next changes *at*
+sunrise and sunset, and a display nobody is looking after can't be told the
+boundary passed by an update that arrives on its own schedule.
 
 ## Microsoft calendar fetching
 
@@ -205,21 +218,38 @@ doesn't, so the two providers are handled separately all the way through
 - **Events are filtered the same way Google's are** — cancelled, draft, and
   explicitly-declined events don't show; tentative and unanswered invitations
   do, because Outlook lists those dimmed rather than hiding them.
-- **Each day is capped at two events.** A work calendar carries far more per
-  day than a wall has room for, and the overflow is invisible: the day cells
-  measure themselves and trim to "+N more", so a heavy day quietly becomes a
-  month of "+N more" badges that say nothing about what's actually on. Capping
-  at the display's own capacity keeps the days that still fit saying what they
-  always did, and stops the ones that don't from pretending to.
+- **Each day is capped at two events** — and for today, the two are the ones
+  still to come. A work calendar carries far more per day than a wall has room
+  for, and the overflow is invisible: the day cells measure themselves and trim
+  to "+N more", so a heavy day quietly becomes a month of "+N more" badges that
+  say nothing about what's actually on. Capping at the display's own capacity
+  keeps the days that still fit saying what they always did, and stops the
+  ones that don't from pretending to.
+
+  Picking the *next* two rather than the day's first two is the part that
+  matters on a wall nobody is standing in front of: at 3pm the 9am meeting
+  happened hours ago, and spending both slots on the morning leaves the wall
+  saying nothing at all about the rest of the day. A day with one event left
+  shows that one rather than padding the slot back up; a day that's entirely
+  behind us falls back to its first two, so it isn't blank. Past and future
+  days keep the first two, which is all there is to say about them.
 
   The two are chosen in the same order the day cell would have rendered them
   (all-day first, then by start time) — otherwise the cap would drop the event
   that was going to be shown and keep the one that was about to be trimmed. A
-  multi-day trip counts against every day it crosses, and an event that loses
-  its place on one day is dropped whole rather than left showing on the days
-  where it did fit. Google's calendars are untouched, and the cap is applied
-  when the list is read, not when it's cached, so nothing is lost: the cache
-  on disk stays complete and today's agenda and the to-do list are unaffected.
+  meeting in progress still counts, since it's the one you may be walking to; a
+  multi-day trip counts on every day it crosses, and an event that loses its
+  place on one day is dropped whole rather than left showing on the days where
+  it did fit. Google's calendars are untouched, and the cap is applied when the
+  list is read, not when it's cached, so nothing is lost: the cache on disk
+  stays complete and today's agenda and the to-do list are unaffected.
+
+  Because "the next two" is relative to the current time, the display's feed
+  is no longer a pure function of what the providers hold — on a quiet day the
+  list a display *should* be showing changes as the morning's meetings pass,
+  with no poll reporting anything. The poller therefore pushes the calendar
+  when the list itself differs from the one already sent, rather than only
+  when a provider says something changed.
 
 ## Calendar legend and outside temperature
 
