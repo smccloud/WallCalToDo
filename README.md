@@ -183,7 +183,7 @@ doesn't take effect.
 ## Sunrise and sunset in the header
 
 The header carries the day's next sun event between the month/year and the
-clock — `🌅 Sunrise at 7:09 am`, `🌇 Sunset at 7:01 pm` — in muted text well
+clock — `🌅 Sunrise at 7:09 am`, `🌇 Sunset at 7:01 pm` — in muted text a step
 below the clock's own size, since the month/year and the clock are the two
 things the header exists to show and this sits quietly under both. One event
 rather than both, because which one matters depends on the hour: at 3pm
