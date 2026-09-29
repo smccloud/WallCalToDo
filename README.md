@@ -183,17 +183,17 @@ doesn't take effect.
 ## Sunrise and sunset in the header
 
 The header carries the day's next sun event between the month/year and the
-clock — `🌅 Sunrise at 7:09 am`, `🌇 Sunset at 7:01 pm` — in muted text a step
+clock — `🌅 Sunrise at 7:09 am`, `🌇 Sunset at 7:01 pm` — in muted text well
 below the clock's own size, since the month/year and the clock are the two
-things the header exists to show and this sits under both. One event rather
-than both, because which one matters depends on the hour: at 3pm "sunrise 7:09
-am" is something that already happened, and at 8pm "sunset 7:01 pm" likewise.
-What you want off a wall is when it next gets light or dark, which is always
-exactly one of them. So the row shows whichever is still ahead — today's
-sunrise before it, today's sunset in between, and after sunset, **tomorrow's**
-sunrise, which is why the backend sends tomorrow's pair as well as today's.
-Showing today's sunrise at 9pm would be an hour-old event presented as a
-future one.
+things the header exists to show and this sits quietly under both. One event
+rather than both, because which one matters depends on the hour: at 3pm
+"sunrise 7:09 am" is something that already happened, and at 8pm "sunset 7:01
+pm" likewise. What you want off a wall is when it next gets light or dark,
+which is always exactly one of them. So the row shows whichever is still ahead —
+today's sunrise before it, today's sunset in between, and after sunset,
+**tomorrow's** sunrise, which is why the backend sends tomorrow's pair as well
+as today's. Showing today's sunrise at 9pm would be an hour-old event presented
+as a future one.
 
 The whole point of a wall display is knowing whether it's still light outside
 without walking to a window, and after dark the question becomes when it will
