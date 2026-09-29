@@ -227,9 +227,9 @@ body {
    and tying it to --font-size-title would quietly undo that the next time
    someone changes that token. --font-size-body (1.5rem) is the next size down
    and is too small — 1.5rem is legible from close to rather than across a
-   room. 2rem is the round number in between, and lands where it should:
-   clearly subordinate to the date and the clock, without reading as a
-   caption.
+   room. 2.2rem rather than a round 2rem: the point is to sit quietly under the
+   date and the clock, not to become a caption, and that extra 0.2rem is what
+   does it.
 
    This is the only header child allowed to shrink, and it shrinks by
    wrapping to a line of its own (see flex-wrap above) rather than by being
@@ -248,7 +248,7 @@ body {
   gap: 0.3em var(--space-sm);
   margin: 0 auto;
   color: var(--color-text-muted);
-  font-size: 2.0rem;
+  font-size: 2.2rem;
 }
 
 /* Each emoji, then the word, then the time, sharing one baseline. Emoji sit
