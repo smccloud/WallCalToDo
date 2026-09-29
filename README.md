@@ -118,6 +118,27 @@ behind home NAT. Polling with delta/sync tokens gets you effectively the
 same result (updates within seconds to a minute) without that
 infrastructure.
 
+## The clock
+
+The wall's own clock — top right of the calendar, and carried over to the same
+corner when the weather view takes the screen — runs to seconds, `10:04:37 am`.
+Seconds are what make a clock on a wall read as *running* rather than stuck;
+without them, a display that redraws a few times a minute looks broken between
+redraws.
+
+It ticks once a second, and that's the only thing on the display that does.
+The clock is its own component (`WallClock.jsx`) with its own timer rather than
+a time read off whichever view happens to be up, because both views that show
+one keep a clock of their own for unrelated reasons — the header for the
+month and year, the weather view to trim the forecast to the next 24 hours —
+and a shared tick would mean redrawing 34 forecast columns sixty times a minute
+to redraw a string. Isolated, a tick costs one `<span>`.
+
+Every *other* time on the display is deliberately left at minutes — an
+agenda entry, an event pill, the hour-by-hour forecast, the sunrise and sunset
+in the header. A meeting doesn't start at 10:30:47, and a sunrise isn't known
+to the second anyway; seconds there would be false precision, not information.
+
 ## Screen orientation
 
 The layout adapts automatically to whichever way the screen is actually
@@ -162,15 +183,17 @@ doesn't take effect.
 ## Sunrise and sunset in the header
 
 The header carries the day's next sun event between the month/year and the
-clock — `🌅 Sunrise at 7:09 am`, `🌇 Sunset at 7:01 pm`, in the clock's own
-size. One of them rather than both, because which one matters depends on the
-hour: at 3pm "sunrise 7:09 am" is something that already happened, and at 8pm
-"sunset 7:01 pm" likewise. What you want off a wall is when it next gets light
-or dark, which is always exactly one of them. So the row shows whichever is
-still ahead — today's sunrise before it, today's sunset in between, and after
-sunset, **tomorrow's** sunrise, which is why the backend sends tomorrow's pair
-as well as today's. Showing today's sunrise at 9pm would be an hour-old event
-presented as a future one.
+clock — `🌅 Sunrise at 7:09 am`, `🌇 Sunset at 7:01 pm` — in muted text a step
+below the clock's own size, since the month/year and the clock are the two
+things the header exists to show and this sits under both. One event rather
+than both, because which one matters depends on the hour: at 3pm "sunrise 7:09
+am" is something that already happened, and at 8pm "sunset 7:01 pm" likewise.
+What you want off a wall is when it next gets light or dark, which is always
+exactly one of them. So the row shows whichever is still ahead — today's
+sunrise before it, today's sunset in between, and after sunset, **tomorrow's**
+sunrise, which is why the backend sends tomorrow's pair as well as today's.
+Showing today's sunrise at 9pm would be an hour-old event presented as a
+future one.
 
 The whole point of a wall display is knowing whether it's still light outside
 without walking to a window, and after dark the question becomes when it will
@@ -981,7 +1004,7 @@ needed. Widen it back out (wider than tall) to preview landscape instead.
 The visual design lives directly in this repo now — `frontend/src/styles/
 tokens.css` for the base color/spacing/type scale, `frontend/src/styles/
 base.css` and the component files (`CalendarView.jsx`, `CalendarHeader.jsx`,
-`SunTimes.jsx`, `DayAgenda.jsx`, `TodoView.jsx`, `Legend.jsx`,
+`SunTimes.jsx`, `WallClock.jsx`, `DayAgenda.jsx`, `TodoView.jsx`, `Legend.jsx`,
 `WeatherWidget.jsx`,
 `WeatherView.jsx`, `BirthdayMark.jsx`) for the
 actual layout and styling. It's been iterated on in place rather than
