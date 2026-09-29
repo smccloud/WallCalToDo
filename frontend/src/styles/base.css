@@ -168,21 +168,24 @@ body {
   }
 }
 
-/* A 3-column grid rather than a space-between flex row (which is what this
-   was) now that sunrise/sunset sits between the month/year and the clock:
-   flex would have put the sun times in a leftover gap sized by how wide the
-   other two happen to be, rather than actually centered on the screen. The
-   two outer columns are equal (1fr each) so the middle one is centered
-   between them.
+/* A flex row again (it was `justify-content: space-between` with just the
+   date and the clock) now that sunrise/sunset sits between them. The sun
+   times are centered with auto side margins rather than by equal outer
+   columns: `1fr auto 1fr` was tried first and forced the two outer columns
+   to be exactly equal, so the date got whatever was left over. At the 1080px
+   portrait this display actually runs at, that came to 289px against a
+   358px month/year, and "September 2026" wrapped onto two lines. Auto
+   margins center the middle item in whatever space the other two left
+   without asking them to be the same size, and they absorb all the slack
+   only when there is slack to absorb.
 
-   The clock is pinned to column 3 explicitly rather than auto-placed,
-   because SunTimes renders nothing at all when no location is set — with
-   plain auto-placement the clock would slide into column 2 and end up
-   centered over the calendar. Pinned, the empty middle column collapses
-   and the header looks exactly as it did before the sun times existed. */
+   The date and clock are flex:none so neither can be squeezed below its own
+   width -- they are the two things the header exists to show, and letting
+   them shrink is what produced the wrap. The sun row is the one thing here
+   that can give ground, so it takes the shrink instead (see its own rule). */
 .calendar-header {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   /* Right inset is 5px, not --space-sm: it needs to line up exactly
      with .calendar-header__dot's own 5px-from-the-screen-edge position
@@ -192,7 +195,7 @@ body {
 }
 
 .calendar-header__date {
-  grid-column: 1;
+  flex: none;
   margin: 0;
   font-size: var(--font-size-title);
 }
@@ -206,40 +209,59 @@ body {
 }
 
 .calendar-header__right {
-  grid-column: 3;
+  flex: none;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 0.3em;
 }
 
-/* Sunrise and sunset, in the middle column (see .calendar-header). Muted like
-   the clock rather than full-brightness: they're context for the day, not
-   the thing to read across a room, and full-brightness would put a third
-   bright block in the header next to two that already compete. */
+/* Sunrise and sunset, centered in the gap between the month/year and the
+   clock (see .calendar-header). Muted like the clock rather than
+   full-brightness: they're context for the day, not the thing to read across
+   a room, and full-brightness would put a third bright block in the header
+   next to two that already compete.
+
+   This is the only header child allowed to shrink, and it shrinks by
+   wrapping to one time per line rather than by clipping either of them --
+   the two auto margins are what drop to zero first when the row runs out of
+   room, so on a narrow screen this becomes a two-line stack instead of
+   costing the date or the clock a single pixel of width.
+
+   min-width is wide enough that the row prefers dropping to a line of its
+   own (see flex-wrap above) over being squeezed into whatever sliver happens
+   to be left -- at 600px the leftover was 44px, which is not a width a pair
+   of times can say anything in. Expressed in em so it tracks this row's own
+   font size rather than being a pixel count that drifts from it. */
 .calendar-header__sun {
-  grid-column: 2;
+  flex: 0 1 auto;
+  min-width: 17em;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-sm);
+  justify-content: center;
+  gap: 0.3em var(--space-sm);
+  margin: 0 auto;
   color: var(--color-text-muted);
   font-size: var(--font-size-body);
-  white-space: nowrap;
 }
 
 /* Each emoji, then the word, then the time, sharing one baseline. Emoji sit
    on their own baseline rather than the text's by default, which is what makes
-   a mixed emoji/text pair look misaligned rather than deliberately so.
-
-   The words are dimmer than the time. They name the pictogram next to them
-   and introduce the number ("Sunrise at 6:12 am"), but the number is the part
-   someone actually reads, so the two shouldn't compete at the same weight. */
+   a mixed emoji/text pair look misaligned rather than deliberately so. A pair
+   is never split across lines by the wrap above -- each one stays whole,
+   since "Sunrise at" with a time on the next line would be worse than either
+   stacking them or clipping. */
 .calendar-header__sun-time {
   display: inline-flex;
   align-items: baseline;
   gap: 0.3em;
+  white-space: nowrap;
 }
 
+/* The word is dimmer than the time it introduces ("Sunrise at 6:12 am"). It
+   names the pictogram beside it, but the number is the part someone actually
+   reads, so the two shouldn't compete at the same weight. */
 .calendar-header__sun-label {
   color: var(--color-text-muted);
   opacity: 0.75;
