@@ -490,6 +490,25 @@ body {
   transform: translateY(1px);
 }
 
+/* "+n", trailing on the last Microsoft pill of a day — the count of the
+   events the server's per-day cap dropped, carried on that pill
+   (see limitToPerDay in server/src/services/msCalendarService.js). Like the
+   birthday mark it's flex:none, so it's never the thing that gets squeezed
+   when the title beside it runs out of room — the title is the one that
+   should give way first. */
+.calendar-cell__event-overflow {
+  flex: none;
+  /* Pushes to the far end of the pill rather than sitting against the title:
+     on a wide cell that's a tidier edge, and on a narrow one it leaves the
+     title the full width between the two instead of hugging it. */
+  margin-left: auto;
+  /* Quieter than the title without a color of its own: the pill's fill is a
+     30% tint of the event's color, so --color-text-muted (tuned for the page
+     background) wouldn't hold up on top of it. Reduced opacity of the
+     inherited --color-pill-text keeps working in both themes. */
+  opacity: 0.65;
+}
+
 .calendar-cell__more {
   flex-shrink: 0;
   font-size: var(--font-size-small);

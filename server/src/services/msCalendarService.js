@@ -400,6 +400,20 @@ export function dropAllCalendarsCache() {
 // Google is left exactly as it was.
 const MS_EVENTS_PER_DAY = 2;
 
+// The `msOverflowCount` field: how many events the cap dropped for the day
+// this event was the last one kept on. Stamped onto the kept event itself
+// rather than sent alongside the list, so the display has nothing to join up
+// and no way to attribute the number to the wrong day -- it reads it off the
+// pill the hidden events would have come after, which is the only place the
+// count means anything.
+//
+// Deliberately not part of the normalized shape above (see normalizeEvent):
+// it isn't data about the event, it's an artifact of this read's cap, and it
+// has to be recomputed on every read. Absent on every Google event, and on
+// every Microsoft event whose day didn't overflow -- so the display can key
+// straight off it without a provider check.
+const OVERFLOW_FIELD = 'msOverflowCount';
+
 // The display's own per-day ordering, mirrored so "the first two" means the
 // first two the day cell would have rendered. All-day first, then timed by
 // start time, with all-day ones by title -- same as sortDayEvents, and for
@@ -465,6 +479,10 @@ function* eachEventDay(event) {
 // hours ago, and spending both slots on the morning means the wall says
 // nothing at all about the rest of the day. Past days and future days keep the
 // first two, which is all there is to say about them.
+//
+// Whatever the cap drops is counted onto the last event that day kept, so the
+// wall can say so rather than quietly showing a trimmed day that looks
+// complete -- see OVERFLOW_FIELD above.
 function limitToPerDay(events, now) {
   const byDay = new Map();
   for (const event of events) {
@@ -475,14 +493,40 @@ function limitToPerDay(events, now) {
   }
 
   const kept = new Set();
+  const overflowByEvent = new Map();
   for (const bucket of byDay.values()) {
     bucket.sort(compareLikeDisplay);
     // A day with one event left still shows that one rather than padding the
     // slot back up with something that already happened.
     const upcoming = bucket.filter((event) => isUpcoming(event, now));
-    for (const event of (upcoming.length ? upcoming : bucket).slice(0, MS_EVENTS_PER_DAY)) kept.add(event);
+    const shown = (upcoming.length ? upcoming : bucket).slice(0, MS_EVENTS_PER_DAY);
+    for (const event of shown) kept.add(event);
+
+    // On the last one shown, so "+n" reads as continuing past the item the
+    // eye is already looking at rather than sitting somewhere arbitrary in
+    // the day's list. A bucket is never empty, so `shown` is never empty
+    // either, so there is always somewhere to put the number.
+    const hidden = bucket.length - shown.length;
+    if (hidden > 0) {
+      const last = shown[shown.length - 1];
+      // A multi-day event can be the last kept item on several of the days it
+      // crosses -- whichever day has nothing sorting after it -- and each of
+      // those days drops a different number. Only one of them can be the one
+      // that travels, so it's the largest rather than whichever bucket
+      // happened to be walked last.
+      overflowByEvent.set(last, Math.max(overflowByEvent.get(last) || 0, hidden));
+    }
   }
-  return events.filter((event) => kept.has(event));
+
+  const limited = events.filter((event) => kept.has(event));
+  // Written onto the events rather than onto copies: these come from a fresh
+  // JSON.parse on every read (loadEvents), and nothing on the read path ever
+  // writes the cache back, so the stamps can't outlive this call.
+  for (const event of limited) {
+    const overflow = overflowByEvent.get(event);
+    if (overflow) event[OVERFLOW_FIELD] = overflow;
+  }
+  return limited;
 }
 
 // Whether an event is still to come, as of `now`. Ends rather than starts, so
@@ -532,7 +576,9 @@ function isUpcoming(event, now) {
 // The per-day cap (MS_EVENTS_PER_DAY above) is applied here, at read time,
 // for the same reason: the cache on disk stays complete, so the limit is a
 // display decision rather than data loss, and changing it takes effect on the
-// next poll with no resync of anything.
+// next poll with no resync of anything. What it drops is not dropped
+// silently -- the count rides along on the last event each day kept (see
+// OVERFLOW_FIELD), so the display can mark it "+n" on that pill.
 //
 // `now` is the server's own clock rather than something passed in, and is read
 // at call time because the cap is relative to it: every read re-decides what

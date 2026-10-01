@@ -5,6 +5,9 @@ import BirthdayMark from './BirthdayMark.jsx';
 
 // Placeholder presentation only — swap this markup/styling for the real
 // design later. Data shape stays the same: [{ id, title, start, end, allDay, location, calendarLabel, color }]
+// `msOverflowCount` is Microsoft-only and rare — see the MS_EVENTS_PER_DAY cap
+// in server/src/services/msCalendarService.js. Absent everywhere else, so it
+// needs no provider check here.
 
 const BAR_HEIGHT = 28;
 const BAR_GAP = 4;
@@ -145,6 +148,28 @@ function DayCell({ date, inMonth, isToday, dayEvents, barsSpace, gridRow, gridCo
                 {event.isBirthday && <BirthdayMark />}
                 <span className="calendar-cell__event-text">{event.title}</span>
               </>
+            )}
+            {/* How many more Microsoft events this day had that the server's
+                per-day cap dropped — stamped on the last one it did keep (see
+                limitToPerDay), so it lands where the hidden ones would have
+                been and reads as continuing past this item.
+
+                Inline rather than a row of its own for the reason the cell
+                measures itself: a sibling here would cost the day a line of
+                height, which on a busy day is what tips the cell over into
+                showing its own "+N more" — replacing one silent truncation
+                with a louder one.
+
+                Also the one thing that stays legible in privacy mode, since
+                it's a count rather than a title, matching the "+N more" badge
+                below, which shows regardless.
+
+                Nothing renders here when the pill carrying the count was itself
+                trimmed off by the fit measurement above — but on a day that
+                full, the "+N more" badge is already saying the day isn't
+                complete, which is the same information this would have given. */}
+            {event.msOverflowCount > 0 && (
+              <span className="calendar-cell__event-overflow">+{event.msOverflowCount}</span>
             )}
           </li>
         ))}
@@ -336,7 +361,14 @@ export default function CalendarView({ events, privacyMode, onMeasureSplit }) {
               // events sharing this week) are exactly the two things that
               // affect how many events fit, so either changing should
               // force a fresh mount and re-measure — see DayCell's comment.
-              key={`${key}:${dayEvents.map((event) => event.id).join(',')}:${barsSpace}`}
+              // The Microsoft "+n" counts ride along in the same string: an
+              // inline marker narrows the title beside it, which can wrap it
+              // onto an extra line and make that pill taller. The bars above
+              // need no equivalent — .calendar-bar is a fixed height with
+              // nowrap text, so nothing inside it can change how tall it is.
+              key={`${key}:${dayEvents
+                .map((event) => `${event.id}${event.msOverflowCount || ''}`)
+                .join(',')}:${barsSpace}`}
               date={date}
               inMonth={inMonth}
               isToday={key === todayKey}

@@ -29,8 +29,16 @@ let lastCalendarSignature = null;
 // polls themselves report no change at all. Diffing the actual list is what
 // catches that, and it makes the providers' own `changed` flags unnecessary
 // here — they only ever claim something moved, which is the same question.
+//
+// The Microsoft overflow count is part of the signature for the same reason:
+// it rides on the kept events rather than standing in for them, so a day that
+// gains a meeting the per-day cap then drops leaves every id and start time in
+// this list exactly as they were. Without it, "+2" would stay on the wall
+// until some unrelated event moved.
 function pushCalendar(events) {
-  const signature = events.map((event) => `${event.id}@${event.start}`).join(',');
+  const signature = events
+    .map((event) => `${event.id}@${event.start}${event.msOverflowCount ? `+${event.msOverflowCount}` : ''}`)
+    .join(',');
   if (signature === lastCalendarSignature) return;
   lastCalendarSignature = signature;
   broadcast({ type: 'calendar', data: events });

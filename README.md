@@ -267,6 +267,22 @@ doesn't, so the two providers are handled separately all the way through
   list is read, not when it's cached, so nothing is lost: the cache on disk
   stays complete and today's agenda and the to-do list are unaffected.
 
+  **Whatever the cap drops is counted, not hidden.** The number rides along on
+  the last Microsoft event each day did keep (`msOverflowCount`), and the day
+  cell renders it as a small trailing "+n" on that pill. Capping without it
+  produced a wall that looked complete on the days it wasn't: the same
+  "+N more" the cap exists to avoid is exactly what a silently trimmed work
+  calendar looks like, just with nothing on the other side of it. It's inline on
+  the pill rather than a row of its own so it can't cost the day a line of
+  height and tip the cell into showing "+N more" as well. It stays visible in
+  privacy mode — it's a count, not a title, same as the "+N more" badge.
+
+  The count is also part of what the poller diffs before deciding whether the
+  display's feed has changed (see `pushCalendar` in `poller.js`): adding a
+  meeting to a day that's already over its cap leaves every event id and start
+  time in the feed untouched, so without it "+2" would sit on the wall until
+  something unrelated moved.
+
   Because "the next two" is relative to the current time, the display's feed
   is no longer a pure function of what the providers hold — on a quiet day the
   list a display *should* be showing changes as the morning's meetings pass,
