@@ -56,4 +56,4 @@ page at any time, independent of this app.
 
 This is a hobby project without a support team. If you have questions
 about this policy or the project itself, open an issue on the
-[GitHub repository](https://github.com/kevinclayland/WallCalToDo).
+[GitHub repository](https://github.com/smccloud/WallCalToDo).

@@ -1056,6 +1056,10 @@ Google.
 
 ## Credits
 
+This project draws its inspiration and much of its direction from
+[Kevin Clayland's WallCalToDo](https://github.com/kevinclayland/WallCalToDo) —
+the source that started this one, and the reason it exists.
+
 Built with [opencode](https://opencode.ai) (the `big-pickle` model) for code
 generation, refactoring, and debugging — most of the Microsoft calendar
 support in particular was written this way, as was the fix for the
