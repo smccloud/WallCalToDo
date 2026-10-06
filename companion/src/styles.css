@@ -431,6 +431,88 @@ body {
   align-self: flex-start;
 }
 
+/* Row of form buttons (Save + Cancel) in the Google credential-set
+   add/edit forms. */
+.api-credentials__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.link-button--danger {
+  color: var(--color-danger-text);
+}
+
+/* Google credential-set list (see GoogleCredentialSets.jsx) — one row per
+   Google OAuth app this deployment owns, each with its own connect link,
+   edit/delete, and a note about which accounts are pinned to it. */
+.google-credential-sets .api-credentials--list {
+  padding-bottom: 0.4rem;
+}
+
+.credential-sets {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.credential-set {
+  border-top: 1px solid var(--color-border-subtle);
+  padding: 0.6rem 0 0.4rem;
+}
+
+.credential-set:first-child {
+  border-top: none;
+  padding-top: 0.25rem;
+}
+
+.credential-set__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.credential-set__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.credential-set__name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.credential-set__clientid,
+.credential-set__source,
+.credential-set__inuse {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.credential-set__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.credential-set__actions .button {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+/* Which credential set a Google account is tied to, in its card header. */
+.account-card__meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
 .settings-card {
   background: var(--color-card-bg);
   border: 1px solid var(--color-border);

@@ -460,18 +460,25 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   sections has its own Client ID/Client Secret form, with a "Where do I
   get this?" panel that walks through creating your own free API
   credentials in that provider's console. No terminal/`.env` editing
-  required (see the setup guide's step 7 below for screenshots) — this is
-  the one thing about each provider that only needs to be entered once.
-  The Microsoft one also has an optional Tenant ID field, which scopes
-  sign-in to a single Entra directory and can be left blank (the default)
-  to accept any Microsoft account. Its app registration needs **two**
-  delegated Microsoft Graph permissions — `Tasks.Read` for the to-do lists
-  and `Calendars.Read` for the calendars — since one account supplies both
-  halves (see setup step 7).
-- **Add a Google account** — tapping the button starts the normal Google
-  OAuth flow; you can connect as many Google accounts as you want (e.g.
-  personal + work). Reconnecting an account you've already added updates
-  its tokens instead of creating a duplicate.
+  required (see the setup guide's step 7 below for screenshots).
+  Google's side takes multiple *credential sets*: each set is its own
+  Google OAuth app, nameable and independently editable, so you can have
+  e.g. one app registration per household member or per organisation and
+  connect accounts under whichever one minted them (every connected
+  account is tagged with the set it was connected under, and a set can't
+  be deleted while accounts still use it). The optional `server/.env`
+  pair shows up as a read-only "server/.env" set. The Microsoft one also
+  has an optional Tenant ID field, which scopes sign-in to a single Entra
+  directory and can be left blank (the default) to accept any Microsoft
+  account. Its app registration needs **two** delegated Microsoft Graph
+  permissions — `Tasks.Read` for the to-do lists and `Calendars.Read` for
+  the calendars — since one account supplies both halves (see setup step
+  7).
+- **Add a Google account** — each credential set has its own start button,
+  and tapping it runs the normal Google OAuth flow against that set; you
+  can connect as many Google accounts as you want (e.g. personal + work).
+  Reconnecting an account you've already added updates its tokens instead
+  of creating a duplicate.
 - **Toggle calendars on/off** — each connected account lists every
   calendar the provider returns for it (not just the primary one). Flipping
   a switch hides or shows that calendar's events on the wall display
@@ -823,18 +830,20 @@ provider's redirect getting back to the Pi through a port forward.
    ```
    http://localhost:3000/companion
    ```
-2. Scroll to **Google Calendar**. Click **Where do I get this?** to
-   expand the steps for creating your own free Google API credentials —
-   it walks you through the Google Cloud Console and tells you exactly
-   what to paste in:
+2. Scroll to **Google Calendar**. Click **+ Add credentials set** (or
+   **Where do I get this?** on the entry that appears) to expand the steps
+   for creating your own free Google API credentials — it walks you
+   through the Google Cloud Console and tells you exactly what to paste in:
 
    ![Google Calendar section of the companion app, showing the expanded "Where do I get this?" steps and the Client ID/Client Secret fields](docs/setup-google-credentials.png)
 
-   Paste the **Client ID** and **Client Secret** it gives you into the two
-   fields and click **Save**.
-3. The section now shows **Configured**, and a **+ Add Google account**
-   button appears. Tap it, sign in, grant access. Repeat for every Google
-   account you want on the display. Each connected account shows its
+   Give the set any name (e.g. "Home"), paste the **Client ID** and
+   **Client Secret** it gives you into the fields and click **Save**. You
+   can add more sets later — one per Google OAuth app you create (a set
+   per organisation whose calendars the wall shows, say).
+3. Each set now shows **+ Add account**. Tap it, sign in, grant access.
+   Repeat for every Google account you want on the display. Each connected
+   account shows the credential set it was connected with and its
    calendars with a toggle for each one:
 
    ![A connected Google account in the companion app, showing its calendar list with per-calendar toggles](docs/setup-google-connected.png)

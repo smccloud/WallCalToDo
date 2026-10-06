@@ -43,7 +43,11 @@ authRouter.use((req, res, next) => {
 // showing a raw JSON error page.
 authRouter.get('/google', (req, res) => {
   try {
-    res.redirect(googleAuth.getAuthUrl());
+    // ?set=<credentialSetId> picks which of the deployment's Google API
+    // credential sets this connection is made against (see googleAuth
+    // getAuthUrl/exchangeCode) — each set is a separate OAuth client, and
+    // the account this flow connects gets pinned to it.
+    res.redirect(googleAuth.getAuthUrl(req.query.set));
   } catch (err) {
     res.redirect(`/companion?authError=${encodeURIComponent(err.message)}`);
   }
@@ -51,7 +55,10 @@ authRouter.get('/google', (req, res) => {
 
 authRouter.get('/google/callback', async (req, res) => {
   try {
-    await googleAuth.exchangeCode(req.query.code);
+    // Google echoes the `state` we put in the auth URL back here; that's the
+    // credential set the flow started from, and it decides which client the
+    // returned code belongs to (see googleAuth.exchangeCode).
+    await googleAuth.exchangeCode(req.query.code, req.query.state);
     // Pull the new account's events in immediately rather than waiting for
     // the next poll interval, then send the browser back to the companion
     // app so the just-connected account shows up right away.

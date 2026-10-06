@@ -1,7 +1,11 @@
 import { google } from 'googleapis';
 import { config } from '../config.js';
 import { readJson, writeJson } from '../store/fileStore.js';
-import { getCredentials } from '../services/credentialsService.js';
+import {
+  getCredentials,
+  getGoogleDefaultSetId,
+  getGoogleSetLabel,
+} from '../services/credentialsService.js';
 
 const ACCOUNTS_FILE = 'googleAccounts.json';
 // calendar.readonly to read events, userinfo.email so we can label each
@@ -12,38 +16,79 @@ const SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email',
 ];
 
-const loadAccounts = () => readJson(ACCOUNTS_FILE, {});
+// Since multiple credential sets arrived, each connected account is pinned
+// to the set its tokens were minted under (see getAuthUrl's state
+// round-trip). Accounts connected before that exist have no pin; fill it in
+// once, on the first load after upgrade, with whichever set was in effect at
+// the time, so a set being added or removed later can't silently rebind
+// their tokens to a client they were never minted under. Idempotent: only
+// fills the missing field, so this runs on every read but writes at most
+// once per account (and only when a migration actually happened).
+const loadAccounts = () => {
+  const accounts = readJson(ACCOUNTS_FILE, {});
+  let changed = false;
+  for (const account of Object.values(accounts)) {
+    if (account.credentialSetId === undefined) {
+      account.credentialSetId = getGoogleDefaultSetId();
+      changed = true;
+    }
+  }
+  if (changed) saveAccounts(accounts);
+  return accounts;
+};
 const saveAccounts = (accounts) => writeJson(ACCOUNTS_FILE, accounts);
 
 function slugify(email) {
   return email.toLowerCase().replace(/[^a-z0-9]+/g, '_');
 }
 
-function createClient() {
-  const { clientId, clientSecret } = getCredentials('google');
+function createClient(setId) {
+  const { clientId, clientSecret } = getCredentials('google', setId);
   return new google.auth.OAuth2(clientId, clientSecret, config.google.redirectUri);
 }
 
-export function isConfigured() {
-  const { clientId, clientSecret } = getCredentials('google');
-  return Boolean(clientId && clientSecret);
+export function isConfigured(setId) {
+  try {
+    createClient(setId);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-export function getAuthUrl() {
-  if (!isConfigured()) {
-    throw new Error('Google OAuth is not configured — enter a Client ID/Secret in the companion app’s Google Calendar section.');
-  }
-  return createClient().generateAuthUrl({
+export function getAuthUrl(setId) {
+  return createClient(setId).generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
     scope: SCOPES,
+    // Round-trips the chosen credential set through Google's consent screen
+    // back to the callback, where it decides which client the returned code
+    // belongs to. Only set when one was chosen — a bare /auth/google link
+    // still connects with the default set.
+    ...(setId ? { state: setId } : {}),
   });
 }
 
-// List of { id, email, calendars: [{ id, summary, backgroundColor, enabled }] }.
-// Tokens are intentionally omitted — this is what the companion app reads.
+// List of { id, email, credentialSet: { id, name }, calendars: [{ id,
+// summary, backgroundColor, enabled }] }. Tokens are intentionally omitted —
+// this is what the companion app reads. `credentialSet` is which of the
+// deployment's credentials sets this account's tokens were minted under.
 export function listAccounts() {
-  return Object.values(loadAccounts()).map(({ id, email, calendars }) => ({ id, email, calendars }));
+  return Object.values(loadAccounts()).map(({ id, email, calendars, credentialSetId }) => ({
+    id,
+    email,
+    calendars,
+    credentialSet: { id: credentialSetId, name: getGoogleSetLabel(credentialSetId) },
+  }));
+}
+
+// Email addresses of the accounts pinned to one credential set — lets the
+// API refuse to delete a set that's still in use and explain why.
+export function accountsUsingSet(setId) {
+  return Object.values(loadAccounts())
+    .filter((account) => account.credentialSetId === setId)
+    .map((account) => account.email)
+    .sort();
 }
 
 export function isAuthorized() {
@@ -58,7 +103,7 @@ export async function refreshCalendarList(accountId) {
   const account = accounts[accountId];
   if (!account) throw new Error(`Unknown Google account: ${accountId}`);
 
-  const client = createClient();
+  const client = createClient(account.credentialSetId);
   client.setCredentials(account.tokens);
   const calendarApi = google.calendar({ version: 'v3', auth: client });
   const { data } = await calendarApi.calendarList.list();
@@ -78,8 +123,15 @@ export async function refreshCalendarList(accountId) {
 // Exchanges an OAuth code for tokens, identifies which Google account they
 // belong to, and stores/updates that account's record. Reconnecting an
 // already-known email updates its tokens in place rather than duplicating it.
-export async function exchangeCode(code) {
-  const client = createClient();
+//
+// `state` is the credential set id the connect flow started from, echoed
+// back by Google's consent screen (see getAuthUrl) — it decides which
+// client the code belongs to, and gets pinned on the account so refresh
+// always uses the same client. A missing state means the flow started from
+// a bare /auth/google link, so the account is pinned to the default set.
+export async function exchangeCode(code, state) {
+  const credentialSetId = state || getGoogleDefaultSetId();
+  const client = createClient(credentialSetId);
   const { tokens } = await client.getToken(code);
   client.setCredentials(tokens);
 
@@ -92,6 +144,7 @@ export async function exchangeCode(code) {
     id: accountId,
     email: profile.email,
     tokens,
+    credentialSetId,
     calendars: accounts[accountId]?.calendars || [],
   };
   saveAccounts(accounts);
@@ -127,7 +180,7 @@ export function getAuthorizedClient(accountId) {
   const account = accounts[accountId];
   if (!account) throw new Error(`Unknown Google account: ${accountId}`);
 
-  const client = createClient();
+  const client = createClient(account.credentialSetId);
   client.setCredentials(account.tokens);
   client.on('tokens', (refreshed) => {
     const latest = loadAccounts();

@@ -1,43 +1,25 @@
-import AddAccountNote from './AddAccountNote.jsx';
-import ApiCredentialsForm from './ApiCredentialsForm.jsx';
+import GoogleCredentialSets from './GoogleCredentialSets.jsx';
 
-const GOOGLE_HELP_STEPS = [
-  <>
-    Go to the{' '}
-    <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noreferrer">
-      Google Cloud Console
-    </a>{' '}
-    and create a project (any name is fine).
-  </>,
-  <>
-    <strong>APIs &amp; Services → Library</strong>, search "Google Calendar API", click <strong>Enable</strong>.
-  </>,
-  <>
-    <strong>APIs &amp; Services → OAuth consent screen</strong>: choose <strong>External</strong>, fill in an app
-    name and your email, save. Under <strong>Test users</strong>, add every Google account you plan to connect.
-  </>,
-  <>
-    <strong>APIs &amp; Services → Credentials → Create Credentials → OAuth client ID</strong>. Application type:{' '}
-    <strong>Web application</strong>.
-  </>,
-];
-
-// Google Calendar section: the credentials this deployment needs before it
-// can connect any account at all, then per-account calendar lists with
-// enable toggles, plus connect/refresh/disconnect actions.
+// Google Calendar section: the credential sets this deployment needs before
+// it can connect any account at all (each is its own Google OAuth app, see
+// GoogleCredentialSets.jsx), then per-account calendar lists with enable
+// toggles, plus connect/refresh/disconnect actions.
 export default function GoogleAccounts({
   accounts,
   loading,
   busyAccountId,
-  credentialsStatus,
+  googleCredentials,
   canAddAccounts,
   clientAddress,
-  onSaveCredentials,
+  onAddGoogleSet,
+  onUpdateGoogleSet,
+  onDeleteGoogleSet,
   onToggleCalendar,
   onRefreshAccount,
   onDisconnectAccount,
 }) {
-  const configured = Boolean(credentialsStatus?.configured);
+  const configured = Boolean(googleCredentials?.configured);
+  const sets = googleCredentials?.sets || [];
 
   return (
     <>
@@ -46,18 +28,19 @@ export default function GoogleAccounts({
         <p className="page__subtitle">Manage which Google calendars show up on the display.</p>
       </header>
 
-      {/* Not rendered until the real status has loaded -- ApiCredentialsForm
-          picks its initial collapsed/expanded state from `status` only
-          once, on mount, so mounting it early with a still-loading
-          `undefined` would leave it stuck expanded even after the real
-          "already configured" status arrives a moment later. */}
-      {credentialsStatus && (
-        <ApiCredentialsForm
-          providerLabel="Google"
-          redirectUri={credentialsStatus.redirectUri}
-          helpSteps={GOOGLE_HELP_STEPS}
-          status={credentialsStatus}
-          onSave={onSaveCredentials}
+      {/* Not rendered until the real status has loaded — GoogleCredentialSets
+          picks its initial add-form-open state from the set count only once,
+          on mount, so mounting it early with a still-loading empty list
+          would leave it stuck asking for credentials even once sets load. */}
+      {googleCredentials && (
+        <GoogleCredentialSets
+          sets={sets}
+          redirectUri={googleCredentials.redirectUri}
+          canAddAccounts={canAddAccounts}
+          clientAddress={clientAddress}
+          onAdd={onAddGoogleSet}
+          onUpdate={onUpdateGoogleSet}
+          onDelete={onDeleteGoogleSet}
         />
       )}
 
@@ -72,6 +55,13 @@ export default function GoogleAccounts({
           <section key={account.id} className="account-card">
             <div className="account-card__header">
               <h2>{account.email}</h2>
+              {/* Which of the deployment's credential sets this account's
+                  tokens were minted under — the wall stays working if other
+                  sets change, but this one can't be deleted until the
+                  account is disconnected or reconnected elsewhere. */}
+              <p className="account-card__meta">
+                Connected with <strong>{account.credentialSet?.name || 'server/.env'}</strong>
+              </p>
               <div className="account-card__actions">
                 <button
                   className="button button--ghost"
@@ -113,15 +103,12 @@ export default function GoogleAccounts({
 
       {/* `!loading` on the blocked branch so it doesn't flash up while the
           page's first /accounts call — the one carrying canAddAccounts — is
-          still in flight. */}
-      {!configured ? (
-        <p className="add-account-note">Enter your Google API credentials above before connecting an account.</p>
-      ) : canAddAccounts ? (
-        <a className="button button--primary add-account" href="/auth/google">
-          + Add Google account
-        </a>
-      ) : (
-        !loading && <AddAccountNote what="Adding a new Google account" clientAddress={clientAddress} />
+          still in flight. Connection restrictions are already explained
+          per credential set above (each set's "+ Add account" link is
+          replaced by the reason it's missing); this note only covers "no
+          credentials at all yet". */}
+      {!configured && sets.length === 0 && (
+        <p className="add-account-note">Add your Google API credentials above before connecting an account.</p>
       )}
     </>
   );

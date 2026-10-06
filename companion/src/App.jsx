@@ -241,17 +241,34 @@ export default function App() {
     }
   }
 
-  // provider is 'google' or 'ms'. `extra` is the form's optional
-  // provider-specific fields (currently just Microsoft's Entra tenant ID),
-  // merged straight into the request body. Throws on failure so
-  // ApiCredentialsForm can show the error inline next to the fields instead
-  // of it going to the shared banner above the account list.
+  // provider is 'ms' ('google' isn't a single set on the PUT route anymore —
+  // Google's multiple credential sets have their own add/update/delete API,
+  // see addGoogleSet/updateGoogleSet/deleteGoogleSet below). `extra` is the
+  // form's optional Microsoft tenant ID, merged straight into the request
+  // body. Throws on failure so ApiCredentialsForm can show the error inline
+  // next to the fields instead of it going to the shared banner above the
+  // account list.
   async function saveCredentials(provider, { clientId, clientSecret }, extra) {
     const data = await api(`/credentials/${provider}`, {
       method: 'PUT',
       body: JSON.stringify({ clientId, clientSecret, ...extra }),
     });
     setCredentials(data);
+  }
+
+  // Google credential sets (each its own OAuth client, see
+  // GoogleCredentialSets.jsx). All three return the full status, same as
+  // saveCredentials, so setCredentials stays in one shape.
+  async function addGoogleSet(payload) {
+    setCredentials(await api('/credentials/google', { method: 'POST', body: JSON.stringify(payload) }));
+  }
+
+  async function updateGoogleSet(setId, payload) {
+    setCredentials(await api(`/credentials/google/${setId}`, { method: 'PUT', body: JSON.stringify(payload) }));
+  }
+
+  async function deleteGoogleSet(setId) {
+    setCredentials(await api(`/credentials/google/${setId}`, { method: 'DELETE' }));
   }
 
   async function toggleCalendar(accountId, calendarId, enabled) {
@@ -432,10 +449,12 @@ export default function App() {
         accounts={accounts}
         loading={loading}
         busyAccountId={busyAccountId}
-        credentialsStatus={credentials?.google}
+        googleCredentials={credentials?.google}
         canAddAccounts={authAccess?.canAddAccounts}
         clientAddress={authAccess?.clientAddress}
-        onSaveCredentials={(creds) => saveCredentials('google', creds)}
+        onAddGoogleSet={addGoogleSet}
+        onUpdateGoogleSet={updateGoogleSet}
+        onDeleteGoogleSet={deleteGoogleSet}
         onToggleCalendar={toggleCalendar}
         onRefreshAccount={refreshAccount}
         onDisconnectAccount={disconnectAccount}
