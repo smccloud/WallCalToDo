@@ -15,6 +15,8 @@ export default function GoogleAccounts({
   onUpdateGoogleSet,
   onDeleteGoogleSet,
   onToggleCalendar,
+  onToggleTaskList,
+  onRefreshTaskLists,
   onRefreshAccount,
   onDisconnectAccount,
 }) {
@@ -97,6 +99,43 @@ export default function GoogleAccounts({
               ))}
               {account.calendars.length === 0 && <li className="calendar-row calendar-row--empty">No calendars found.</li>}
             </ul>
+
+            <h3>Google Tasks</h3>
+            {!account.tasksAccess ? (
+              <p className="banner">
+                This account hasn't granted Tasks access yet. Disconnect it and add it again to enable Google Tasks.
+              </p>
+            ) : (
+              <>
+                <div className="account-card__actions">
+                  <button
+                    className="button button--ghost"
+                    disabled={busyAccountId === account.id}
+                    onClick={() => onRefreshTaskLists(account.id)}
+                  >
+                    Refresh task lists
+                  </button>
+                </div>
+                <ul className="calendar-list">
+                  {(account.taskLists || []).map((list) => (
+                    <li key={list.id} className="calendar-row">
+                      <span className="calendar-row__label">{list.title}</span>
+                      <label className="switch">
+                        <input
+                          type="checkbox"
+                          checked={list.enabled}
+                          onChange={(e) => onToggleTaskList(account.id, list.id, e.target.checked)}
+                        />
+                        <span className="switch__track" />
+                      </label>
+                    </li>
+                  ))}
+                  {(account.taskLists || []).length === 0 && (
+                    <li className="calendar-row calendar-row--empty">No task lists yet. Press Refresh task lists.</li>
+                  )}
+                </ul>
+              </>
+            )}
           </section>
         ))}
       </div>

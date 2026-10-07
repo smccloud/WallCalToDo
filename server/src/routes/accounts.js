@@ -8,6 +8,13 @@ import {
   dropAllCalendarsCache,
 } from '../services/msCalendarService.js';
 import { getCachedTasks, dropListCache, dropAllListsCache } from '../services/todoService.js';
+import {
+  getGoogleTaskLists,
+  hasTasksAccess,
+  refreshGoogleTaskLists,
+  setGoogleTaskListEnabled,
+  pollGoogleTasks,
+} from '../services/googleTodoService.js';
 import { clientAddress, isTrustedRequest } from '../services/trustedNetworks.js';
 import { broadcast } from '../ws/hub.js';
 
@@ -52,7 +59,11 @@ accountsRouter.get('/accounts', async (req, res) => {
   }
 
   res.json({
-    google: googleAuth.listAccounts(),
+    google: googleAuth.listAccounts().map((acct) => ({
+      ...acct,
+      tasksAccess: hasTasksAccess(acct.id),
+      taskLists: getGoogleTaskLists(acct.id),
+    })),
     microsoft: { account, calendars: microsoftAuth.listCalendars(), calendarAccess },
     authAccess: { canAddAccounts: isTrustedRequest(req), clientAddress: clientAddress(req) },
   });
@@ -170,6 +181,34 @@ accountsRouter.post('/accounts/:accountId/refresh', async (req, res) => {
     const { changed, events } = await pollCalendar();
     if (changed) broadcast({ type: 'calendar', data: events });
     res.json({ calendars });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Manual "check for new/removed task lists on this Google account" -- same
+// idea as the calendar refresh above. Also re-polls so the wall reflects it.
+accountsRouter.post('/accounts/:accountId/task-lists/refresh', async (req, res) => {
+  try {
+    const taskLists = await refreshGoogleTaskLists(req.params.accountId);
+    await pollGoogleTasks();
+    broadcast({ type: 'todo', data: getCachedTasks() });
+    res.json({ taskLists });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Choosing which Google task lists show on the wall. Turning one off hides
+// it immediately (getCachedGoogleTasks() filters by the flag); turning one
+// on fetches its tasks right away.
+accountsRouter.patch('/accounts/:accountId/task-lists/:listId', async (req, res) => {
+  try {
+    const enabled = Boolean(req.body?.enabled);
+    setGoogleTaskListEnabled(req.params.accountId, req.params.listId, enabled);
+    if (enabled) await pollGoogleTasks();
+    broadcast({ type: 'todo', data: getCachedTasks() });
+    res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

@@ -307,6 +307,44 @@ export default function App() {
     }
   }
 
+  // Which of an account's Google task lists show on the wall. Same
+  // optimistic pattern as toggleCalendar.
+  async function toggleTaskList(accountId, listId, enabled) {
+    setAccounts((prev) =>
+      prev.map((account) =>
+        account.id !== accountId
+          ? account
+          : {
+              ...account,
+              taskLists: (account.taskLists || []).map((list) => (list.id === listId ? { ...list, enabled } : list)),
+            }
+      )
+    );
+    try {
+      await api(`/accounts/${accountId}/task-lists/${encodeURIComponent(listId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ enabled }),
+      });
+    } catch (err) {
+      setError(err.message);
+      loadAccounts();
+    }
+  }
+
+  // Google doesn't push task-list changes, so this is how a newly created
+  // list shows up (it defaults to enabled).
+  async function refreshTaskLists(accountId) {
+    setBusyAccountId(accountId);
+    try {
+      await api(`/accounts/${accountId}/task-lists/refresh`, { method: 'POST' });
+      await loadAccounts();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyAccountId(null);
+    }
+  }
+
   async function disconnectAccount(accountId, email) {
     if (!window.confirm(`Disconnect ${email}? Its events will disappear from the display.`)) return;
     setBusyAccountId(accountId);
@@ -457,6 +495,8 @@ export default function App() {
         onDeleteGoogleSet={deleteGoogleSet}
         onToggleCalendar={toggleCalendar}
         onRefreshAccount={refreshAccount}
+        onToggleTaskList={toggleTaskList}
+        onRefreshTaskLists={refreshTaskLists}
         onDisconnectAccount={disconnectAccount}
       />
 
