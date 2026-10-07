@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import * as googleAuth from '../auth/googleAuth.js';
 import * as microsoftAuth from '../auth/microsoftAuth.js';
-import { pollCalendar, getCachedEvents } from '../services/calendarService.js';
+import { pollCalendar } from '../services/calendarService.js';
 import { pollMsCalendar } from '../services/msCalendarService.js';
 import { pollTodo } from '../services/todoService.js';
 import { clientAddress, isTrustedRequest } from '../services/trustedNetworks.js';
-import { broadcast } from '../ws/hub.js';
+import { broadcast, broadcastCalendar } from '../ws/hub.js';
 
 export const authRouter = Router();
 
@@ -62,8 +62,8 @@ authRouter.get('/google/callback', async (req, res) => {
     // Pull the new account's events in immediately rather than waiting for
     // the next poll interval, then send the browser back to the companion
     // app so the just-connected account shows up right away.
-    const { changed, events } = await pollCalendar();
-    if (changed) broadcast({ type: 'calendar', data: events });
+    const { changed } = await pollCalendar();
+    if (changed) broadcastCalendar();
     res.redirect('/companion');
   } catch (err) {
     // A real page navigation landing back from Google, not a fetch this
@@ -98,7 +98,7 @@ authRouter.get('/microsoft/callback', async (req, res) => {
     const { changed: tasksChanged, tasks } = await pollTodo();
     if (tasksChanged) broadcast({ type: 'todo', data: tasks });
     const { changed: calendarChanged } = await pollMsCalendar();
-    if (calendarChanged) broadcast({ type: 'calendar', data: getCachedEvents() });
+    if (calendarChanged) broadcastCalendar();
     res.redirect('/companion');
   } catch (err) {
     // Same reasoning as the Google callback above.

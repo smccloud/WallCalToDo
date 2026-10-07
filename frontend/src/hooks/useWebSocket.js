@@ -9,6 +9,11 @@ const RECONNECT_DELAY_MS = 2000;
 // drops (Pi Wi-Fi hiccup, backend restart, etc.).
 export function useWebSocket() {
   const [calendar, setCalendar] = useState([]);
+  // The month grid's own copy of that list: the same message carries two
+  // views of the calendar (see calendarMessage() in server/src/ws/hub.js),
+  // and the grid's is Microsoft's per-day cap applied while the agenda's is
+  // the complete day.
+  const [calendarGrid, setCalendarGrid] = useState([]);
   const [todo, setTodo] = useState([]);
   const [settings, setSettings] = useState(null);
   const [weather, setWeather] = useState(null);
@@ -32,8 +37,12 @@ export function useWebSocket() {
       socket.onerror = () => socket.close();
       socket.onmessage = (event) => {
         const message = JSON.parse(event.data);
-        if (message.type === 'calendar') setCalendar(message.data);
-        else if (message.type === 'todo') setTodo(message.data);
+        if (message.type === 'calendar') {
+          setCalendar(message.data);
+          // Fall back to the full list if `grid` is missing, so a message
+          // from a server that predates the split still paints the month.
+          setCalendarGrid(message.grid || message.data);
+        } else if (message.type === 'todo') setTodo(message.data);
         else if (message.type === 'settings') setSettings(message.data);
         else if (message.type === 'weather') setWeather(message.data);
       };
@@ -47,5 +56,5 @@ export function useWebSocket() {
     };
   }, []);
 
-  return { calendar, todo, settings, weather, connected };
+  return { calendar, calendarGrid, todo, settings, weather, connected };
 }

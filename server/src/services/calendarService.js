@@ -1,6 +1,6 @@
 import { google } from 'googleapis';
 import { getAuthorizedClient, listAccounts } from '../auth/googleAuth.js';
-import { getCachedMsEvents } from './msCalendarService.js';
+import { getCachedMsEvents, getCachedMsGridEvents } from './msCalendarService.js';
 import { readJson, writeJson } from '../store/fileStore.js';
 
 const EVENTS_CACHE_FILE = 'googleEventsCache.json';
@@ -20,9 +20,9 @@ const saveSync = (sync) => writeJson(SYNC_FILE, sync);
 const cacheKey = (accountId, calendarId) => `${accountId}::${calendarId}`;
 
 // Stand-in for an event with no summary. Shared by the normalizer and the
-// read-time filter in getCachedEvents() so the two can't drift apart. See the
-// matching constant in msCalendarService.js for why each provider keeps its
-// own copy rather than sharing one.
+// read-time filter in collectGoogleEvents() so the two can't drift apart. See
+// the matching constant in msCalendarService.js for why each provider keeps
+// its own copy rather than sharing one.
 const UNTITLED = '(No title)';
 
 // Google Calendar's palette (colorId -> hex) is a small, effectively static
@@ -270,27 +270,13 @@ export function dropAccountCache(accountId) {
   saveSync(sync);
 }
 
-// Only events from currently-enabled calendars are returned, from both
-// providers — toggling a calendar off in the companion app takes effect
-// immediately, without waiting for or triggering a new poll.
-//
-// Untitled events are NOT dropped here, which reverses an earlier decision
-// that both providers used to share. The idea was that a wall shouldn't list
-// empty entries, but it turned out to hide real breakage: on the Microsoft
-// side a stripped property set left 1146 of 1488 events without a subject, so
-// this filter deleted them and the wall looked almost empty for reasons
-// nothing could see. msCalendarService.js carries the full story and the
-// diagnostic that replaced it; the two sides stay in step because the display
-// shows one merged list and treating the providers differently would be
-// inexplicable to anyone reading the result.
-//
-// The display gets one flat list of events regardless of where they came
-// from, so Microsoft's are appended to Google's here rather than the two
-// being kept apart all the way to the frontends. Each side already applies
-// its own enabled-calendar filter and numbers its calendars so the two
-// can't collide (see msCalendarService.js's calendarOrderOffset), and each
-// event carries a provider-unique id and calendarKey.
-export function getCachedEvents() {
+// Every event on this account's enabled Google calendars, straight out of
+// the cache — the Google half of either feed below. Both feeds build their
+// own copy by calling this again rather than sharing one array: the grid's
+// half gets Microsoft's per-day overflow count stamped onto its events (see
+// getCachedMsGridEvents), and stamping objects the agenda is about to be
+// handed would put that artefact where it means nothing.
+function collectGoogleEvents() {
   const cache = loadEvents();
   const enabledKeys = new Set();
   for (const account of listAccounts()) {
@@ -308,7 +294,44 @@ export function getCachedEvents() {
       if (event) events.push(event);
     }
   }
+  return events;
+}
 
-  events.push(...getCachedMsEvents());
-  return events.sort((a, b) => new Date(a.start) - new Date(b.start));
+const byStart = (a, b) => new Date(a.start) - new Date(b.start);
+
+// The complete feed: both providers merged, nothing trimmed, and only
+// events from currently-enabled calendars.
+//
+// Untitled events are NOT dropped here, which reverses an earlier decision
+// that both providers used to share. The idea was that a wall shouldn't list
+// empty entries, but it turned out to hide real breakage: on the Microsoft
+// side a stripped property set left 1146 of 1488 events without a subject, so
+// this filter deleted them and the wall looked almost empty for reasons
+// nothing could see. msCalendarService.js carries the full story and the
+// diagnostic that replaced it; the two sides stay in step because the display
+// shows one merged list and treating the providers differently would be
+// inexplicable to anyone reading the result.
+//
+// This is what the day agenda, the to-do panel and the legend read, so it
+// deliberately carries no per-day cap — see getCachedGridEvents() for the
+// month grid's trimmed view of the same cache.
+//
+// The display gets one flat list of events regardless of where they came
+// from, so Microsoft's are appended to Google's here rather than the two
+// being kept apart all the way to the frontends. Each side already applies
+// its own enabled-calendar filter and numbers its calendars so the two
+// can't collide (see msCalendarService.js's calendarOrderOffset), and each
+// event carries a provider-unique id and calendarKey.
+export function getCachedEvents() {
+  return [...collectGoogleEvents(), ...getCachedMsEvents()].sort(byStart);
+}
+
+// The month grid's view of the same cache: identical, except Microsoft's
+// per-day cap is applied to its half (see limitToPerDay in
+// msCalendarService.js). Keeping this a second feed rather than capping the
+// one above is what lets the grid stay a month of readable day cells while
+// the agenda lists a whole day — both were being handed the capped list
+// before, so the agenda showed "the next two" meetings and nothing else.
+export function getCachedGridEvents() {
+  return [...collectGoogleEvents(), ...getCachedMsGridEvents()].sort(byStart);
 }

@@ -544,8 +544,9 @@ function isUpcoming(event, now) {
 
 // Only events from currently-enabled calendars, and no null entries: like
 // todoService's, this is a plain JSON file on an SD card with no atomic
-// write guarantee, and a bad entry would otherwise reach the sort in
-// getCachedEvents() (new Date(undefined) is Invalid Date, which doesn't
+// write guarantee, and a bad entry would otherwise reach the sort in the
+// merged feeds (getCachedEvents / getCachedGridEvents in calendarService.js)
+// (new Date(undefined) is Invalid Date, which doesn't
 // throw, but the display's own date math downstream would).
 //
 // Untitled events are NOT dropped here, which reverses an earlier decision.
@@ -569,23 +570,17 @@ function isUpcoming(event, now) {
 // own calendar rather than the shared one. If per-contact hiding is ever
 // wanted it needs to be an explicit opt-in, not a side effect of the toggle.
 //
+// The per-day cap (MS_EVENTS_PER_DAY above) is NOT applied here — see
+// getCachedMsGridEvents below. This is the complete list: every Microsoft
+// event the enabled calendars hold, which is what the day agenda and the
+// to-do panel read. Capping it here looked like it only affected the month
+// grid, but both panels are fed from the same merged list, so the agenda was
+// showing "the next two" instead of the day it was supposed to be a record
+// of.
+//
 // Reading a file with a fresh listCalendars() each time is deliberate: the
 // point of the exercise is that toggling a calendar takes effect immediately,
 // without waiting for or triggering a new poll.
-//
-// The per-day cap (MS_EVENTS_PER_DAY above) is applied here, at read time,
-// for the same reason: the cache on disk stays complete, so the limit is a
-// display decision rather than data loss, and changing it takes effect on the
-// next poll with no resync of anything. What it drops is not dropped
-// silently -- the count rides along on the last event each day kept (see
-// OVERFLOW_FIELD), so the display can mark it "+n" on that pill.
-//
-// `now` is the server's own clock rather than something passed in, and is read
-// at call time because the cap is relative to it: every read re-decides what
-// "the next two" means. That also means this list can differ from the one a
-// display was last sent without any provider having changed anything, which is
-// why the poller re-broadcasts on a changed list rather than only on a changed
-// poll (see runPoll in poller.js).
 export function getCachedMsEvents() {
   const cache = loadEvents();
   const enabled = new Set(listCalendars().filter((calendar) => calendar.enabled).map((calendar) => calendar.id));
@@ -596,5 +591,29 @@ export function getCachedMsEvents() {
       if (event) events.push(event);
     }
   }
-  return limitToPerDay(events, new Date());
+  return events;
+}
+
+// The month grid's view of the same cache: the per-day cap (MS_EVENTS_PER_DAY
+// and limitToPerDay above) applied, at read time, so the cache on disk stays
+// complete and the limit is a display decision rather than data loss.
+// Changing it takes effect on the next read with no resync of anything. What
+// it drops is not dropped silently — the count rides along on the last event
+// each day kept (see OVERFLOW_FIELD), so the day cell can mark it "+n" on
+// that pill.
+//
+// `now` is the server's own clock, read at call time because the cap is
+// relative to it: every read re-decides what "the next two" means. That also
+// means this list can differ from the one a display was last sent without any
+// provider having changed anything, which is why the poller re-broadcasts on
+// a changed list rather than only on a changed poll (see runPoll in
+// poller.js).
+//
+// A separate read of the cache rather than a cap applied to the array
+// getCachedMsEvents() already handed over: limitToPerDay stamps the overflow
+// count onto the events it keeps (see OVERFLOW_FIELD), and stamping the same
+// objects the agenda is about to be handed would put a Microsoft-only "+n"
+// artefact on events the agenda never trims.
+export function getCachedMsGridEvents() {
+  return limitToPerDay(getCachedMsEvents(), new Date());
 }

@@ -1,4 +1,4 @@
-import { pollCalendar, resetSyncTokens as resetCalendarSyncTokens, getCachedEvents } from './calendarService.js';
+import { pollCalendar, resetSyncTokens as resetCalendarSyncTokens, getCachedEvents, getCachedGridEvents } from './calendarService.js';
 import { pollMsCalendar } from './msCalendarService.js';
 import { pollTodo, clearCompletedTasks, getCachedTasks } from './todoService.js';
 import { pollGoogleTasks } from './googleTodoService.js';
@@ -20,7 +20,9 @@ let lastWeatherPollAt = 0;
 let lastCalendarSignature = null;
 
 // Pushes the display's calendar feed if it isn't already what every connected
-// display last received.
+// display last received. Carries both lists the message holds: `events`, the
+// complete feed the agenda reads, and `grid`, the month grid's capped view —
+// see calendarMessage() in ws/hub.js.
 //
 // Keyed on the contents rather than on either provider's "did anything change"
 // flag, because the feed is no longer a pure function of what the providers
@@ -35,14 +37,16 @@ let lastCalendarSignature = null;
 // it rides on the kept events rather than standing in for them, so a day that
 // gains a meeting the per-day cap then drops leaves every id and start time in
 // this list exactly as they were. Without it, "+2" would stay on the wall
-// until some unrelated event moved.
-function pushCalendar(events) {
-  const signature = events
-    .map((event) => `${event.id}@${event.start}${event.msOverflowCount ? `+${event.msOverflowCount}` : ''}`)
-    .join(',');
+// until some unrelated event moved. It only ever appears on `grid` — that's
+// the list the cap is applied to — and both lists are signed so a change to
+// either reaches the display.
+function pushCalendar(events, grid) {
+  const part = (list) =>
+    list.map((event) => `${event.id}@${event.start}${event.msOverflowCount ? `+${event.msOverflowCount}` : ''}`).join(',');
+  const signature = `${part(grid)}|${part(events)}`;
   if (signature === lastCalendarSignature) return;
   lastCalendarSignature = signature;
-  broadcast({ type: 'calendar', data: events });
+  broadcast({ type: 'calendar', data: events, grid });
 }
 
 async function runPoll() {
@@ -98,21 +102,22 @@ async function runPoll() {
 
   try {
     const { events } = await pollCalendar();
-    pushCalendar(events);
+    pushCalendar(events, getCachedGridEvents());
   } catch (err) {
     console.error('[poller] Calendar poll failed:', err.message);
   }
 
   // Second calendar provider, same display feed. Polled after Google's so the
   // push below lands last when both moved in the same cycle -- it re-reads
-  // getCachedEvents() rather than using pollMsCalendar()'s own result, since
-  // the display needs all calendars from both providers in one message and the
-  // first push above would have carried a Microsoft side that was still a poll
-  // behind. pushCalendar's own diffing makes that second call a no-op when
-  // nothing actually moved, so this costs a cache read, not a second push.
+  // getCachedEvents() and getCachedGridEvents() rather than using
+  // pollMsCalendar()'s own result, since the display needs all calendars from
+  // both providers in one message (both lists) and the first push above would
+  // have carried a Microsoft side that was still a poll behind. pushCalendar's
+  // own diffing makes that second call a no-op when nothing actually moved, so
+  // this costs a cache read, not a second push.
   try {
     await pollMsCalendar();
-    pushCalendar(getCachedEvents());
+    pushCalendar(getCachedEvents(), getCachedGridEvents());
   } catch (err) {
     console.error('[poller] Microsoft calendar poll failed:', err.message);
   }

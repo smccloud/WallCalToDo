@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as googleAuth from '../auth/googleAuth.js';
 import * as microsoftAuth from '../auth/microsoftAuth.js';
-import { pollCalendar, getCachedEvents, dropAccountCache } from '../services/calendarService.js';
+import { pollCalendar, dropAccountCache } from '../services/calendarService.js';
 import {
   pollMsCalendar,
   dropCalendarCache,
@@ -16,7 +16,7 @@ import {
   pollGoogleTasks,
 } from '../services/googleTodoService.js';
 import { clientAddress, isTrustedRequest } from '../services/trustedNetworks.js';
-import { broadcast } from '../ws/hub.js';
+import { broadcast, broadcastCalendar } from '../ws/hub.js';
 
 export const accountsRouter = Router();
 
@@ -81,7 +81,7 @@ accountsRouter.delete('/ms/account', async (req, res) => {
     await microsoftAuth.disconnectAccount();
     dropAllCalendarsCache();
     dropAllListsCache();
-    broadcast({ type: 'calendar', data: getCachedEvents() });
+    broadcastCalendar();
     broadcast({ type: 'todo', data: getCachedTasks() });
     res.json({ ok: true });
   } catch (err) {
@@ -132,7 +132,7 @@ accountsRouter.post('/ms/calendars/refresh', async (req, res) => {
       if (!calendars.some((cal) => cal.id === id)) dropCalendarCache(id);
     }
     const { changed } = await pollMsCalendar();
-    if (changed) broadcast({ type: 'calendar', data: getCachedEvents() });
+    if (changed) broadcastCalendar();
     res.json({ calendars });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -146,7 +146,7 @@ accountsRouter.post('/ms/calendars/refresh', async (req, res) => {
 accountsRouter.patch('/ms/calendars/:calendarId', (req, res) => {
   try {
     microsoftAuth.setCalendarEnabled(req.params.calendarId, Boolean(req.body?.enabled));
-    broadcast({ type: 'calendar', data: getCachedEvents() });
+    broadcastCalendar();
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -156,7 +156,7 @@ accountsRouter.patch('/ms/calendars/:calendarId', (req, res) => {
 accountsRouter.delete('/accounts/:accountId', (req, res) => {
   googleAuth.removeAccount(req.params.accountId);
   dropAccountCache(req.params.accountId);
-  broadcast({ type: 'calendar', data: getCachedEvents() });
+  broadcastCalendar();
   res.json({ ok: true });
 });
 
@@ -165,7 +165,7 @@ accountsRouter.delete('/accounts/:accountId', (req, res) => {
 accountsRouter.patch('/accounts/:accountId/calendars/:calendarId', (req, res) => {
   try {
     googleAuth.setCalendarEnabled(req.params.accountId, req.params.calendarId, Boolean(req.body?.enabled));
-    broadcast({ type: 'calendar', data: getCachedEvents() });
+    broadcastCalendar();
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -178,8 +178,8 @@ accountsRouter.patch('/accounts/:accountId/calendars/:calendarId', (req, res) =>
 accountsRouter.post('/accounts/:accountId/refresh', async (req, res) => {
   try {
     const calendars = await googleAuth.refreshCalendarList(req.params.accountId);
-    const { changed, events } = await pollCalendar();
-    if (changed) broadcast({ type: 'calendar', data: events });
+    const { changed } = await pollCalendar();
+    if (changed) broadcastCalendar();
     res.json({ calendars });
   } catch (err) {
     res.status(400).json({ error: err.message });

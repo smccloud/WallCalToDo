@@ -48,7 +48,7 @@ function isWeatherTime(settings, now) {
 const WEATHER_CHECK_MS = 5_000;
 
 export default function App() {
-  const { calendar, todo, settings, weather, connected } = useWebSocket();
+  const { calendar, calendarGrid, todo, settings, weather, connected } = useWebSocket();
 
   // Its own clock, same pattern as CalendarView/DayAgenda: this only needs
   // to catch the sunrise/sunset boundary passing, not tick every second, so
@@ -118,7 +118,7 @@ export default function App() {
     <div className={layerClass ? `app ${layerClass}` : 'app'}>
       <CalendarHeader connected={connected} settings={settings} />
       <div className="body">
-        <CalendarView events={calendar} privacyMode={privacyMode} onMeasureSplit={setTodayHeight} />
+        <CalendarView events={calendarGrid} privacyMode={privacyMode} onMeasureSplit={setTodayHeight} />
         <div className="secondary" style={{ '--today-height': todayHeight ? `${todayHeight}px` : undefined }}>
           <DayAgenda events={calendar} privacyMode={privacyMode} />
           <TodoView tasks={todo} privacyMode={privacyMode} weather={weather} settings={settings} />

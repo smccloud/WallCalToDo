@@ -241,8 +241,10 @@ doesn't, so the two providers are handled separately all the way through
 - **Events are filtered the same way Google's are** — cancelled, draft, and
   explicitly-declined events don't show; tentative and unanswered invitations
   do, because Outlook lists those dimmed rather than hiding them.
-- **Each day is capped at two events** — and for today, the two are the ones
-  still to come. A work calendar carries far more per day than a wall has room
+- **The month grid caps each day at two events** — and for today, the two are
+  the ones still to come. The cap reaches the day cells and nothing else: the
+  agenda and the to-do panel are handed the same day uncapped (see *Two lists,
+  not one* below). A work calendar carries far more per day than a wall has room
   for, and the overflow is invisible: the day cells measure themselves and trim
   to "+N more", so a heavy day quietly becomes a month of "+N more" badges that
   say nothing about what's actually on. Capping at the display's own capacity
@@ -265,7 +267,17 @@ doesn't, so the two providers are handled separately all the way through
   place on one day is dropped whole rather than left showing on the days where
   it did fit. Google's calendars are untouched, and the cap is applied when the
   list is read, not when it's cached, so nothing is lost: the cache on disk
-  stays complete and today's agenda and the to-do list are unaffected.
+  stays complete.
+
+  **Two lists, not one.** The server builds the same merged list twice —
+  `getCachedEvents()`, complete, and `getCachedGridEvents()`, Microsoft's half
+  capped — and sends both in one message (`calendarMessage()` in
+  `ws/hub.js`): `data` for today's agenda, the to-do panel and the legend,
+  `grid` for the month grid. Sending one capped list for everything, which is
+  what this used to do, made the agenda show "the next two" meetings instead of
+  the day it exists to record, so on a busy day the wall said nothing about
+  everything past the second meeting. The month grid caps for the reasons
+  above; the agenda doesn't, because it is one day rather than a month of cells.
 
   **Whatever the cap drops is counted, not hidden.** The number rides along on
   the last Microsoft event each day did keep (`msOverflowCount`), and the day
@@ -278,17 +290,18 @@ doesn't, so the two providers are handled separately all the way through
   privacy mode — it's a count, not a title, same as the "+N more" badge.
 
   The count is also part of what the poller diffs before deciding whether the
-  display's feed has changed (see `pushCalendar` in `poller.js`): adding a
-  meeting to a day that's already over its cap leaves every event id and start
-  time in the feed untouched, so without it "+2" would sit on the wall until
-  something unrelated moved.
+  display's `grid` list has changed (see `pushCalendar` in `poller.js`):
+  adding a meeting to a day that's already over its cap leaves every event id
+  and start time in that list untouched, so without it "+2" would sit on the
+  wall until something unrelated moved. Both lists are signed, so a change to
+  either reaches the display.
 
-  Because "the next two" is relative to the current time, the display's feed
-  is no longer a pure function of what the providers hold — on a quiet day the
-  list a display *should* be showing changes as the morning's meetings pass,
-  with no poll reporting anything. The poller therefore pushes the calendar
-  when the list itself differs from the one already sent, rather than only
-  when a provider says something changed.
+  Because "the next two" is relative to the current time, the display's
+  `grid` list is no longer a pure function of what the providers hold — on a
+  quiet day the list a display *should* be showing changes as the morning's
+  meetings pass, with no poll reporting anything. The poller therefore pushes
+  the calendar when either list differs from the one already sent, rather than
+  only when a provider says something changed.
 
 ## Calendar legend and outside temperature
 

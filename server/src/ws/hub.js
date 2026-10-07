@@ -1,5 +1,5 @@
 import { WebSocketServer } from 'ws';
-import { getCachedEvents } from '../services/calendarService.js';
+import { getCachedEvents, getCachedGridEvents } from '../services/calendarService.js';
 import { getCachedTasks } from '../services/todoService.js';
 import { getSettings } from '../services/settingsService.js';
 import { getCachedWeather } from '../services/weatherService.js';
@@ -19,7 +19,7 @@ export function initWebSocket(server) {
 
     // Hydrate a newly (re)connected display immediately rather than making
     // it wait for the next poll cycle to have anything to show.
-    socket.send(JSON.stringify({ type: 'calendar', data: getCachedEvents() }));
+    socket.send(JSON.stringify(calendarMessage()));
     socket.send(JSON.stringify({ type: 'todo', data: getCachedTasks() }));
     socket.send(JSON.stringify({ type: 'settings', data: getSettings() }));
     socket.send(JSON.stringify({ type: 'weather', data: getCachedWeather() }));
@@ -34,6 +34,26 @@ export function initWebSocket(server) {
   }, HEARTBEAT_MS);
 
   wss.on('close', () => clearInterval(heartbeat));
+}
+
+// One calendar message, in both the shapes a display needs it:
+//
+//   data — the complete list from both providers, which the day agenda, the
+//          to-do panel and the legend read.
+//   grid — the month grid's view of it, Microsoft's per-day cap applied
+//          (see getCachedGridEvents).
+//
+// Split because the cap is a decision about a month cell: hand it to every
+// panel fed from this message and the agenda lists "the next two" meetings
+// instead of the day it exists to show.
+export function calendarMessage() {
+  return { type: 'calendar', data: getCachedEvents(), grid: getCachedGridEvents() };
+}
+
+// The common case at every call site outside poller.js, which builds the
+// message itself so it can diff it first (see pushCalendar).
+export function broadcastCalendar() {
+  broadcast(calendarMessage());
 }
 
 export function broadcast(message) {
