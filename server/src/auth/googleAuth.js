@@ -99,6 +99,16 @@ export function isAuthorized() {
 // Re-fetches this account's calendar list from Google and merges it with
 // whatever enabled/disabled state the companion app already set — newly
 // discovered calendars default to enabled, removed ones are dropped.
+//
+// Two of Google's defaults have to be overridden or calendars go missing
+// from this list entirely, and shared calendars are the ones most likely to
+// trip over either. The response is paginated at 100 entries (250 max), so
+// without following nextPageToken everything past the first page is silently
+// dropped. And entries the user hid in Google Calendar's own list are left
+// out unless showHidden is asked for — invisible here even though the wall's
+// visibility is meant to be decided by the toggles below, not Google's.
+// A calendar hidden in Google still arrives switched off rather than on, so
+// the wall keeps agreeing with Google Calendar until the user turns it on.
 export async function refreshCalendarList(accountId) {
   const accounts = loadAccounts();
   const account = accounts[accountId];
@@ -107,14 +117,25 @@ export async function refreshCalendarList(accountId) {
   const client = createClient(account.credentialSetId);
   client.setCredentials(account.tokens);
   const calendarApi = google.calendar({ version: 'v3', auth: client });
-  const { data } = await calendarApi.calendarList.list();
+
+  const items = [];
+  let pageToken;
+  do {
+    const { data } = await calendarApi.calendarList.list({
+      showHidden: true,
+      maxResults: 250,
+      pageToken,
+    });
+    items.push(...(data.items || []));
+    pageToken = data.nextPageToken;
+  } while (pageToken);
 
   const existingById = new Map((account.calendars || []).map((cal) => [cal.id, cal]));
-  account.calendars = (data.items || []).map((item) => ({
+  account.calendars = items.map((item) => ({
     id: item.id,
     summary: item.summaryOverride || item.summary || item.id,
     backgroundColor: item.backgroundColor || null,
-    enabled: existingById.get(item.id)?.enabled ?? true,
+    enabled: existingById.get(item.id)?.enabled ?? !item.hidden,
   }));
 
   saveAccounts(accounts);

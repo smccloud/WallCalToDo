@@ -554,7 +554,9 @@ all-day events Google really hands over, tagged the same way.)*
   entirely.
 - **Refresh calendars** — neither provider notifies us when you create a new
   calendar, so this button re-fetches an account's calendar list on
-  demand (new calendars default to enabled).
+  demand (new calendars default to enabled, except ones you've hidden in
+  Google Calendar's own list, which are listed here but come in switched
+  off so the wall agrees with what Google shows).
 - **Connect a Microsoft account** — one account at a time, supplying *both*
   the calendars and the to-do lists from the single sign-in. Discovers
   every calendar it can read (including ones shared with you) and every To
