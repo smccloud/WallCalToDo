@@ -3,7 +3,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, '..', '..', 'data');
+// Tests point DATA_DIR (via WALLCAL_DATA_DIR) at a scratch dir so they can
+// write settings/credentials/caches without touching the real server/data.
+const DATA_DIR = process.env.WALLCAL_DATA_DIR
+  ? path.resolve(process.env.WALLCAL_DATA_DIR)
+  : path.join(__dirname, '..', '..', 'data');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
