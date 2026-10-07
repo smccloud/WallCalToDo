@@ -1,7 +1,6 @@
 import { pollCalendar, resetSyncTokens as resetCalendarSyncTokens, getCachedEvents } from './calendarService.js';
 import { pollMsCalendar } from './msCalendarService.js';
-import { pollTodo, clearCompletedTasks, getCachedTasks } from './todoService.js';
-import { pollGoogleTasks } from './googleTodoService.js';
+import { pollTodo, clearCompletedTasks } from './todoService.js';
 import { getSettings } from './settingsService.js';
 import { pollWeather } from './weatherService.js';
 import { broadcast } from '../ws/hub.js';
@@ -122,12 +121,6 @@ async function runPoll() {
     if (changed) broadcast({ type: 'todo', data: tasks });
   } catch (err) {
     console.error('[poller] Todo poll failed:', err.message);
-  }
-
-  try {
-    if (await pollGoogleTasks()) broadcast({ type: 'todo', data: getCachedTasks() });
-  } catch (err) {
-    console.error('[poller] Google tasks poll failed:', err.message);
   }
 
   // Nowhere to fetch weather *for* without a saved location -- skipped

@@ -1,6 +1,5 @@
 import { getAccessToken, graphFetch, isAuthorized, listTodoLists, TODO_SCOPES } from '../auth/microsoftAuth.js';
 import { readJson, writeJson } from '../store/fileStore.js';
-import { getCachedGoogleTasks } from './googleTodoService.js';
 
 const TASKS_CACHE_FILE = 'msTasksCache.json';
 const SYNC_FILE = 'msSync.json';
@@ -43,7 +42,7 @@ function normalizeTask(task, context) {
 function sortTasks(tasks) {
   return [...tasks].sort((a, b) => {
     if (a.completed !== b.completed) return a.completed ? 1 : -1;
-    return (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
+    return (a.due || '').localeCompare(b.due || '');
   });
 }
 
@@ -164,5 +163,5 @@ export function getCachedTasks() {
     // would otherwise reach sortTasks() below and crash on `a.completed`.
     tasks.push(...Object.values(entries).filter(Boolean));
   }
-  return sortTasks([...tasks, ...getCachedGoogleTasks()]);
+  return sortTasks(tasks);
 }
