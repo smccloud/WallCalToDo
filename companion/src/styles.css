@@ -544,6 +544,7 @@ body {
    between Privacy mode and Location (.privacy-toggle__hint's own
    border-bottom). */
 .theme-settings,
+.time-format-settings,
 .units-settings,
 .weather-view-settings {
   margin-top: 1rem;

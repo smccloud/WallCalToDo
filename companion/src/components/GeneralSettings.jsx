@@ -1,13 +1,15 @@
 import LocationSettings from './LocationSettings.jsx';
 import ThemeSettings from './ThemeSettings.jsx';
+import TimeFormatSettings from './TimeFormatSettings.jsx';
 import UnitsSettings from './UnitsSettings.jsx';
 import WeatherViewSettings from './WeatherViewSettings.jsx';
 
 // Privacy, then location (shared by theme and the units below, so it comes
-// before both), then theme, then units, then the full-screen weather view —
-// last, because it's the one setting here that depends on everything above it:
-// it needs a location, and it's about what the display does with one rather
-// than how it looks.
+// before both), then theme, then time format (also location-free, and part
+// of how the display looks like the theme above it), then units, then the
+// full-screen weather view — last, because it's the one setting here that
+// depends on everything above it: it needs a location, and it's about what
+// the display does with one rather than how it looks.
 export default function GeneralSettings({
   settings,
   settingsLoading,
@@ -18,6 +20,7 @@ export default function GeneralSettings({
   onSetTempUnit,
   onSetWindUnit,
   onSetPrecipUnit,
+  onSetTimeFormat,
   onSetWeatherInterval,
   onSetWeatherDuration,
   onSaveLocation,
@@ -51,6 +54,8 @@ export default function GeneralSettings({
         onSetAdvancedEnabled={onSetAdvancedEnabled}
         onSetOffset={onSetOffset}
       />
+
+      <TimeFormatSettings settings={settings} settingsLoading={settingsLoading} onSetTimeFormat={onSetTimeFormat} />
 
       <UnitsSettings
         settings={settings}

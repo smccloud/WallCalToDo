@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { formatClockSeconds } from '../utils/date.js';
 
-// The wall's clock — "5:21:07 pm" — ticking once a second.
+// The wall's clock — "5:21:07 pm" / "17:21:07" — ticking once a second,
+// in whichever format the companion app's timeFormat setting picks.
 //
 // Its own component with its own timer, rather than reading a `now` from
 // whichever view happens to be on screen. Formatting lives in one place, but
@@ -12,7 +13,7 @@ import { formatClockSeconds } from '../utils/date.js';
 // re-render. For the weather view that is 34 forecast columns redrawn sixty
 // times a minute to redraw a string, on a Pi. A clock that owns its tick
 // re-renders only itself, whatever else is on the display.
-export default function WallClock({ className }) {
+export default function WallClock({ className, timeFormat }) {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -20,5 +21,5 @@ export default function WallClock({ className }) {
     return () => clearInterval(timer);
   }, []);
 
-  return <span className={className}>{formatClockSeconds(now)}</span>;
+  return <span className={className}>{formatClockSeconds(now, timeFormat)}</span>;
 }

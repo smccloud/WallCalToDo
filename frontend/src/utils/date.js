@@ -62,32 +62,41 @@ export function ordinalSuffix(day) {
   return 'th';
 }
 
-// "5:21 pm" — 12-hour, lowercase am/pm, no seconds. toLocaleTimeString()
-// varies by locale/browser; spelling this out keeps it exact.
+// Every clock formatter below takes the companion app's timeFormat setting
+// ('12' or '24', defaulting to '12' when settings haven't loaded yet), so
+// one setting switches the whole display rather than each call site deciding
+// for itself.
+//
+// "5:21 pm" in 12-hour, "17:21" in 24-hour — lowercase am/pm, no seconds.
+// toLocaleTimeString() varies by locale/browser; spelling this out keeps it
+// exact either way.
 //
 // No seconds, deliberately: every *event* time on the display goes through
 // this, and a meeting's start time is not a thing that happens at 10:30:47.
 // The one place that does want them has its own function below.
-export function formatClock(date) {
-  let hours = date.getHours();
+export function formatClock(date, timeFormat = '12') {
   const minutes = String(date.getMinutes()).padStart(2, '0');
+  if (timeFormat === '24') return `${String(date.getHours()).padStart(2, '0')}:${minutes}`;
+  let hours = date.getHours();
   const period = hours >= 12 ? 'pm' : 'am';
   hours = hours % 12 || 12;
   return `${hours}:${minutes} ${period}`;
 }
 
-// "5:21:07 pm" — the wall's own clock, which is the only time on the display
-// that is genuinely passing as you watch it. Seconds are what make a clock on
-// a wall read as running rather than stuck; without them a display that
-// refreshes a few times a minute looks broken between refreshes.
+// "5:21:07 pm" / "17:21:07" — the wall's own clock, which is the only time
+// on the display that is genuinely passing as you watch it. Seconds are what
+// make a clock on a wall read as running rather than stuck; without them a
+// display that refreshes a few times a minute looks broken between
+// refreshes.
 //
 // A separate function rather than an option on formatClock, so that asking
 // for seconds is a visible decision at the call site instead of a flag
 // someone has to go and read the implementation to find out about.
-export function formatClockSeconds(date) {
-  let hours = date.getHours();
+export function formatClockSeconds(date, timeFormat = '12') {
   const minutes = String(date.getMinutes()).padStart(2, '0');
   const seconds = String(date.getSeconds()).padStart(2, '0');
+  if (timeFormat === '24') return `${String(date.getHours()).padStart(2, '0')}:${minutes}:${seconds}`;
+  let hours = date.getHours();
   const period = hours >= 12 ? 'pm' : 'am';
   hours = hours % 12 || 12;
   return `${hours}:${minutes}:${seconds} ${period}`;

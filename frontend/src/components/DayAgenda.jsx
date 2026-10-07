@@ -13,7 +13,7 @@ const AGENDA_FONT_MIN = 12;
 
 // Always shows *today* — this display has no touch input, so there's no
 // way to select a different day, and none is needed.
-export default function DayAgenda({ events, privacyMode }) {
+export default function DayAgenda({ events, privacyMode, settings }) {
   // `now` needs its own clock, not just a value computed at render time:
   // this component only re-renders when `events` changes, which can be
   // hours between calendar updates. Without a timer, "today" would stay
@@ -94,7 +94,9 @@ export default function DayAgenda({ events, privacyMode }) {
             const isPast = !event.allDay && now >= new Date(event.end);
             return (
               <li key={event.id} className={`agenda__item${isPast ? ' agenda__item--past' : ''}`}>
-                <span className="agenda__time">{event.allDay ? 'All day' : formatClock(new Date(event.start))}</span>
+                <span className="agenda__time">
+                  {event.allDay ? 'All day' : formatClock(new Date(event.start), settings?.timeFormat)}
+                </span>
                 <span className="event-pill agenda__pill" style={{ '--event-color': event.color || 'var(--color-accent)' }}>
                   {event.isBirthday && <BirthdayMark />}
                   {event.title}

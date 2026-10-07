@@ -673,9 +673,10 @@ body {
   /* Smaller than the row's own font-size, trimmed down from the column's
      old 5em width. Width is em-of-its-own-(smaller)-font, so 5.2em here
      works out to a real width of about 3.4em of the row's own size.
-     5.2em (not 4em) is deliberate: it's sized to comfortably fit the
-     widest string formatClock() ever produces ("12:00 pm"/"10:00 pm",
-     8 characters) -- 4em measured narrower than that text's own
+      5.2em (not 4em) is deliberate: it's sized to comfortably fit the
+      widest string formatClock() ever produces ("12:00 pm"/"10:00 pm",
+      8 characters -- its 24-hour output, "17:21", is narrower still) --
+      4em measured narrower than that text's own
      min-content width, and a flex item's width can't shrink below its
      content's min-content size while overflow stays visible (the
      flexbox automatic-minimum-size rule), so the box was silently

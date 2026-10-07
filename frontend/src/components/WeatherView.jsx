@@ -16,10 +16,14 @@ const DAILY_COUNT = 10;
 // "7p" rather than the clock's "7:00:07 pm": twenty-four of those across the
 // top of a wall display is far too much text per column, and the minutes are
 // always :00 in an hourly series anyway. "12a"/"12p" rather than a 24-hour
-// clock because the rest of the display (the header, the agenda) is 12-hour,
-// and a wall read at a glance shouldn't switch conventions halfway.
-function hourLabel(date) {
+// clock because the rest of the display (the header, the agenda) is 12-hour
+// by default, and a wall read at a glance shouldn't switch conventions
+// halfway — unless the companion app's timeFormat setting says the whole
+// display is 24-hour, in which case these stay 24-hour too ("07", "18") for
+// the same reason: one convention across the whole wall.
+function hourLabel(date, timeFormat) {
   const hours = date.getHours();
+  if (timeFormat === '24') return String(hours).padStart(2, '0');
   return `${hours % 12 || 12}${hours < 12 ? 'a' : 'p'}`;
 }
 
@@ -212,7 +216,7 @@ export default function WeatherView({ weather, settings, className = '' }) {
             {now.toLocaleDateString(undefined, { month: 'long' })} {now.getDate()}
             {ordinalSuffix(now.getDate())}
           </span>
-          <WallClock className="weather-view__time" />
+          <WallClock className="weather-view__time" timeFormat={settings?.timeFormat} />
         </div>
       </header>
 
@@ -233,7 +237,9 @@ export default function WeatherView({ weather, settings, className = '' }) {
                 {/* The first column is the hour already in progress, so it says
                     so rather than repeating a time the viewer can read off the
                     clock in the corner. */}
-                <span className="weather-view__hour-label">{index === 0 ? 'Now' : hourLabel(new Date(hour.time))}</span>
+                <span className="weather-view__hour-label">
+                  {index === 0 ? 'Now' : hourLabel(new Date(hour.time), settings?.timeFormat)}
+                </span>
                 <span className="weather-view__hour-emoji" aria-hidden="true">
                   {hour.emoji}
                 </span>

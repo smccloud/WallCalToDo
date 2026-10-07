@@ -120,7 +120,7 @@ export default function App() {
       <div className="body">
         <CalendarView events={calendarGrid} privacyMode={privacyMode} onMeasureSplit={setTodayHeight} />
         <div className="secondary" style={{ '--today-height': todayHeight ? `${todayHeight}px` : undefined }}>
-          <DayAgenda events={calendar} privacyMode={privacyMode} />
+          <DayAgenda events={calendar} privacyMode={privacyMode} settings={settings} />
           <TodoView tasks={todo} privacyMode={privacyMode} weather={weather} settings={settings} />
         </div>
       </div>

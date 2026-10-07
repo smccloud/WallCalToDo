@@ -25,6 +25,11 @@ const DEFAULT_SETTINGS = {
   // same side of the Atlantic.
   windUnit: 'mph',
   precipUnit: 'inch',
+  // How every clock time on the wall is printed: '12' as "5:21 pm", '24' as
+  // "17:21" (see frontend/src/utils/date.js). '12' is the format the display
+  // has always used, so upgrading doesn't change what anything reads as
+  // until someone actually picks the other one.
+  timeFormat: '12',
   advancedEnabled: false,
   // 'before' is the first option in the companion app's segmented control
   // for both, so it's the default direction -- standard segmented-control

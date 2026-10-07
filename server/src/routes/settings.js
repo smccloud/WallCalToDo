@@ -74,6 +74,7 @@ settingsRouter.patch('/settings', (req, res) => {
     weatherDurationSeconds,
     windUnit,
     precipUnit,
+    timeFormat,
   } = req.body || {};
   const patch = {};
 
@@ -126,6 +127,10 @@ settingsRouter.patch('/settings', (req, res) => {
   if (precipUnit !== undefined) {
     if (!PRECIP_UNITS.includes(precipUnit)) return res.status(400).json({ error: 'Invalid precipUnit' });
     patch.precipUnit = precipUnit;
+  }
+  if (timeFormat !== undefined) {
+    if (!['12', '24'].includes(timeFormat)) return res.status(400).json({ error: 'Invalid timeFormat' });
+    patch.timeFormat = timeFormat;
   }
 
   const settings = updateSettings(patch);

@@ -218,6 +218,9 @@ export default function App() {
   // frontend/src/utils/units.js for the conversions themselves).
   const setWindUnit = (windUnit) => patchSetting({ windUnit });
   const setPrecipUnit = (precipUnit) => patchSetting({ precipUnit });
+  // '12' or '24' -- how the wall prints every clock time, from the header's
+  // ticking clock down to event start times and to-do due dates.
+  const setTimeFormat = (timeFormat) => patchSetting({ timeFormat });
   // How often the full-screen weather view takes over the display, in
   // minutes, and how long it holds it in seconds. 0 minutes means it never
   // appears; the wall works out which window it's in from the clock (see
@@ -477,6 +480,7 @@ export default function App() {
         onSetTempUnit={setTempUnit}
         onSetWindUnit={setWindUnit}
         onSetPrecipUnit={setPrecipUnit}
+        onSetTimeFormat={setTimeFormat}
         onSetWeatherInterval={setWeatherInterval}
         onSetWeatherDuration={setWeatherDuration}
         onSaveLocation={saveLocation}

@@ -61,7 +61,7 @@ export default function SunTimes({ settings }) {
       <span className="calendar-header__sun-time">
         <span aria-hidden="true">{upcoming.label.startsWith('Sunrise') ? '🌅' : '🌇'}</span>{' '}
         <span className="calendar-header__sun-label">{upcoming.label}</span>
-        {formatClock(upcoming.time)}
+        {formatClock(upcoming.time, settings?.timeFormat)}
       </span>
     </div>
   );

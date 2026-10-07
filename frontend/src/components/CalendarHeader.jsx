@@ -35,7 +35,7 @@ export default function CalendarHeader({ connected, settings }) {
       <SunTimes settings={settings} />
       <div className="calendar-header__right">
         <span className={`calendar-header__dot ${connected ? 'is-connected' : 'is-disconnected'}`} />
-        <WallClock className="calendar-header__clock" />
+        <WallClock className="calendar-header__clock" timeFormat={settings?.timeFormat} />
       </div>
     </div>
   );

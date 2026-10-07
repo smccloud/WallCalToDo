@@ -126,6 +126,13 @@ Seconds are what make a clock on a wall read as *running* rather than stuck;
 without them, a display that redraws a few times a minute looks broken between
 redraws.
 
+Whether it reads `10:04:37 am` or `22:04:37` is the companion app's **Time
+format** setting (12-hour by default, the only format this display shipped
+with). That setting covers every time on the wall — the clock, agenda start
+times, to-do due dates, the forecast's hour labels and the sunrise/sunset
+readout — so the whole display switches conventions at once rather than
+showing a 12-hour clock next to a 24-hour agenda.
+
 It ticks once a second, and that's the only thing on the display that does.
 The clock is its own component (`WallClock.jsx`) with its own timer rather than
 a time read off whichever view happens to be up, because both views that show
@@ -611,6 +618,11 @@ all-day events Google really hands over, tagged the same way.)*
   real sun event (e.g. Sunset + 30 min "After" so it doesn't go dark right
   at sunset) — the displayed time on each row is already offset-adjusted,
   i.e. the moment the switch actually happens.
+- **Time format** — 12-hour or 24-hour, applied to every time the wall
+  prints: the ticking clock, agenda start times, to-do due dates, the
+  hourly forecast's hour labels and the sunrise/sunset readout. Defaults to
+  12-hour, which is the format the display has always used, and like the
+  theme it needs no location.
 - **Units** — one section for the three things the wall measures:
   **temperature** (°F/°C), **wind speed** (mph/km/h/m/s/knots) and
   **precipitation** (inches/millimetres), the latter two feeding the [weather

@@ -92,7 +92,7 @@ export default function TodoView({ tasks, privacyMode, weather, settings }) {
                   <span className="todo-list__title">{task.title}</span>
                   {due && (
                     <span className="todo-list__due">
-                      {formatShortDate(due)} • {formatClock(due)}
+                      {formatShortDate(due)} • {formatClock(due, settings?.timeFormat)}
                     </span>
                   )}
                 </span>
