@@ -82,7 +82,25 @@ export function getSunTimes(lat, lon, date = new Date()) {
     if (utcHours == null) return null;
     const hours = Math.floor(utcHours);
     const minutes = Math.round((utcHours - hours) * 60);
-    return new Date(Date.UTC(year, month - 1, day, hours, minutes));
+    const instant = new Date(Date.UTC(year, month - 1, day, hours, minutes));
+
+    // calcSunUtcHours returns a time-of-day in UTC normalized into 0-24, so
+    // for a location west of Greenwich the sunset it computes falls on the
+    // *next* UTC day (and a far-eastern sunrise on the previous one). Stamping
+    // that straight onto the requested date lands the event a day off -- for
+    // much of the Americas the evening sunset arrives as yesterday's, which
+    // then fails the frontend's `now < sunset` auto-theme check for the whole
+    // day after. Slide by whole days until the instant's own *local* calendar
+    // day is the requested one: the module assumes the location shares the
+    // Pi's own timezone, so that's the day the event belongs to. (Calendar
+    // arithmetic rather than a fixed 24h so a DST change can't shift it.)
+    const localDay = Date.UTC(instant.getFullYear(), instant.getMonth(), instant.getDate());
+    const wantedDay = Date.UTC(year, month - 1, day);
+    const daysOff = Math.round((wantedDay - localDay) / 86_400_000);
+    if (!daysOff) return instant;
+    const shifted = new Date(instant);
+    shifted.setDate(shifted.getDate() + daysOff);
+    return shifted;
   };
 
   return {
