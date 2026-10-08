@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { describe, expect, it } from 'vitest';
 import { dataPath } from './setup.js';
 import { readJson, writeJson, dataFilePath } from '../src/store/fileStore.js';
@@ -15,7 +16,9 @@ describe('fileStore', () => {
   });
 
   it('returns the fallback for corrupt JSON rather than throwing', () => {
-    writeJson('corrupt.json', '{ not valid json');
+    // Written by hand rather than through writeJson, which would
+    // JSON-stringify the text into valid JSON.
+    fs.writeFileSync(dataPath('corrupt.json'), '{ not valid json');
     expect(readJson('corrupt.json', 'fallback')).toBe('fallback');
   });
 

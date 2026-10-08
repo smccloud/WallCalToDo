@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dataPath } from './setup.js';
 import { readJson, writeJson } from '../src/store/fileStore.js';
 
@@ -12,6 +12,23 @@ async function loadService() {
 }
 
 describe('credentialsService', () => {
+  // Every test reloads the service against the same credentials file (see
+  // setup.js), so whatever an earlier test saved would otherwise still be on
+  // file here. Start each one from a fresh install, and leave no .env values
+  // behind for the next.
+  beforeEach(() => {
+    writeJson(CREDENTIALS_FILE, {});
+    for (const key of [
+      'GOOGLE_CLIENT_ID',
+      'GOOGLE_CLIENT_SECRET',
+      'MS_CLIENT_ID',
+      'MS_CLIENT_SECRET',
+      'MS_TENANT_ID',
+    ]) {
+      delete process.env[key];
+    }
+  });
+
   it('starts with no Google sets and nothing configured', async () => {
     const svc = await loadService();
     expect(svc.getGoogleSetStatuses()).toEqual([]);
