@@ -968,8 +968,6 @@ body {
  * (unhealthy for sensitive groups). */
 .weather__aqi {
   font-size: inherit;
-.weather__aqi {
-  font-size: inherit;
   color: var(--color-aqi-green);
 }
 
