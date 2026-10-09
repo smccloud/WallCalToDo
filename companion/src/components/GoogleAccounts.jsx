@@ -91,6 +91,7 @@ export default function GoogleAccounts({
                       <button className="color-picker-trigger"
                         style={{ background: cal.backgroundColor || '#58cc02' }}
                         onClick={(e) => onToggleCalendar(account.id, cal.id, e.target.value)}
+                        aria-label={`Change color of ${cal.summary}`}
                       />
                     )}
                    <label className="switch">
