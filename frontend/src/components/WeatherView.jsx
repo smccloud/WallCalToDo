@@ -231,6 +231,7 @@ export default function WeatherView({ weather, settings, className = '' }) {
             className="weather-view__time"
             timeFormat={settings?.timeFormat}
             showSeconds={settings?.clockShowSeconds}
+            flashDivider={settings?.clockFlashDivider}
           />
         </div>
       </header>

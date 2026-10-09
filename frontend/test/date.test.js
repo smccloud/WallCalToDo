@@ -3,6 +3,7 @@ import {
   WEEKDAYS,
   addDays,
   buildMonthGrid,
+  clockParts,
   dateKey,
   formatClock,
   formatClockSeconds,
@@ -167,6 +168,40 @@ describe('formatClockSeconds', () => {
     expect(formatClockSeconds(time, '24')).toBe('17:21:07');
     expect(formatClockSeconds(time)).toBe('5:21:07 pm');
     expect(formatClockSeconds(new Date(2026, 5, 21, 9, 5, 3), '12')).toBe('9:05:03 am');
+  });
+});
+
+describe('clockParts', () => {
+  const time = new Date(2026, 5, 21, 17, 21, 7);
+
+  it('splits out the fields and the divider-friendly pieces', () => {
+    // The wall clock renders from this directly so its colons can be their
+    // own elements — the string formatters are built back on top of it.
+    expect(clockParts(time, '24')).toEqual({ hours: '17', minutes: '21', seconds: '07', period: null });
+    expect(clockParts(time, '12')).toEqual({ hours: '5', minutes: '21', seconds: '07', period: 'pm' });
+  });
+
+  it('has no period in 24-hour, so there is no dangling space to trim', () => {
+    expect(clockParts(time, '24').period).toBeNull();
+  });
+
+  it('always carries the seconds, even when the caller only wants minutes', () => {
+    // The choice of whether to *show* them belongs to the caller; splitting
+    // them out here keeps clockParts a description of the date rather than a
+    // second settings-aware formatter.
+    expect(clockParts(time, '24').seconds).toBe('07');
+  });
+
+  it('round-trips into exactly the strings the formatters produce', () => {
+    for (const format of ['12', '24']) {
+      const parts = clockParts(time, format);
+      expect(`${parts.hours}:${parts.minutes}${parts.period ? ` ${parts.period}` : ''}`).toBe(
+        formatClock(time, format)
+      );
+      expect(`${parts.hours}:${parts.minutes}:${parts.seconds}${parts.period ? ` ${parts.period}` : ''}`).toBe(
+        formatClockSeconds(time, format)
+      );
+    }
   });
 });
 

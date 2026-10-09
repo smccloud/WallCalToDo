@@ -125,6 +125,8 @@ describe('PATCH /api/settings', () => {
     [{ timeFormat: '3' }, 'Invalid timeFormat'],
     [{ clockShowSeconds: 'yes' }, 'Invalid clockShowSeconds'],
     [{ clockShowSeconds: 1 }, 'Invalid clockShowSeconds'],
+    [{ clockFlashDivider: 'yes' }, 'Invalid clockFlashDivider'],
+    [{ clockFlashDivider: 0 }, 'Invalid clockFlashDivider'],
     [{ privacyMode: 'yes' }, 'Invalid privacyMode'],
     [{ advancedEnabled: 1 }, 'Invalid advancedEnabled'],
     [{ location: {} }, 'Invalid location'],

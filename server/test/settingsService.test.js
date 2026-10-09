@@ -15,6 +15,7 @@ describe('settingsService', () => {
     expect(settings.precipUnit).toBe('inch');
     expect(settings.timeFormat).toBe('12');
     expect(settings.clockShowSeconds).toBe(true);
+    expect(settings.clockFlashDivider).toBe(false);
     expect(settings.advancedEnabled).toBe(false);
     expect(settings.weatherIntervalMinutes).toBe(0);
     expect(settings.weatherDurationSeconds).toBe(60);

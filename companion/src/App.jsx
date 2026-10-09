@@ -225,6 +225,9 @@ export default function App() {
   // display this touches. Event times, sun times and to-do due dates keep
   // their minute-only form either way.
   const setClockShowSeconds = (clockShowSeconds) => patchSetting({ clockShowSeconds });
+  // Whether the clock's colons blink. Same scope as the above — the wall's
+  // own clock, and nothing else on the display.
+  const setClockFlashDivider = (clockFlashDivider) => patchSetting({ clockFlashDivider });
   // How often the full-screen weather view takes over the display, in
   // minutes, and how long it holds it in seconds. 0 minutes means it never
   // appears; the wall works out which window it's in from the clock (see
@@ -486,6 +489,7 @@ export default function App() {
         onSetPrecipUnit={setPrecipUnit}
         onSetTimeFormat={setTimeFormat}
         onSetClockShowSeconds={setClockShowSeconds}
+        onSetClockFlashDivider={setClockFlashDivider}
         onSetWeatherInterval={setWeatherInterval}
         onSetWeatherDuration={setWeatherDuration}
         onSaveLocation={saveLocation}

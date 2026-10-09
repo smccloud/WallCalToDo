@@ -299,6 +299,56 @@ body {
   color: var(--color-text-muted);
 }
 
+/* The colon between two fields of the wall clock. Inline so it sits in the
+   text run like the character it replaced — the digits and dividers have to
+   be able to reflow as the seconds come and go, and a block-level divider
+   would break the line. */
+.clock-divider {
+  display: inline;
+}
+
+/* The blinking colon, on the clockFlashDivider companion setting above it
+   (see WallClock.jsx) — the one bit of the wall that moves without the
+   display being redrawn underneath it.
+
+   A 1s cycle so it blinks in time with a human pulse, and keyframed 0/50%
+   rather than faded so it snaps: a colon that eases between invisible and
+   visible spends most of its life at an opacity low enough to read as a
+   rendering glitch. The stops stop just short of 50% so the change happens
+   in a single frame instead of across one.
+
+   (No steps() timing function here on purpose — with these stops the snap
+   is already explicit, and the usual steps(1, end) would hold the colon
+   solid for the whole second and jump to invisible for no time at all.)
+
+   It free-runs off when the animation started rather than being re-synced to
+   the second on each tick, which is invisible at the distance this is read
+   from and costs no extra work. */
+.clock-divider--flash {
+  animation: clock-divider-flash 1s infinite;
+}
+
+@keyframes clock-divider-flash {
+  0%,
+  49.9% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Same query utils/motion.js reads. Unlike the temperature count-up, nothing
+   in JS drives this blink, so standing the animation down here is the whole
+   fix — the colon stays solid and the setting stays checked rather than
+   lying about what the wall is doing. */
+@media (prefers-reduced-motion: reduce) {
+  .clock-divider--flash {
+    animation: none;
+  }
+}
+
 .calendar-grid {
   flex: 1;
   min-height: 0;

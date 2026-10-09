@@ -758,3 +758,12 @@ body {
   font-size: 0.85rem;
   color: var(--color-text-muted);
 }
+
+/* Two sub-toggles that belong together (Time format's "Show seconds" and
+   "Flash the divider") read as one pair rather than as two sections: drops
+   the padding-top that reads as a divider and pulls the gap under the
+   preceding hint text down to the usual paragraph spacing. */
+.setting-toggle--tight {
+  margin-top: 0.75rem;
+  padding-top: 0;
+}

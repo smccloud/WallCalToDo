@@ -22,6 +22,7 @@ export default function GeneralSettings({
   onSetPrecipUnit,
   onSetTimeFormat,
   onSetClockShowSeconds,
+  onSetClockFlashDivider,
   onSetWeatherInterval,
   onSetWeatherDuration,
   onSaveLocation,
@@ -61,6 +62,7 @@ export default function GeneralSettings({
         settingsLoading={settingsLoading}
         onSetTimeFormat={onSetTimeFormat}
         onSetClockShowSeconds={onSetClockShowSeconds}
+        onSetClockFlashDivider={onSetClockFlashDivider}
       />
 
       <UnitsSettings

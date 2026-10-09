@@ -76,6 +76,7 @@ settingsRouter.patch('/settings', (req, res) => {
     precipUnit,
     timeFormat,
     clockShowSeconds,
+    clockFlashDivider,
   } = req.body || {};
   const patch = {};
 
@@ -138,6 +139,12 @@ settingsRouter.patch('/settings', (req, res) => {
       return res.status(400).json({ error: 'Invalid clockShowSeconds' });
     }
     patch.clockShowSeconds = clockShowSeconds;
+  }
+  if (clockFlashDivider !== undefined) {
+    if (typeof clockFlashDivider !== 'boolean') {
+      return res.status(400).json({ error: 'Invalid clockFlashDivider' });
+    }
+    patch.clockFlashDivider = clockFlashDivider;
   }
 
   const settings = updateSettings(patch);

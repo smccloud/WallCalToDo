@@ -14,7 +14,7 @@ const TIME_FORMAT_OPTIONS = [
   { value: '24', label: '24-hour' },
 ];
 
-export default function TimeFormatSettings({ settings, settingsLoading, onSetTimeFormat, onSetClockShowSeconds }) {
+export default function TimeFormatSettings({ settings, settingsLoading, onSetTimeFormat, onSetClockShowSeconds, onSetClockFlashDivider }) {
   return (
     <div className="time-format-settings">
       <p className="settings-label section-label">Time format</p>
@@ -54,6 +54,26 @@ export default function TimeFormatSettings({ settings, settingsLoading, onSetTim
       {/* Says "the clock" and not "every time on the wall" on purpose: event
           times and sun times never show seconds, whatever this is set to. */}
       <p className="settings-notice">Clock only — event times and sun times stay as they are.</p>
+
+      {/* Sits directly under Show seconds because the two are usually wanted
+          together — a blinking colon with no seconds to blink against looks
+          like a rendering fault — but stays its own switch, since blinking
+          the colon on a plain "5:21 pm" is a perfectly good clock. */}
+      <div className="setting-toggle setting-toggle--tight">
+        <span className="setting-toggle__label">Flash the divider</span>
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={Boolean(settings?.clockFlashDivider)}
+            disabled={settingsLoading}
+            onChange={(e) => onSetClockFlashDivider(e.target.checked)}
+          />
+          <span className="switch__track" />
+        </label>
+      </div>
+      <p className="settings-notice">
+        Blinks the colons in the clock. Ignored where the system asks for reduced motion.
+      </p>
     </div>
   );
 }

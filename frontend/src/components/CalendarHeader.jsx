@@ -39,6 +39,7 @@ export default function CalendarHeader({ connected, settings }) {
           className="calendar-header__clock"
           timeFormat={settings?.timeFormat}
           showSeconds={settings?.clockShowSeconds}
+          flashDivider={settings?.clockFlashDivider}
         />
       </div>
     </div>

@@ -39,6 +39,13 @@ const DEFAULT_SETTINGS = {
   // upgrading doesn't change what anything reads as until someone actually
   // turns it off.
   clockShowSeconds: true,
+  // Whether the clock's colons blink between the fields — the one part of
+  // the wall that moves without being redrawn, and a matter of taste
+  // (some people read a blinking colon as a fault indicator, some as what
+  // a clock is supposed to do). false because the colons have always been
+  // solid, so this stays an opt-in rather than something an upgrade does
+  // to somebody's wall unasked.
+  clockFlashDivider: false,
   advancedEnabled: false,
   // 'before' is the first option in the companion app's segmented control
   // for both, so it's the default direction -- standard segmented-control

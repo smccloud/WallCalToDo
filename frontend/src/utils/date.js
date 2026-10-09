@@ -67,20 +67,41 @@ export function ordinalSuffix(day) {
 // one setting switches the whole display rather than each call site deciding
 // for itself.
 //
-// "5:21 pm" in 12-hour, "17:21" in 24-hour — lowercase am/pm, no seconds.
 // toLocaleTimeString() varies by locale/browser; spelling this out keeps it
 // exact either way.
+//
+// The two string formatters are both built on clockParts, which is also what
+// the wall's own clock renders from directly — it needs the colons as
+// separate elements so they can blink, and re-splitting an assembled string
+// on ':' to get them back would be a worse version of the same logic.
+export function clockParts(date, timeFormat = '12') {
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  if (timeFormat === '24') {
+    return { hours: String(date.getHours()).padStart(2, '0'), minutes, seconds, period: null };
+  }
+  let hours = date.getHours();
+  const period = hours >= 12 ? 'pm' : 'am';
+  hours = hours % 12 || 12;
+  return { hours: String(hours), minutes, seconds, period };
+}
+
+// Puts clockParts back together into one string. Separate from clockParts so
+// the wall clock can skip straight to rendering the parts (keeping its
+// dividers as elements) while the call sites below keep asking for a plain
+// string. `period` is null in 24-hour, so there's no dangling space to trim.
+function joinClockParts({ hours, minutes, seconds, period }, withSeconds) {
+  const time = withSeconds ? `${hours}:${minutes}:${seconds}` : `${hours}:${minutes}`;
+  return period ? `${time} ${period}` : time;
+}
+
+// "5:21 pm" in 12-hour, "17:21" in 24-hour — lowercase am/pm, no seconds.
 //
 // No seconds, deliberately: every *event* time on the display goes through
 // this, and a meeting's start time is not a thing that happens at 10:30:47.
 // The one place that does want them has its own function below.
 export function formatClock(date, timeFormat = '12') {
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  if (timeFormat === '24') return `${String(date.getHours()).padStart(2, '0')}:${minutes}`;
-  let hours = date.getHours();
-  const period = hours >= 12 ? 'pm' : 'am';
-  hours = hours % 12 || 12;
-  return `${hours}:${minutes} ${period}`;
+  return joinClockParts(clockParts(date, timeFormat), false);
 }
 
 // "5:21:07 pm" / "17:21:07" — the wall's own clock, which is the only time
@@ -93,13 +114,7 @@ export function formatClock(date, timeFormat = '12') {
 // for seconds is a visible decision at the call site instead of a flag
 // someone has to go and read the implementation to find out about.
 export function formatClockSeconds(date, timeFormat = '12') {
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
-  if (timeFormat === '24') return `${String(date.getHours()).padStart(2, '0')}:${minutes}:${seconds}`;
-  let hours = date.getHours();
-  const period = hours >= 12 ? 'pm' : 'am';
-  hours = hours % 12 || 12;
-  return `${hours}:${minutes}:${seconds} ${period}`;
+  return joinClockParts(clockParts(date, timeFormat), true);
 }
 
 // "9/15/26" — numeric month/day, 2-digit year to save space on a to-do

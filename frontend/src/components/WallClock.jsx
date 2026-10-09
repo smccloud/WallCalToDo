@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react';
-import { formatClock, formatClockSeconds } from '../utils/date.js';
+import { clockParts } from '../utils/date.js';
+
+// One of the colons between the clock's fields. Its own element rather than
+// part of the assembled string so it can be styled apart from the digits --
+// see .clock-divider--flash in base.css. Renders nothing extra, so a clock
+// with the flash off has exactly the same text and the same layout as it
+// always had.
+function Divider({ flashing }) {
+  return <span className={`clock-divider${flashing ? ' clock-divider--flash' : ''}`}>:</span>;
+}
 
 // The wall's clock — "5:21:07 pm" / "17:21:07" — ticking once a second,
 // in whichever format the companion app's timeFormat setting picks, with the
@@ -20,7 +29,7 @@ import { formatClock, formatClockSeconds } from '../utils/date.js';
 // jumped (NTP, a DST change), and re-rendering one small span sixty times a
 // minute is not what costs anything here — the fan of re-renders above it
 // was.
-export default function WallClock({ className, timeFormat, showSeconds = true }) {
+export default function WallClock({ className, timeFormat, showSeconds = true, flashDivider = false }) {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -28,9 +37,26 @@ export default function WallClock({ className, timeFormat, showSeconds = true })
     return () => clearInterval(timer);
   }, []);
 
-  // Defaults to showing seconds when the setting hasn't arrived yet (first
-  // paint before the settings fetch resolves), so the clock doesn't visibly
-  // drop its seconds and then grow them back a moment later.
-  const text = showSeconds ? formatClockSeconds(now, timeFormat) : formatClock(now, timeFormat);
-  return <span className={className}>{text}</span>;
+  // Defaults to showing seconds when the setting hasn't arrived yet (the
+  // first paint, before the WebSocket has pushed settings in), so the clock
+  // doesn't visibly drop its seconds and then grow them back a moment later.
+  const { hours, minutes, seconds, period } = clockParts(now, timeFormat);
+
+  // The blink is pure CSS, so it stands down under prefers-reduced-motion on
+  // its own (see .clock-divider--flash in base.css) — nothing here needs to
+  // check REDUCED_MOTION, unlike the temperature count-up that JS drives.
+  return (
+    <span className={className}>
+      {hours}
+      <Divider flashing={flashDivider} />
+      {minutes}
+      {showSeconds && (
+        <>
+          <Divider flashing={flashDivider} />
+          {seconds}
+        </>
+      )}
+      {period ? ` ${period}` : null}
+    </span>
+  );
 }
