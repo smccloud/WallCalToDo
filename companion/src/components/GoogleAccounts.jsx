@@ -90,7 +90,7 @@ export default function GoogleAccounts({
                    <span className="calendar-row__label">{`${cal.summary}${cal.accessLevel === 'reader' ? ' (shared)' : ''}`}</span>
                    {cal.accessLevel === 'owner' && (
                       <ColorWheel
-                        onChange={(c) => onToggleCalendar(account.id, cal.id)}
+                        onChange={() => onToggleCalendar(account.id, cal.id)}
                       />
                     )}
                    <label className="switch">
