@@ -1,5 +1,5 @@
 import GoogleCredentialSets from './GoogleCredentialSets.jsx';
-import ColorPickerButton from './ColorPickerButton.jsx';
+import ColorWheel from './ColorWheel.jsx';
 
 // Google Calendar section: the credential sets this deployment needs before
 // it can connect any account at all (each is its own Google OAuth app, see
@@ -89,9 +89,8 @@ export default function GoogleAccounts({
                <span className="calendar-row__swatch" style={{ background: cal.backgroundColor || '#888' }} />
                    <span className="calendar-row__label">{`${cal.summary}${cal.accessLevel === 'reader' ? ' (shared)' : ''}`}</span>
                    {cal.accessLevel === 'owner' && (
-                      <ColorPickerButton
-                        currentColor={cal.backgroundColor || '#58cc02'}
-                        onClick={() => onToggleCalendar(account.id, cal.id)}
+                      <ColorWheel
+                        onChange={(c) => onToggleCalendar(account.id, cal.id)}
                       />
                     )}
                    <label className="switch">
