@@ -87,6 +87,15 @@ export default function GoogleAccounts({
                 <li key={cal.id} className="calendar-row">
                   <span className="calendar-row__swatch" style={{ background: cal.backgroundColor || '#888' }} />
                   <span className="calendar-row__label">{cal.summary}</span>
+                  <div className="color-picker-wrapper">
+                    <span className="color-picker-label">{cal.isCustom ? 'Custom:' : ''} </span>
+                    <input
+                      type="color"
+                      disabled={!cal.isCustom}
+                      value={cal.backgroundColor}
+                      onChange={(e) => onToggleCalendar(account.id, cal.id, e.target.value)}
+                    />
+                  </div>
                   <label className="switch">
                     <input
                       type="checkbox"

@@ -223,6 +223,30 @@ body {
   border-top: 1px solid var(--color-border-subtle);
 }
 
+.date-picker-wrapper,
+.color-picker-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.date-picker input,
+.color-picker-input {
+  border: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  cursor: inherit;
+  background: transparent;
+  border-radius: 4px;
+}
+
+.color-picker-label {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
 .calendar-row:first-child {
   border-top: none;
 }

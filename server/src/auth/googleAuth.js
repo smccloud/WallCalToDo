@@ -193,6 +193,19 @@ export function setCalendarEnabled(accountId, calendarId, enabled) {
   saveAccounts(accounts);
 }
 
+export function setCalendarColor(accountId, calendarId, background, isCustom = true) {
+  const accounts = loadAccounts();
+  const account = accounts[accountId];
+  if (!account) throw new Error(`Unknown Google account: ${accountId}`);
+
+  const calendar = account.calendars.find((cal) => cal.id === calendarId);
+  if (!calendar) throw new Error(`Unknown calendar ${calendarId} for account ${accountId}`);
+
+  calendar.backgroundColor = background;
+  calendar.isCustom = isCustom;
+  saveAccounts(accounts);
+}
+
 // Returns an OAuth2 client hydrated with one account's saved tokens.
 // googleapis refreshes the access token automatically using the refresh
 // token when it expires; we just persist whatever it hands back so future

@@ -172,6 +172,25 @@ accountsRouter.patch('/accounts/:accountId/calendars/:calendarId', (req, res) =>
   }
 });
 
+// Updating a calendar's color — only for manually-created calendars where this is allowed.
+accountsRouter.patch('/accounts/:accountId/calendars/:calendarId/color', async (req, res) => {
+  try {
+    const accountId = req.params.accountId;
+    const calendarId = req.params.calendarId;
+    const background = req.body?.background;
+
+    if (!background) throw new Error('Missing color');
+
+    googleAuth.setCalendarColor(accountId, calendarId, background);
+    // Force a repoll to cache the updated colors with the new background
+    await pollCalendar();
+    broadcastCalendar();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Manual "check for new calendars on this account" — Google doesn't push
 // calendar-list changes, so this is a deliberate refresh rather than
 // something polled automatically.
