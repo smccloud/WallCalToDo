@@ -85,15 +85,15 @@ export default function GoogleAccounts({
             <ul className="calendar-list">
               {account.calendars.map((cal) => (
                 <li key={cal.id} className="calendar-row">
-                  <span className="calendar-row__swatch" style={{ background: cal.backgroundColor || '#888' }} />
-                  <span className="calendar-row__label">{cal.summary} {cal.accessLevel === 'owner' ? '' : '(shared)'}</span>
-                  {cal.accessLevel === 'owner' && (
-                    <div className="color-picker-wrapper">
-                      <span className="color-picker-label">Color: </span>
-                      <input
-                        type="color"
-                        value={cal.backgroundColor}
-                        onChange={(e) => onToggleCalendar(account.id, cal.id, e.target.value)}
+               <span className="calendar-row__swatch" style={{ background: cal.backgroundColor || '#888' }} />
+                   <span className="calendar-row__label">{cal.summary} {cal.accessLevel === 'reader' ? '(shared)' : ''}</span>
+                   {cal.accessLevel === 'owner' && (
+                     <div className="color-picker-wrapper">
+                       <span className="color-picker-label">Color: </span>
+                       <input
+                         type="color"
+                         value={cal.backgroundColor}
+                         onChange={(e) => onToggleCalendar(account.id, cal.id, e.target.value)}
                       />
                     </div>
                   )}
