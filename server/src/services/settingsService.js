@@ -30,6 +30,15 @@ const DEFAULT_SETTINGS = {
   // has always used, so upgrading doesn't change what anything reads as
   // until someone actually picks the other one.
   timeFormat: '12',
+  // Whether the wall's own clock ticks seconds — "5:21:07 pm" rather than
+  // "5:21 pm". Scoped to the clock and nothing else, deliberately: the
+  // seconds are there to prove the display is alive when you watch it (see
+  // formatClockSeconds in frontend/src/utils/date.js), which is an argument
+  // that only applies to a clock you're watching, not to a meeting's start
+  // time. true because that is what the clock has always shown, so
+  // upgrading doesn't change what anything reads as until someone actually
+  // turns it off.
+  clockShowSeconds: true,
   advancedEnabled: false,
   // 'before' is the first option in the companion app's segmented control
   // for both, so it's the default direction -- standard segmented-control

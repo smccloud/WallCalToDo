@@ -75,6 +75,7 @@ settingsRouter.patch('/settings', (req, res) => {
     windUnit,
     precipUnit,
     timeFormat,
+    clockShowSeconds,
   } = req.body || {};
   const patch = {};
 
@@ -131,6 +132,12 @@ settingsRouter.patch('/settings', (req, res) => {
   if (timeFormat !== undefined) {
     if (!['12', '24'].includes(timeFormat)) return res.status(400).json({ error: 'Invalid timeFormat' });
     patch.timeFormat = timeFormat;
+  }
+  if (clockShowSeconds !== undefined) {
+    if (typeof clockShowSeconds !== 'boolean') {
+      return res.status(400).json({ error: 'Invalid clockShowSeconds' });
+    }
+    patch.clockShowSeconds = clockShowSeconds;
   }
 
   const settings = updateSettings(patch);

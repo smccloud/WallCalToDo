@@ -221,6 +221,10 @@ export default function App() {
   // '12' or '24' -- how the wall prints every clock time, from the header's
   // ticking clock down to event start times and to-do due dates.
   const setTimeFormat = (timeFormat) => patchSetting({ timeFormat });
+  // Whether the wall's own clock ticks seconds — the only thing on the
+  // display this touches. Event times, sun times and to-do due dates keep
+  // their minute-only form either way.
+  const setClockShowSeconds = (clockShowSeconds) => patchSetting({ clockShowSeconds });
   // How often the full-screen weather view takes over the display, in
   // minutes, and how long it holds it in seconds. 0 minutes means it never
   // appears; the wall works out which window it's in from the clock (see
@@ -481,6 +485,7 @@ export default function App() {
         onSetWindUnit={setWindUnit}
         onSetPrecipUnit={setPrecipUnit}
         onSetTimeFormat={setTimeFormat}
+        onSetClockShowSeconds={setClockShowSeconds}
         onSetWeatherInterval={setWeatherInterval}
         onSetWeatherDuration={setWeatherDuration}
         onSaveLocation={saveLocation}

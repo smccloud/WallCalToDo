@@ -21,6 +21,7 @@ export default function GeneralSettings({
   onSetWindUnit,
   onSetPrecipUnit,
   onSetTimeFormat,
+  onSetClockShowSeconds,
   onSetWeatherInterval,
   onSetWeatherDuration,
   onSaveLocation,
@@ -55,7 +56,12 @@ export default function GeneralSettings({
         onSetOffset={onSetOffset}
       />
 
-      <TimeFormatSettings settings={settings} settingsLoading={settingsLoading} onSetTimeFormat={onSetTimeFormat} />
+      <TimeFormatSettings
+        settings={settings}
+        settingsLoading={settingsLoading}
+        onSetTimeFormat={onSetTimeFormat}
+        onSetClockShowSeconds={onSetClockShowSeconds}
+      />
 
       <UnitsSettings
         settings={settings}

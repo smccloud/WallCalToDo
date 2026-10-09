@@ -736,9 +736,12 @@ body {
   margin-top: 0.75rem;
 }
 
-.advanced-toggle {
-  /* Same reasoning as .location-settings above -- still the same theme
-     setting, just more of its configuration, so no divider here either. */
+/* A sub-toggle row: a label on the left, a switch on the right. Shared by
+   every toggle that configures a section above it rather than being a
+   section in its own right — Theme's "Advanced" and Time format's "Show
+   seconds". No divider of its own, since the parent section (.theme-settings
+   / .time-format-settings) already has one above it. */
+.setting-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -746,10 +749,11 @@ body {
   padding-top: 1rem;
 }
 
-/* A sub-toggle nested under Theme, not its own section -- deliberately
-   lighter than .settings-label/.section-label (Privacy mode, Theme,
-   Temperature), same grey/size as the other hint text in this card. */
-.advanced-toggle__label {
+/* Deliberately lighter than .settings-label/.section-label (Privacy mode,
+   Theme, Temperature) — a sub-toggle is configuration for the setting above
+   it, not its own heading, so it reads at the same weight as the other hint
+   text in this card. */
+.setting-toggle__label {
   font-weight: 400;
   font-size: 0.85rem;
   color: var(--color-text-muted);

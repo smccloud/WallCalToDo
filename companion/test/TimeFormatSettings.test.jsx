@@ -35,4 +35,55 @@ describe('TimeFormatSettings', () => {
       expect(button.disabled).toBe(true);
     }
   });
+
+  describe('show seconds', () => {
+    function secondsToggle(settingsLoading = false) {
+      return document.querySelector('.setting-toggle input[type="checkbox"]');
+    }
+
+    it('reflects whether the wall clock is currently showing seconds', () => {
+      render(
+        <TimeFormatSettings
+          settings={{ timeFormat: '12', clockShowSeconds: true }}
+          settingsLoading={false}
+          onSetTimeFormat={() => {}}
+          onSetClockShowSeconds={() => {}}
+        />
+      );
+      expect(secondsToggle().checked).toBe(true);
+    });
+
+    it('sends a real boolean when flipped, not the event', () => {
+      const onSetClockShowSeconds = vi.fn();
+      render(
+        <TimeFormatSettings
+          settings={{ timeFormat: '12', clockShowSeconds: false }}
+          settingsLoading={false}
+          onSetTimeFormat={() => {}}
+          onSetClockShowSeconds={onSetClockShowSeconds}
+        />
+      );
+
+      fireEvent.click(secondsToggle());
+
+      expect(onSetClockShowSeconds).toHaveBeenCalledWith(true);
+    });
+
+    it('reads off while settings are still loading, and cannot be flipped mid-save', () => {
+      render(
+        <TimeFormatSettings
+          settings={null}
+          settingsLoading={true}
+          onSetTimeFormat={() => {}}
+          onSetClockShowSeconds={() => {}}
+        />
+      );
+      // Same as every other toggle in this app (privacy, advanced): no
+      // settings means nothing to reflect, so the control reads off until
+      // the fetch lands. The wall clock doesn't flicker with it — it keeps
+      // its own default-until-known behavior (see WallClock.jsx).
+      expect(secondsToggle().checked).toBe(false);
+      expect(secondsToggle().disabled).toBe(true);
+    });
+  });
 });

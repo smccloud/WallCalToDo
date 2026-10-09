@@ -227,7 +227,11 @@ export default function WeatherView({ weather, settings, className = '' }) {
             {now.toLocaleDateString(undefined, { month: 'long' })} {now.getDate()}
             {ordinalSuffix(now.getDate())}
           </span>
-          <WallClock className="weather-view__time" timeFormat={settings?.timeFormat} />
+          <WallClock
+            className="weather-view__time"
+            timeFormat={settings?.timeFormat}
+            showSeconds={settings?.clockShowSeconds}
+          />
         </div>
       </header>
 

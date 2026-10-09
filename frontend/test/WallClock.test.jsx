@@ -50,4 +50,39 @@ describe('WallClock', () => {
     });
     expect(document.querySelector('span.header-clock')).not.toBeNull();
   });
+
+  describe('showSeconds', () => {
+    it('drops the seconds when turned off, in both formats', () => {
+      const noonish = new Date(2026, 5, 21, 17, 21, 7);
+
+      const { unmount } = renderAt(noonish, { timeFormat: '24', showSeconds: false });
+      expect(document.body.textContent).toBe('17:21');
+      unmount();
+
+      renderAt(noonish, { timeFormat: '12', showSeconds: false });
+      expect(document.body.textContent).toBe('5:21 pm');
+    });
+
+    it('shows them when on', () => {
+      renderAt(new Date(2026, 5, 21, 17, 21, 7), { timeFormat: '24', showSeconds: true });
+      expect(document.body.textContent).toBe('17:21:07');
+    });
+
+    it('defaults to on, so the clock does not lose its seconds while settings load', () => {
+      // Settings haven't arrived yet on first paint — clockShowSeconds is
+      // undefined, not false. Showing them keeps the clock from visibly
+      // dropping the seconds and growing them back a moment later.
+      renderAt(new Date(2026, 5, 21, 17, 21, 7), { timeFormat: '24' });
+      expect(document.body.textContent).toBe('17:21:07');
+    });
+
+    it('still rolls the minute over with the seconds off', () => {
+      // The whole point of the clock owning a 1Hz timer is that `now` stays
+      // honest; turning the seconds off must not turn that off with them.
+      renderAt(new Date(2026, 5, 21, 23, 59, 58), { timeFormat: '24', showSeconds: false });
+
+      act(() => vi.advanceTimersByTime(2000));
+      expect(document.body.textContent).toBe('00:00'); // midnight rollover
+    });
+  });
 });

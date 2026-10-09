@@ -91,12 +91,13 @@ describe('PATCH /api/settings', () => {
   it('applies a valid patch and echoes the merged settings', async () => {
     const { status, body } = await api('/settings', {
       method: 'PATCH',
-      body: JSON.stringify({ theme: 'light', tempUnit: 'C', timeFormat: '24' }),
+      body: JSON.stringify({ theme: 'light', tempUnit: 'C', timeFormat: '24', clockShowSeconds: false }),
     });
     expect(status).toBe(200);
     expect(body.theme).toBe('light');
     expect(body.tempUnit).toBe('C');
     expect(body.timeFormat).toBe('24');
+    expect(body.clockShowSeconds).toBe(false);
     expect(body.privacyMode).toBe(false); // others untouched
   });
 
@@ -122,6 +123,8 @@ describe('PATCH /api/settings', () => {
     [{ windUnit: 'furlongs' }, 'Invalid windUnit'],
     [{ precipUnit: 'bugs' }, 'Invalid precipUnit'],
     [{ timeFormat: '3' }, 'Invalid timeFormat'],
+    [{ clockShowSeconds: 'yes' }, 'Invalid clockShowSeconds'],
+    [{ clockShowSeconds: 1 }, 'Invalid clockShowSeconds'],
     [{ privacyMode: 'yes' }, 'Invalid privacyMode'],
     [{ advancedEnabled: 1 }, 'Invalid advancedEnabled'],
     [{ location: {} }, 'Invalid location'],

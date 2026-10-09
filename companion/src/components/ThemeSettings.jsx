@@ -42,8 +42,8 @@ export default function ThemeSettings({ settings, settingsLoading, onSetTheme, o
             </p>
           )}
 
-          <div className="advanced-toggle">
-            <span className="advanced-toggle__label">Advanced</span>
+          <div className="setting-toggle">
+            <span className="setting-toggle__label">Advanced</span>
             <label className="switch">
               <input
                 type="checkbox"

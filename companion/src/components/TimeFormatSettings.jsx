@@ -1,4 +1,5 @@
-// How the wall prints clock times: "5:21 pm" or "17:21".
+// How the wall prints clock times: "5:21 pm" or "17:21", and whether its own
+// clock ticks seconds alongside.
 //
 // The values are the ones the API validates against (timeFormat in
 // server/src/routes/settings.js -- '12'/'24', not labels); the labels are
@@ -13,7 +14,7 @@ const TIME_FORMAT_OPTIONS = [
   { value: '24', label: '24-hour' },
 ];
 
-export default function TimeFormatSettings({ settings, settingsLoading, onSetTimeFormat }) {
+export default function TimeFormatSettings({ settings, settingsLoading, onSetTimeFormat, onSetClockShowSeconds }) {
   return (
     <div className="time-format-settings">
       <p className="settings-label section-label">Time format</p>
@@ -31,6 +32,28 @@ export default function TimeFormatSettings({ settings, settingsLoading, onSetTim
         ))}
       </div>
       <p className="settings-notice">Applies to every time on the wall — clock, agenda, to-do due dates and sun times.</p>
+
+      {/* A second time setting rather than a third option on the segmented
+          control, because it isn't a way of writing the same time — it's
+          whether the wall's clock ticks at all. Seconds are what prove the
+          display is alive when you glance at it; someone who finds that
+          distracting wants them gone without also losing the 12/24-hour
+          choice they already made. */}
+      <div className="setting-toggle">
+        <span className="setting-toggle__label">Show seconds</span>
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={Boolean(settings?.clockShowSeconds)}
+            disabled={settingsLoading}
+            onChange={(e) => onSetClockShowSeconds(e.target.checked)}
+          />
+          <span className="switch__track" />
+        </label>
+      </div>
+      {/* Says "the clock" and not "every time on the wall" on purpose: event
+          times and sun times never show seconds, whatever this is set to. */}
+      <p className="settings-notice">Clock only — event times and sun times stay as they are.</p>
     </div>
   );
 }
