@@ -43,7 +43,7 @@ export default function WeatherWidget({ weather, settings }) {
       <span className="weather__temp">{temp}</span>
       {(weather.aqi != null && !weather.isUnhealthyAir) && (
         <span className={isNight ? `weather__aqi is-night` : `weather__aqi`} aria-label="Air quality index">
-          {weather.aqi}
+          {weather.temp} /{weather.aqi}
         </span>
       )}
     </div>

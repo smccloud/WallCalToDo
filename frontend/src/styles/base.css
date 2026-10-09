@@ -962,10 +962,12 @@ body {
 }
 
 /* AQI display — shown for values 0-150 (good to unhealthy for sensitive groups). Values above 
- * 150 (unhealthy) are masked by the mask emoji. Font-size matches .weather__emoji's own so the number
- * reads as a secondary element, not competing with the weather icon. Color comes from EPA AQI breakpoint
- * ranges: green for 0-50 (good), yellow for 51-100 (moderate), orange for 101-150 (unhealthy for 
- * sensitive groups). */
+ * 150 (unhealthy) are masked by the mask emoji. Font-size matches .weather__temp so numbers aren't 
+ * too small relative to it. Displayed after temp, before moon/sun at night. Color comes from EPA AQI 
+ * breakpoint ranges: green for 0-50 (good), yellow for 51-100 (moderate), orange for 101-150 
+ * (unhealthy for sensitive groups). */
+.weather__aqi {
+  font-size: inherit;
 .weather__aqi {
   font-size: inherit;
   color: var(--color-aqi-green);
@@ -1227,9 +1229,9 @@ body[data-theme='light'] .weather__aqi {
   color: var(--color-text-muted);
 }
 
-/* Wind and rain under the current temperature. Sits inside .weather-view__now
-   as a third line, so the headline block grows downward rather than pushing
-   the two forecast halves off the bottom of a fixed-height screen. */
+/* Wind and rain under the current temperature. Sits inside .weather-view__now 
+ * as a third line, so the headline block grows downward rather than pushing
+ * the two forecast halves off the bottom of a fixed-height screen. AQI follows temp, before weather icon night phase. */
 .weather-view__now-details {
   display: flex;
   align-items: baseline;
