@@ -967,7 +967,8 @@ body {
  * breakpoint ranges: green for 0-50 (good), yellow for 51-100 (moderate), orange for 101-150 
  * (unhealthy for sensitive groups). */
 .weather__aqi {
-  font-size: inherit;
+  font-size: 28px;
+  line-height: 28px;
   color: var(--color-aqi-green);
 }
 
