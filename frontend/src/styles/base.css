@@ -961,8 +961,35 @@ body {
   font-weight: 600;
 }
 
-/* ---------------------------------------------------------------------------
-   Full-screen weather view
+/* AQI display — shown for values 0-150 (good to unhealthy for sensitive groups). Values above 
+ * 150 (unhealthy) are masked by the mask emoji. Font-size matches .weather__emoji's own so the number
+ * reads as a secondary element, not competing with the weather icon. Color comes from EPA AQI breakpoint
+ * ranges: green for 0-50 (good), yellow for 51-100 (moderate), orange for 101-150 (unhealthy for 
+ * sensitive groups). */
+.weather__aqi {
+  font-size: inherit;
+  color: var(--color-aqi-green);
+}
+
+.weather__aqi.is-night {
+  --color-aqi-green: #72ff72;   /* lighter green for dark background */
+  --color-aqi-yellow: #ccf269;  /* lighter yellow for dark background */
+  --color-aqi-orange: #ffab40;  /* lighter orange for dark background */
+}
+
+/* Override night colors in light theme — they're too dim against white */
+body[data-theme='light'] .weather__aqi.is-night {
+  color: var(--color-text-muted);
+}
+
+/* Light theme overrides */
+body[data-theme='light'] .weather__aqi {
+  --color-aqi-green: #00cc00;   /* green for dark theme is fine on light background */
+  --color-aqi-yellow: #e6b800;
+  --color-aqi-orange: #ff8c00;
+}
+
+/* Full-screen weather view
    ---------------------------------------------------------------------------
    Replaces the whole display for a configurable stretch of time (the rotation
    lives in App.jsx, its interval in settingsService.js). Two fixed halves —

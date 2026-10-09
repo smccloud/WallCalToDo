@@ -35,14 +35,18 @@
 }
 
 /* Dark is the only look this project has ever shipped with — also the
-   fallback (via the plain :root selector below) for the moment before
-   App.jsx has fetched settings over the WebSocket and set data-theme
-   explicitly, so there's no flash of the wrong theme on load. Exact values
-   (bg/surface/border/today/online/muted/agenda-text) are taken directly
-   from the Figma mockup SVG, not estimated. */
+    fallback (via the plain :root selector below) for the moment before
+    App.jsx has fetched settings over the WebSocket and set data-theme
+    explicitly, so there's no flash of the wrong theme on load. Exact values
+    (bg/surface/border/today/online/muted/agenda-text) are taken directly
+    from the Figma mockup SVG, not estimated. */
 :root,
 :root[data-theme='dark'] {
   --color-bg: #000000;
+  /* AQI color scale - EPA standard colors for US AQI */
+  --color-aqi-green: #00e400;   /* 0-50 Good */
+  --color-aqi-yellow: #ffc200;  /* 51-100 Moderate */
+  --color-aqi-orange: #ff7e00;  /* 101-150 Unhealthy for Sensitive Groups */
   /* Calendar day-cell backgrounds — an in-month day matches the page
      background, and a day from the previous/next month is the lighter
      grey, standing out as "dimmed"/out-of-focus. Same relationship as

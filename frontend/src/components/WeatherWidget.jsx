@@ -33,13 +33,22 @@ export default function WeatherWidget({ weather, settings }) {
   const emoji = weather.isUnhealthyAir ? '😷' : isNight ? weather.moonPhase.emoji : weather.weatherEmoji;
   // Unit spelled out on the corner widget for the same reason the forecast
   // strip carries it: the two are read together, and a bare degree sign
-  // doesn't say which scale it's in.
+  // doesn't say which scale it's in. EPA AQI color scale for values that
+  // aren't masked (isUnhealthyAir).
   const temp = formatTemperature(weather.tempC, weather.tempF, settings?.tempUnit);
 
   return (
     <div className="weather">
       <span className="weather__emoji">{emoji}</span>
       <span className="weather__temp">{temp}</span>
+      {weather.aqi != null && !weather.isUnhealthyAir && (
+        <span
+          className={`weather__aqi${isNight ? ' is-night' : ''}`}
+          aria-label="Air quality index"
+        >
+          {weather.aqi}
+        </span>
+      ) : null}
     </div>
   );
 }

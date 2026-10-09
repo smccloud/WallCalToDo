@@ -160,6 +160,7 @@ export async function pollWeather(lat, lon) {
     tempF: toF(tempC),
     weatherEmoji: weatherEmoji(weatherCode),
     isUnhealthyAir: aqi != null && aqi >= UNHEALTHY_AQI,
+    aqi,
     moonPhase: getMoonPhase(),
     // Current wind and precipitation, in the same "canonical unit, display
     // converts" shape as the temperatures above.
