@@ -39,7 +39,7 @@ export default function WeatherWidget({ weather, settings }) {
 
   return (
     <div className="weather">
-      <span className="weather__aqi">{weather.aqi} AQI</span>
+      <span className={`weather__aqi ${weather.aqi >= 301 ? 'is-hazardous' : weather.aqi > 200 ? 'is-very-unhealthy' : weather.aqi > 150 ? 'is-unhealthy' : weather.aqi > 100 ? 'is-moderate' : ''}`}>{weather.aqi} AQI</span>
       <span className="weather__emoji">{emoji}</span>
       <span className="weather__temp">{temp}</span>
     </div>
