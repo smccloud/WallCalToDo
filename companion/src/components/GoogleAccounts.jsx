@@ -87,7 +87,7 @@ export default function GoogleAccounts({
                 <li key={cal.id} className="calendar-row">
                <span className="calendar-row__swatch" style={{ background: cal.backgroundColor || '#888' }} />
                    <span className="calendar-row__label">{`${cal.summary}${cal.accessLevel === 'reader' ? ' (shared)' : ''}`}</span>
-                    {cal.accessLevel === 'owner' && (
+                    {cal.accessLevel === 'owner' || cal.accessLevel === 'writer' && (
                       <button className="color-picker-trigger"
                         style={{ background: cal.backgroundColor || '#58cc02' }}
                         onClick={(e) => onToggleCalendar(account.id, cal.id, e.target.value)}
