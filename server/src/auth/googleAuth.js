@@ -135,7 +135,7 @@ export async function refreshCalendarList(accountId) {
     id: item.id,
     summary: item.summaryOverride || item.summary || item.id,
     backgroundColor: item.backgroundColor || null,
-    accessLevel: item.accessLevel || (!item.owner && !item.backgroundColor) ? 'owner' : 'reader',
+    accessLevel: item.accessRole === 'owner' ? 'owner' : 'reader',
     enabled: existingById.get(item.id)?.enabled ?? !item.hidden,
   }));
 
