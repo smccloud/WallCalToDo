@@ -78,7 +78,7 @@ export function listAccounts() {
   return Object.values(loadAccounts()).map(({ id, email, calendars, credentialSetId }) => ({
     id,
     email,
-    calendars,
+    calendars: (calendars || []).map((cal) => ({ ...cal, accessLevel: cal.accessLevel || 'owner' })),
     credentialSet: { id: credentialSetId, name: getGoogleSetLabel(credentialSetId) },
   }));
 }
@@ -135,7 +135,7 @@ export async function refreshCalendarList(accountId) {
     id: item.id,
     summary: item.summaryOverride || item.summary || item.id,
     backgroundColor: item.backgroundColor || null,
-    accessLevel: item.owner?.email === profile.email ? 'owner' : 'reader',
+    accessLevel: (!item.owner && !item.accessLevel) ? 'owner' : (item.owner?.email === profile.email ? 'owner' : 'reader'),
     enabled: existingById.get(item.id)?.enabled ?? !item.hidden,
   }));
 

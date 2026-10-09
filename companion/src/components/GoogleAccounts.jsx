@@ -86,7 +86,7 @@ export default function GoogleAccounts({
               {account.calendars.map((cal) => (
                 <li key={cal.id} className="calendar-row">
                <span className="calendar-row__swatch" style={{ background: cal.backgroundColor || '#888' }} />
-                   <span className="calendar-row__label">{cal.summary} {cal.accessLevel === 'reader' ? '(shared)' : ''}</span>
+                   <span className="calendar-row__label">{cal.summary}${(cal.accessLevel === 'reader') ? ' (shared)' : ''}</span>
                    {cal.accessLevel === 'owner' && (
                      <div className="color-picker-wrapper">
                        <span className="color-picker-label">Color: </span>
@@ -94,15 +94,15 @@ export default function GoogleAccounts({
                          type="color"
                          value={cal.backgroundColor}
                          onChange={(e) => onToggleCalendar(account.id, cal.id, e.target.value)}
-                      />
-                    </div>
-                  )}
-                  <label className="switch">
-                    <input
-                      type="checkbox"
-                      checked={cal.enabled}
-                      disabled={cal.accessLevel !== 'owner'}
-                      onChange={(e) => onToggleCalendar(account.id, cal.id, e.target.checked)}
+                       />
+                     </div>
+                   )}
+                   <label className="switch">
+                     <input
+                       type="checkbox"
+                       checked={cal.enabled}
+                       disabled={cal.accessLevel !== 'owner'}
+                       onChange={(e) => onToggleCalendar(account.id, cal.id, e.target.checked)}
                     />
                     <span className="switch__track" />
                   </label>
