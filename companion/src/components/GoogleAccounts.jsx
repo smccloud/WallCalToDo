@@ -85,8 +85,7 @@ export default function GoogleAccounts({
 
             <ul className="calendar-list">
               {account.calendars.map((cal) => (
-{
-{ key={cal.id} className="calendar-row">
+                <li key={cal.id} className="calendar-row">
                <span className="calendar-row__swatch" style={{ background: cal.backgroundColor || '#888' }} />
                    <span className="calendar-row__label">{`${cal.summary}${cal.accessLevel === 'reader' ? ' (shared)' : ''}`}</span>
                    {cal.accessLevel === 'owner' && (
@@ -104,3 +103,59 @@ export default function GoogleAccounts({
                      <span className="switch__track" />
                    </label>
                  </li>
+               ))}
+               {account.calendars.length === 0 && <li className="calendar-row calendar-row--empty">No calendars found.</li>}
+             </ul>
+
+             <h3>Google Tasks</h3>
+             {!account.tasksAccess ? (
+               <p className="banner">
+                 This account hasn't granted Tasks access yet. Disconnect it and add it again to enable Google Tasks.
+               </p>
+             ) : (
+               <>
+                 <div className="account-card__actions">
+                   <button
+                     className="button button--ghost"
+                     disabled={busyAccountId === account.id}
+                     onClick={() => onRefreshTaskLists(account.id)}
+                   >
+                     Refresh task lists
+                   </button>
+                 </div>
+                 <ul className="calendar-list">
+                   {(account.taskLists || []).map((list) => (
+                     <li key={list.id} className="calendar-row">
+                       <span className="calendar-row__label">{list.title}</span>
+                       <label className="switch">
+                         <input
+                           type="checkbox"
+                           checked={list.enabled}
+                           onChange={(e) => onToggleTaskList(account.id, list.id, e.target.checked)}
+                         />
+                         <span className="switch__track" />
+                       </label>
+                     </li>
+                   ))}
+                   {(account.taskLists || []).length === 0 && (
+                     <li className="calendar-row calendar-row--empty">No task lists yet. Press Refresh task lists.</li>
+                   )}
+                 </ul>
+               </>
+             )}
+           </section>
+         ))}
+       </div>
+
+      {/* `!loading` on the blocked branch so it doesn't flash up while the
+          page's first /accounts call — the one carrying canAddAccounts — is
+          still in flight. Connection restrictions are already explained
+          per credential set above (each set's "+ Add account" link is
+          replaced by the reason it's missing); this note only covers "no
+          credentials at all yet". */}
+      {!configured && sets.length === 0 && (
+        <p className="add-account-note">Add your Google API credentials above before connecting an account.</p>
+      )}
+    </>
+  );
+}
