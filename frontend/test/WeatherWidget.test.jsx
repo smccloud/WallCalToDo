@@ -37,33 +37,33 @@ describe('WeatherWidget', () => {
 
   it('shows the weather icon and a rounded Fahrenheit temperature by day', () => {
     renderAt(DAY, WEATHER, { ...SUN, tempUnit: 'F' });
-    expect(document.body.textContent).toBe('⛅71°');
+    expect(document.body.textContent).toBe('⛅71°F');
   });
 
   it('shows the moon instead once the sun has set', () => {
     renderAt(NIGHT, WEATHER, { ...SUN, tempUnit: 'F' });
-    expect(document.body.textContent).toBe('🌕71°');
+    expect(document.body.textContent).toBe('🌕71°F');
   });
 
   it('counts the hours before sunrise as night too', () => {
     renderAt(PREDAWN, WEATHER, { ...SUN, tempUnit: 'F' });
-    expect(document.body.textContent).toBe('🌕71°');
+    expect(document.body.textContent).toBe('🌕71°F');
   });
 
   it('switches to Celsius when the companion app asked for it', () => {
     renderAt(DAY, WEATHER, { ...SUN, tempUnit: 'C' });
-    expect(document.body.textContent).toBe('⛅22°');
+    expect(document.body.textContent).toBe('⛅22°C');
   });
 
   it('lets unhealthy air win over both the conditions and the moon', () => {
     renderAt(NIGHT, { ...WEATHER, isUnhealthyAir: true }, { ...SUN, tempUnit: 'F' });
-    expect(document.body.textContent).toBe('😷71°');
+    expect(document.body.textContent).toBe('😷71°F');
   });
 
   it('falls back to the weather icon when there are no sun times to judge by', () => {
     // No location, or a latitude where the sun neither rises nor sets: better
     // the plain weather icon than guessing at night.
     renderAt(NIGHT, WEATHER, { tempUnit: 'F' });
-    expect(document.body.textContent).toBe('⛅71°');
+    expect(document.body.textContent).toBe('⛅71°F');
   });
 });

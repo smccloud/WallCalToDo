@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   formatPrecipChance,
   formatPrecipitation,
+  formatTemperature,
   formatWind,
   precipitation,
   precipitationUnitLabel,
+  temperature,
+  temperatureUnitLabel,
   windSpeed,
   windUnitLabel,
 } from '../src/utils/units.js';
@@ -107,5 +110,45 @@ describe('formatPrecipChance', () => {
     expect(formatPrecipChance(0)).toBeNull();
     expect(formatPrecipChance(null)).toBeNull();
     expect(formatPrecipChance(NaN)).toBeNull();
+  });
+});
+
+describe('temperature', () => {
+  it('picks the field the unit asked for rather than converting', () => {
+    // Both arrive from the server on every reading; 'C' must read the Celsius
+    // field and everything else the Fahrenheit one.
+    expect(temperature(21.6, 70.9, 'C')).toBe(22);
+    expect(temperature(21.6, 70.9, 'F')).toBe(71);
+  });
+
+  it('defaults to Fahrenheit, matching the setting default', () => {
+    expect(temperature(21.6, 70.9, undefined)).toBe(71);
+  });
+
+  it('is null for a missing reading rather than 0', () => {
+    expect(temperature(null, null, 'C')).toBeNull();
+    expect(temperature(NaN, NaN, 'F')).toBeNull();
+  });
+});
+
+describe('temperatureUnitLabel', () => {
+  it.each([
+    ['C', '°C'],
+    ['F', '°F'],
+    ['anything-else', '°F'],
+  ])('%s -> %s', (unit, label) => {
+    expect(temperatureUnitLabel(unit)).toBe(label);
+  });
+});
+
+describe('formatTemperature', () => {
+  it('spells the unit out on every temperature, not just the headline one', () => {
+    expect(formatTemperature(21.6, 70.9, 'F')).toBe('71°F');
+    expect(formatTemperature(21.6, 70.9, 'C')).toBe('22°C');
+    expect(formatTemperature(-5.2, 22.6, 'C')).toBe('-5°C');
+  });
+
+  it('is null when there is nothing to show', () => {
+    expect(formatTemperature(null, null, 'F')).toBeNull();
   });
 });

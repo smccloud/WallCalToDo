@@ -102,6 +102,39 @@ export function formatPrecipitation(mm, unit) {
   return value == null ? null : `${roundPrecip(value, unit)} ${precipitationUnitLabel(unit)}`;
 }
 
+// Temperature in the unit the settings ask for. No conversion happens here
+// for the same reason precipitation needs none: the server sends *both*
+// Celsius and Fahrenheit on every reading (they're cached side by side), so
+// picking one is a lookup, not arithmetic. Input is the pair, because which
+// field is the right one to read depends on the unit -- a component that
+// passed only the Celsius field would silently show Fahrenheit-era numbers
+// as Celsius the moment someone switched the setting.
+//
+// Whole degrees only, matching the other quantities: a wall display read
+// from across a room has no use for a decimal place, and "70.9°F" is wider
+// than the space the corner widget has for it.
+export function temperature(celsius, fahrenheit, unit) {
+  const value = unit === 'C' ? celsius : fahrenheit;
+  if (value == null || !Number.isFinite(value)) return null;
+  return Math.round(value);
+}
+
+// The unit that goes with a temperature. Attached to the number with no
+// space, unlike wind and rain ("12 mph", "0.2 in") because degrees are a
+// suffix written onto the number itself rather than a word following a
+// quantity -- and because a degree sign with nothing after it is ambiguous
+// between the two scales, which is the whole reason this change exists:
+// "71" on a wall next to a forecast strip is a guess until it says "71°F".
+export function temperatureUnitLabel(unit) {
+  return unit === 'C' ? '°C' : '°F';
+}
+
+// A ready-to-render temperature: "71°F", "-5°C".
+export function formatTemperature(celsius, fahrenheit, unit) {
+  const value = temperature(celsius, fahrenheit, unit);
+  return value == null ? null : `${value}${temperatureUnitLabel(unit)}`;
+}
+
 // Chance of precipitation needs no conversion at all -- every provider quotes
 // it as a percentage, so this exists only so the null case is handled the
 // same way everywhere ("no chance data" rather than "0%", which is a claim

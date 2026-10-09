@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { WEEKDAYS, dateKey, ordinalSuffix } from '../utils/date.js';
 import { REDUCED_MOTION } from '../utils/motion.js';
-import { formatPrecipChance, formatPrecipitation, formatWind } from '../utils/units.js';
+import {
+  formatPrecipChance,
+  formatPrecipitation,
+  formatWind,
+  formatTemperature,
+  temperatureUnitLabel,
+} from '../utils/units.js';
 import WallClock from './WallClock.jsx';
 
 // The two windows the wall shows, per the feature's shape: the rest of today
@@ -121,7 +127,12 @@ export default function WeatherView({ weather, settings, className = '' }) {
   // Same unit handling as the corner widget, off the same two fields, so the
   // two can't disagree about what the temperature is.
   const celsius = settings?.tempUnit === 'C';
-  const temp = (c, f) => `${Math.round(celsius ? c : f)}°`;
+  // The unit rides with every temperature on the wall, not just the headline
+  // one -- an hourly column reading a bare "68" next to a widget reading
+  // "68F" would leave the viewer guessing which scale the forecast is in,
+  // and the two sit close enough together on screen to be compared directly.
+  const tempLabel = temperatureUnitLabel(settings?.tempUnit);
+  const temp = (c, f) => formatTemperature(c, f, settings?.tempUnit);
   const place = placeName(settings?.location);
   const windUnit = settings?.windUnit;
   const precipUnit = settings?.precipUnit;
@@ -186,7 +197,7 @@ export default function WeatherView({ weather, settings, className = '' }) {
                 because the value is already in the unit on screen -- going
                 back through the C/F fields would re-round an already-rounded
                 count and fight the interpolation. */}
-            <span className="weather-view__now-temp">{shownTemp}°</span>
+            <span className="weather-view__now-temp">{shownTemp}{tempLabel}</span>
           </span>
           {/* Wind and rain, in the units the companion app was told to use.
               Spelled out rather than given an emoji: the wind glyphs in the

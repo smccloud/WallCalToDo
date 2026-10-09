@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { formatTemperature } from '../utils/units.js';
 
 // Bottom-right of the To Do panel, mirroring the legend's bottom-left
 // corner of the agenda panel -- see .weather in base.css for the matching
@@ -30,12 +31,15 @@ export default function WeatherWidget({ weather, settings }) {
   // bad matters more than knowing it's also cloudy or that it's a full
   // moon out.
   const emoji = weather.isUnhealthyAir ? '😷' : isNight ? weather.moonPhase.emoji : weather.weatherEmoji;
-  const temp = settings?.tempUnit === 'C' ? weather.tempC : weather.tempF;
+  // Unit spelled out on the corner widget for the same reason the forecast
+  // strip carries it: the two are read together, and a bare degree sign
+  // doesn't say which scale it's in.
+  const temp = formatTemperature(weather.tempC, weather.tempF, settings?.tempUnit);
 
   return (
     <div className="weather">
       <span className="weather__emoji">{emoji}</span>
-      <span className="weather__temp">{Math.round(temp)}°</span>
+      <span className="weather__temp">{temp}</span>
     </div>
   );
 }
