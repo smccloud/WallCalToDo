@@ -451,8 +451,8 @@ body {
   line-height: 1.3;
   /* An absolute radius (not a %/stadium shape) so it stays exactly 15px
      whether a pill is one line (where it reads as fully rounded, since
-     15px is more than half of the ~24px single-line height) or wrapped
-     to 2-3 lines and taller — it never balloons into a stadium shape. */
+     15px is exactly half of the 30px single-line height) or wrapped to
+     2-3 lines and taller — it never balloons into a stadium shape. */
   border-radius: 15px;
 }
 
@@ -470,11 +470,12 @@ body {
      silently overflowing the pill's own box instead of the list clipping
      a whole pill via overflow:hidden the way it's supposed to. */
   flex-shrink: 0;
-  /* +4px (2px top, 2px bottom) over the text's own line-height, so the
-     text sits with a bit more breathing room off the stroke. */
-  min-height: 28px;
+  /* +8px (4px top, 4px bottom) over the text's own line-height, so the
+     text sits with a bit more breathing room off the stroke. 14px text at
+     line-height 1.3 is 18.2px, so this is 18.2 + 8 + 2*2 border ~= 30px. */
+  min-height: 30px;
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .calendar-cell__event-text {
@@ -521,11 +522,12 @@ body {
    inside any one of them, so one continuous bar can cross cell
    boundaries with no seam. */
 .calendar-bar {
-  /* Matches .calendar-cell__event's new 28px (was 24px) so the two pill
-     styles stay the same height. */
-  height: 28px;
+  /* Matches .calendar-cell__event's 30px so the two pill styles stay the
+     same height. Must stay in step with BAR_HEIGHT in CalendarView.jsx,
+     which is what lays the bar lanes out. */
+  height: 30px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: 14px;
   display: flex;
   align-items: center;
   align-self: start;

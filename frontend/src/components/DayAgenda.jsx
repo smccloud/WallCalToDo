@@ -9,7 +9,7 @@ import BirthdayMark from './BirthdayMark.jsx';
 // use (.calendar-cell__event in base.css), so a busy agenda never reads
 // smaller than a calendar pill already does.
 const AGENDA_FONT_MAX = 22;
-const AGENDA_FONT_MIN = 12;
+const AGENDA_FONT_MIN = 14;
 
 // Always shows *today* — this display has no touch input, so there's no
 // way to select a different day, and none is needed.

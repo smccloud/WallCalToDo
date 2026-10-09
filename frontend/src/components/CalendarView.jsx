@@ -9,7 +9,10 @@ import BirthdayMark from './BirthdayMark.jsx';
 // in server/src/services/msCalendarService.js. Absent everywhere else, so it
 // needs no provider check here.
 
-const BAR_HEIGHT = 28;
+// Must match .calendar-bar's height in base.css — this number is what lays
+// out the bar lanes, and the stylesheet is what draws them, so if they drift
+// the lanes overlap.
+const BAR_HEIGHT = 30;
 const BAR_GAP = 4;
 // Matches .calendar-cell__events' own `gap` in base.css — DayCell's fit
 // calculation below needs the same number to sum real rendered pill
