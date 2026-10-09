@@ -1,5 +1,4 @@
 import GoogleCredentialSets from './GoogleCredentialSets.jsx';
-import ColorWheel from './ColorWheel.jsx';
 
 // Google Calendar section: the credential sets this deployment needs before
 // it can connect any account at all (each is its own Google OAuth app, see
@@ -87,13 +86,8 @@ export default function GoogleAccounts({
               {account.calendars.map((cal) => (
                 <li key={cal.id} className="calendar-row">
                   <span className="calendar-row__swatch" style={{ background: cal.backgroundColor || '#888' }} />
-                  <span className="calendar-row__label">{`${cal.summary}${cal.accessLevel === 'reader' ? ' (shared)' : ''}`}</span>
-                  {cal.accessLevel === 'owner' && (
-                    <ColorWheel
-                      onChange={() => onToggleCalendar(account.id, cal.id)}
-                    />
-                  )}
-                  <label className="switch">
+                   <span className="calendar-row__label">{`${cal.summary}${cal.accessLevel === 'reader' ? ' (shared)' : ''}`}</span>
+                   <label className="switch">
                     <input
                       type="checkbox"
                       checked={cal.enabled}
