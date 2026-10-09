@@ -431,8 +431,7 @@ body {
 
 .calendar-cell__day {
   font-size: var(--font-size-small);
-  width: 1.6em;
-  height: 1.6em;
+  flex-basis: auto;
   display: flex;
   align-items: center;
   justify-content: center;
