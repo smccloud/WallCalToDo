@@ -86,26 +86,28 @@ export default function GoogleAccounts({
             <ul className="calendar-list">
               {account.calendars.map((cal) => (
                 <li key={cal.id} className="calendar-row">
-               <span className="calendar-row__swatch" style={{ background: cal.backgroundColor || '#888' }} />
-                   <span className="calendar-row__label">{`${cal.summary}${cal.accessLevel === 'reader' ? ' (shared)' : ''}`}</span>
-                   {cal.accessLevel === 'owner' && (
-                      <ColorWheel
-                        onChange={() => onToggleCalendar(account.id, cal.id)}
-                      />
-                    )}
-                   <label className="switch">
-                     <input
-                       type="checkbox"
-                       checked={cal.enabled}
-                       disabled={cal.accessLevel !== 'owner'}
-                       onChange={(e) => onToggleCalendar(account.id, cal.id, e.target.checked)}
-                     />
-                     <span className="switch__track" />
-                   </label>
-                 </li>
-               ))}
-               {account.calendars.length === 0 && <li className="calendar-row calendar-row--empty">No calendars found.</li>}
-             </ul>
+                  <span className="calendar-row__swatch" style={{ background: cal.backgroundColor || '#888' }} />
+                  <span className="calendar-row__label">{`${cal.summary}${cal.accessLevel === 'reader' ? ' (shared)' : ''}`}</span>
+                  {cal.accessLevel === 'owner' && (
+                    <ColorWheel
+                      onChange={() => onToggleCalendar(account.id, cal.id)}
+                    />
+                  )}
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={cal.enabled}
+                      disabled={cal.accessLevel !== 'owner'}
+                      onChange={(e) => onToggleCalendar(account.id, cal.id, e.target.checked)}
+                    />
+                    <span className="switch__track" />
+                  </label>
+                </li>
+              ))}
+              {account.calendars.length === 0 && (
+                <li className="calendar-row calendar-row--empty">No calendars found.</li>
+              )}
+            </ul>
 
              <h3>Google Tasks</h3>
              {!account.tasksAccess ? (
