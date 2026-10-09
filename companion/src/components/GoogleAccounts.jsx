@@ -87,18 +87,13 @@ export default function GoogleAccounts({
                 <li key={cal.id} className="calendar-row">
                <span className="calendar-row__swatch" style={{ background: cal.backgroundColor || '#888' }} />
                    <span className="calendar-row__label">{`${cal.summary}${cal.accessLevel === 'reader' ? ' (shared)' : ''}`}</span>
-                   {cal.accessLevel === 'owner' && (
-                     <div className="color-picker-wrapper">
-                       <span className="color-picker-label">Color: </span>
-                       <div className="color-picker-preview"
-                           style={{ background: cal.backgroundColor || '#58cc02' }} />
-                       <input
-                         type="color"
-                         value={cal.backgroundColor}
-                         onChange={(e) => onToggleCalendar(account.id, cal.id, e.target.value)}
-                       />
-                     </div>
-                   )}
+                    {cal.accessLevel === 'owner' && (
+                      <button
+                        className="color-picker-trigger"
+                        style={{ background: cal.backgroundColor || '#58cc02' }}
+                        onClick={() => onToggleCalendar(account.id, cal.id, event.target.value || null)}
+                      />
+                    )}
                    <label className="switch">
                      <input
                        type="checkbox"
