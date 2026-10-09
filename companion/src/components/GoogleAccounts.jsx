@@ -90,13 +90,12 @@ export default function GoogleAccounts({
                    {cal.accessLevel === 'owner' && (
                      <div className="color-picker-wrapper">
                        <span className="color-picker-label">Color: </span>
-                       <div className="color-picker-input"
+                       <div className="color-picker-preview"
                            style={{ background: cal.backgroundColor || '#58cc02' }} />
                        <input
                          type="color"
                          value={cal.backgroundColor}
                          onChange={(e) => onToggleCalendar(account.id, cal.id, e.target.value)}
-                         disabled
                        />
                      </div>
                    )}
