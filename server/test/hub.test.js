@@ -51,13 +51,16 @@ describe('with a live hub', () => {
 
   it('hydrates a new connection with every feed in one go', async () => {
     const { messages } = await connect();
-    await vi.waitFor(() => expect(messages).toHaveLength(4));
+    await vi.waitFor(() => expect(messages).toHaveLength(5));
 
+    // 'build' is last and is what tells a display that sat out a deploy to go
+    // and reload -- see services/buildStamp.js.
     expect(messages.map((message) => message.type)).toEqual([
       'calendar',
       'todo',
       'settings',
       'weather',
+      'build',
     ]);
 
     const [calendar, todo, settings] = messages;
@@ -69,7 +72,7 @@ describe('with a live hub', () => {
 
   it('delivers a broadcast to connected displays', async () => {
     const { messages } = await connect();
-    await vi.waitFor(() => expect(messages).toHaveLength(4));
+    await vi.waitFor(() => expect(messages).toHaveLength(5));
 
     hub.broadcast({ type: 'probe', data: 42 });
     await vi.waitFor(() =>
@@ -79,7 +82,7 @@ describe('with a live hub', () => {
 
   it('broadcastCalendar sends the calendar message shape', async () => {
     const { messages } = await connect();
-    await vi.waitFor(() => expect(messages).toHaveLength(4));
+    await vi.waitFor(() => expect(messages).toHaveLength(5));
 
     hub.broadcastCalendar();
     await vi.waitFor(() => {

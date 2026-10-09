@@ -45,7 +45,14 @@ describe('GET /api/status', () => {
   it('reports nothing connected on a fresh install', async () => {
     const { status, body } = await api('/status');
     expect(status).toBe(200);
-    expect(body).toEqual({ googleConnected: false, microsoftConnected: false });
+    expect(body.googleConnected).toBe(false);
+    expect(body.microsoftConnected).toBe(false);
+    // Which build of the display this backend is serving -- null when there
+    // is no built frontend to serve (the case in a test run), a 12-char id
+    // otherwise. Asserted by shape rather than toEqual'd against a literal
+    // so that adding a field to /status later doesn't read as a behaviour
+    // change in this test.
+    expect(body.build ?? 'none').toMatch(/^(none|[0-9a-f]{12})$/);
   });
 });
 

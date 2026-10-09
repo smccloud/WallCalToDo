@@ -1,6 +1,12 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWebSocket } from '../src/hooks/useWebSocket.js';
+import { applyBuild } from '../src/utils/buildReload.js';
+
+// Mocked because the real thing reloads the page, which jsdom cannot do and
+// no test here should want. What it does with an id is buildReload's own
+// test suite's business; this file only checks the message reaches it.
+vi.mock('../src/utils/buildReload.js', () => ({ applyBuild: vi.fn() }));
 
 // A stand-in for the browser's WebSocket that records what the hook asked
 // for and lets each test drive the socket's events by hand.
@@ -23,6 +29,7 @@ beforeEach(() => {
   FakeWebSocket.instances = [];
   vi.stubGlobal('WebSocket', FakeWebSocket);
   vi.useFakeTimers();
+  vi.mocked(applyBuild).mockClear();
 });
 
 afterEach(() => {
@@ -87,6 +94,31 @@ describe('useWebSocket', () => {
 
     expect(result.current.calendar).toHaveLength(2);
     expect(result.current.calendarGrid).toEqual(result.current.calendar);
+  });
+
+  it('hands a build message to the reload logic', () => {
+    // The decision of whether to actually reload is buildReload's, and is
+    // tested there -- including the guard against reloading in a loop. This
+    // is the wiring: the message has to reach it at all, or the wall sits on
+    // old code forever with nobody able to reach it and press F5.
+    renderHook(() => useWebSocket());
+
+    act(() => {
+      last().onmessage({ data: JSON.stringify({ type: 'build', data: { id: 'new-build' } }) });
+    });
+
+    expect(applyBuild).toHaveBeenCalledWith('new-build');
+  });
+
+  it('does not hand anything else to the reload logic', () => {
+    renderHook(() => useWebSocket());
+
+    act(() => {
+      last().onmessage({ data: JSON.stringify({ type: 'settings', data: { theme: 'light' } }) });
+      last().onmessage({ data: JSON.stringify({ type: 'weather', data: { tempC: 21 } }) });
+    });
+
+    expect(applyBuild).not.toHaveBeenCalled();
   });
 
   it('reconnects two seconds after the connection drops', () => {

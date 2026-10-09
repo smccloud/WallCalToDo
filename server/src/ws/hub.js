@@ -3,6 +3,7 @@ import { getCachedEvents, getCachedGridEvents } from '../services/calendarServic
 import { getCachedTasks } from '../services/todoService.js';
 import { getSettings } from '../services/settingsService.js';
 import { getCachedWeather } from '../services/weatherService.js';
+import { currentBuildId } from '../services/buildStamp.js';
 
 const HEARTBEAT_MS = 30000;
 
@@ -23,6 +24,11 @@ export function initWebSocket(server) {
     socket.send(JSON.stringify({ type: 'todo', data: getCachedTasks() }));
     socket.send(JSON.stringify({ type: 'settings', data: getSettings() }));
     socket.send(JSON.stringify({ type: 'weather', data: getCachedWeather() }));
+    // The build this document was served vs. the build now on disk. Sent on
+    // connect (not only on change) so a display that was asleep or
+    // disconnected across a deploy is told on its next connection rather
+    // than sitting on last week's code until somebody happens to restart it.
+    socket.send(JSON.stringify({ type: 'build', data: { id: currentBuildId() } }));
   });
 
   const heartbeat = setInterval(() => {

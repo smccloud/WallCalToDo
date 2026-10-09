@@ -964,10 +964,32 @@ sudo systemctl restart wallcaltodo
 ```
 
 Any change under `server/` needs only the restart; anything under `frontend/`
-or `companion/` needs its rebuild, and the browser on the Pi is running
-fullscreen with no page reload, so the restart (or a reboot) is what actually
-puts it on screen. Skipping the rebuild is safe in the sense that nothing
-breaks — you just keep running the version you had.
+or `companion/` needs its rebuild. The **display rebuilds itself** once the new
+build is on disk — the backend stamps a build id into the HTML it serves,
+watches `frontend/dist` for changes, and tells connected displays over the
+WebSocket to reload (see `server/src/services/buildStamp.js` and
+`frontend/src/utils/buildReload.js`). So a `frontend` rebuild no longer needs
+anyone to walk over to the wall and press F5 on a machine with no keyboard;
+give it a few seconds and the wall picks the change up on its own. A
+`companion` rebuild is picked up the next time you open the companion app on
+your phone, which is always a fresh page load anyway.
+
+Skipping the rebuild is safe in the sense that nothing breaks — you just keep
+running the version you had.
+
+To check what the backend is currently serving — useful when a change
+"didn't take" and you want to know whether the wall is behind rather than
+broken:
+
+```
+curl -s localhost:3000/api/status
+```
+
+The `build` field is the id of the build in `frontend/dist` right now. The
+same id is stamped into the HTML the display was served, and the two
+matching is what stops the display reloading. If the wall isn't updating,
+compare `curl -s localhost:3000 | grep wall-build` against the `build`
+field: different ids mean the page is running older code.
 
 From your phone, on the same Wi-Fi, open
 `http://wallcaltodo.local:3000/companion` (swap in your own hostname) to

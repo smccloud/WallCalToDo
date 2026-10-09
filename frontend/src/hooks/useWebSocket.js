@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { applyBuild } from '../utils/buildReload.js';
 
 const RECONNECT_DELAY_MS = 2000;
 
@@ -45,6 +46,11 @@ export function useWebSocket() {
         } else if (message.type === 'todo') setTodo(message.data);
         else if (message.type === 'settings') setSettings(message.data);
         else if (message.type === 'weather') setWeather(message.data);
+        // Reloads the page when the server is serving a newer build than the
+        // one this document was served -- see utils/buildReload.js for why
+        // the wall has to do this itself rather than waiting for someone to
+        // visit it with a keyboard.
+        else if (message.type === 'build') applyBuild(message.data?.id);
       };
     }
 
