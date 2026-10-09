@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { writeJson } from '../src/store/fileStore.js';
 import { getSettings, updateSettings } from '../src/services/settingsService.js';
 import { getSunTimes } from '../src/services/sunService.js';
 
@@ -17,8 +18,10 @@ describe('settingsService', () => {
     expect(settings.clockShowSeconds).toBe(true);
     expect(settings.clockFlashDivider).toBe(false);
     expect(settings.advancedEnabled).toBe(false);
-    expect(settings.weatherIntervalMinutes).toBe(0);
+    expect(settings.weatherEnabled).toBe(false);
+    expect(settings.weatherIntervalMinutes).toBe(15);
     expect(settings.weatherDurationSeconds).toBe(60);
+    expect(settings.weatherHourlyHours).toBe(24);
     expect(settings.sunriseOffset).toEqual({ minutes: 0, direction: 'before' });
     expect(settings.sunsetOffset).toEqual({ minutes: 0, direction: 'before' });
   });
@@ -98,5 +101,35 @@ describe('settingsService', () => {
     expect(getSettings().sunrise).toBeInstanceOf(Date);
     updateSettings({ location: null });
     expect(getSettings().sunrise).toBeNull();
+  });
+
+  // The migration that matters: weatherEnabled didn't exist before this
+  // switch, and "off" was an interval of 0. Defaulting instead of deriving
+  // would switch the weather view off for everyone who had turned it on,
+  // which reads as "the update broke my wall" rather than as a migration.
+  it('derives the weather switch from a saved interval when it has none of its own', () => {
+    writeJson('settings.json', { weatherIntervalMinutes: 60 });
+    expect(getSettings().weatherEnabled).toBe(true);
+
+    writeJson('settings.json', { weatherIntervalMinutes: 0 });
+    expect(getSettings().weatherEnabled).toBe(false);
+  });
+
+  it('leaves the weather view off on a fresh install', () => {
+    // Nothing saved at all, so there is no saved interval to derive from —
+    // and the default interval is a positive number, which is exactly why
+    // the migration above reads the saved object rather than the merged one.
+    writeJson('settings.json', {});
+    expect(getSettings().weatherEnabled).toBe(false);
+  });
+
+  it('trusts an explicitly saved weather switch over the interval', () => {
+    // Someone who turned the view off but left the interval alone: the
+    // switch is the newer, more specific answer and must win.
+    writeJson('settings.json', { weatherIntervalMinutes: 60, weatherEnabled: false });
+    expect(getSettings().weatherEnabled).toBe(false);
+
+    writeJson('settings.json', { weatherIntervalMinutes: 0, weatherEnabled: true });
+    expect(getSettings().weatherEnabled).toBe(true);
   });
 });

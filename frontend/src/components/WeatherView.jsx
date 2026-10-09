@@ -10,14 +10,19 @@ import {
 } from '../utils/units.js';
 import WallClock from './WallClock.jsx';
 
-// The two windows the wall shows, per the feature's shape: the rest of today
-// and the whole of tomorrow broken out hour by hour across the top, and ten
-// days broken out day by day underneath. These are the numbers the user asked
-// for, so they're fixed rather than settings — the *timing* of the view is
-// configurable (see weatherIntervalMinutes in settingsService.js), its content
-// isn't.
-const HOURLY_COUNT = 24;
-const DAILY_COUNT = 10;
+// The two windows the wall shows: a run of hours across the top, and a run of
+// days day by day underneath. Both counts are companion app settings
+// (weatherHourlyHours, 1-24, and weatherDailyDays, 5-10) because both strips
+// are hard to judge until you live with them: 24 columns of forecast is a lot
+// of screen to spend on the next day, and someone who only cares about the
+// afternoon shouldn't have to read past eighteen columns to find it, while
+// someone planning a fortnight ahead wants more days than the strip defaults
+// to. The *timing* of the view is configurable too (see weatherIntervalMinutes
+// in settingsService.js).
+const HOURLY_COUNT_MIN = 1;
+const HOURLY_COUNT_MAX = 24;
+const DAILY_COUNT_MIN = 5;
+const DAILY_COUNT_MAX = 10;
 
 // "7p" rather than the clock's "7:00:07 pm": twenty-four of those across the
 // top of a wall display is far too much text per column, and the minutes are
@@ -46,12 +51,17 @@ function placeName(location) {
 //
 // The server deliberately fetches more hours than this view uses (see
 // HOURLY_FETCH_HOURS), because the cache is only refreshed every
-// WEATHER_POLL_INTERVAL_MS: a view that asked for exactly its own 24 hours
+// WEATHER_POLL_INTERVAL_MS: a view that asked for exactly its own window
 // would start short whenever the reading underneath it was more than an hour
 // old. So the extra depth is spent here instead, trimming anything already
-// past and taking the next 24 from what's left. Days are trimmed the same way
-// against local midnight, which is where the server's daily entries sit.
-function visibleForecast(weather, now) {
+// past and taking as many hours as were asked for from what's left. Days are
+// trimmed the same way against local midnight, which is where the server's
+// daily entries sit.
+//
+// The slice is a cap and not a promise: with a stale cache there may be fewer
+// hours or days left than were asked for, and showing the ones there are
+// beats showing nothing or padding the row with blanks.
+function visibleForecast(weather, now, hourlyCount, dailyCount) {
   const hourStart = new Date(now);
   hourStart.setMinutes(0, 0, 0);
   const dayStart = new Date(now);
@@ -60,11 +70,23 @@ function visibleForecast(weather, now) {
   return {
     hourly: (weather.hourly || [])
       .filter((hour) => new Date(hour.time).getTime() >= hourStart.getTime())
-      .slice(0, HOURLY_COUNT),
+      .slice(0, hourlyCount),
     daily: (weather.daily || [])
       .filter((day) => new Date(day.date).getTime() >= dayStart.getTime())
-      .slice(0, DAILY_COUNT),
+      .slice(0, dailyCount),
   };
+}
+
+// One of the companion app's strip counts, clamped to what the view can draw.
+// A saved value outside the accepted range can't reach here through the API
+// (the settings route rejects it), but a settings file hand-edited years from
+// now shouldn't be able to produce a row of zero columns or a thousand of them
+// either -- and a strip narrower than its own minimum would make the label
+// above it lie ("Next 3 hours" when 3 isn't something anyone can choose).
+function stripCount(settings, key, min, max) {
+  const asked = Number(settings?.[key]);
+  if (!Number.isInteger(asked)) return max;
+  return Math.min(Math.max(asked, min), max);
 }
 
 // The intro, played as the view comes up: the current temperature counts the
@@ -123,7 +145,9 @@ export default function WeatherView({ weather, settings, className = '' }) {
     return () => clearInterval(timer);
   }, []);
 
-  const { hourly, daily } = visibleForecast(weather, now);
+  const hours = stripCount(settings, 'weatherHourlyHours', HOURLY_COUNT_MIN, HOURLY_COUNT_MAX);
+  const days = stripCount(settings, 'weatherDailyDays', DAILY_COUNT_MIN, DAILY_COUNT_MAX);
+  const { hourly, daily } = visibleForecast(weather, now, hours, days);
   // Same unit handling as the corner widget, off the same two fields, so the
   // two can't disagree about what the temperature is.
   const celsius = settings?.tempUnit === 'C';
@@ -246,8 +270,13 @@ export default function WeatherView({ weather, settings, className = '' }) {
           they still fill the screen and look like the split they are. */}
       <div className="weather-view__body">
         <section className="weather-view__half weather-view__half--hourly">
-          <p className="weather-view__label">Next 24 hours</p>
-          <ol className="weather-view__hours">
+          <p className="weather-view__label">Next {hours} hours</p>
+          {/* The column count comes from what actually rendered rather than
+              from what was asked for: the fetch can run short against a stale
+              cache, and a row of 24 grid columns holding 9 cells would leave
+              15 empty tracks and a strip three times wider than its content.
+              See visibleForecast's note on why the slice is a cap. */}
+          <ol className="weather-view__hours" style={{ '--hourly-count': hourly.length }}>
             {hourly.map((hour, index) => (
               <li key={hour.time} className="weather-view__hour">
                 {/* The first column is the hour already in progress, so it says
@@ -262,7 +291,7 @@ export default function WeatherView({ weather, settings, className = '' }) {
                 <span className="weather-view__hour-temp">{temp(hour.tempC, hour.tempF)}</span>
                 {/* Always rendered, blank when there's nothing to say, because
                     a cell that skips its last line entirely is a cell that
-                    centers differently from its neighbours -- and with 24 of
+                    centers differently from its neighbours -- and with a row of
                     them side by side that turns the temperature row into a
                     visible stagger. The empty span costs nothing and keeps
                     every column the same height. */}
@@ -273,8 +302,12 @@ export default function WeatherView({ weather, settings, className = '' }) {
         </section>
 
         <section className="weather-view__half weather-view__half--daily">
-          <p className="weather-view__label">Next 10 days</p>
-          <ol className="weather-view__days">
+          <p className="weather-view__label">Next {days} days</p>
+          {/* Same rendered-length column count as the hourly strip above, for
+              the same reason: a stale cache can leave fewer days than were
+              asked for, and empty grid tracks would leave the strip narrower
+              than the days it did render. */}
+          <ol className="weather-view__days" style={{ '--daily-count': daily.length }}>
             {daily.map((day) => {
               const date = new Date(day.date);
               return (

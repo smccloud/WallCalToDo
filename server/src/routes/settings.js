@@ -16,6 +16,18 @@ const OFFSET_MINUTES = [0, 15, 30, 45, 60, 120, 180];
 const WEATHER_INTERVAL_MINUTES = [0, 15, 30, 60, 120, 180, 360];
 const WEATHER_DURATION_SECONDS = [30, 60, 120, 300];
 
+// How many hours of hourly forecast, and how many days of daily forecast, the
+// display will draw. Unlike the two lists above these are continuous ranges
+// rather than fixed sets, so the bounds are validated rather than
+// membership-checked -- and the companion app's dropdowns offer every value
+// in between, one hour/day at a time. Both ceilings are what the server's
+// fetch can be trusted to supply (see weatherHourlyHours/weatherDailyDays in
+// settingsService.js).
+const WEATHER_HOURLY_HOURS_MIN = 1;
+const WEATHER_HOURLY_HOURS_MAX = 24;
+const WEATHER_DAILY_DAYS_MIN = 5;
+const WEATHER_DAILY_DAYS_MAX = 10;
+
 // Wind and precipitation units. The reading is cached in km/h and mm and
 // converted by the display (frontend/src/utils/units.js), so this only picks
 // what the wall prints. 'mph'/'inch' are the defaults for the same reason
@@ -29,6 +41,16 @@ function isValidOffset(offset) {
     OFFSET_MINUTES.includes(offset.minutes) &&
     ['before', 'after'].includes(offset.direction)
   );
+}
+
+// A whole number within an inclusive range. Strictly typed rather than
+// coerced: "12" and 12 are the same count to a person filling in a dropdown,
+// but only one of them is what the API should be handing around, and
+// accepting both would leave every consumer having to guess. The integer
+// check is not redundant either -- the display slices an array by these, so
+// 6.5 would silently show something nobody asked for.
+function isValidCount(value, min, max) {
+  return typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max;
 }
 
 settingsRouter.get('/settings', (req, res) => {
@@ -68,10 +90,13 @@ settingsRouter.patch('/settings', (req, res) => {
     privacyMode,
     tempUnit,
     advancedEnabled,
+    weatherEnabled,
     sunriseOffset,
     sunsetOffset,
     weatherIntervalMinutes,
     weatherDurationSeconds,
+    weatherHourlyHours,
+    weatherDailyDays,
     windUnit,
     precipUnit,
     timeFormat,
@@ -102,6 +127,13 @@ settingsRouter.patch('/settings', (req, res) => {
     if (typeof advancedEnabled !== 'boolean') return res.status(400).json({ error: 'Invalid advancedEnabled' });
     patch.advancedEnabled = advancedEnabled;
   }
+  // The weather view's own on/off, separate from its interval: a view that
+  // can't appear at all shouldn't force you to read an interval that does
+  // nothing.
+  if (weatherEnabled !== undefined) {
+    if (typeof weatherEnabled !== 'boolean') return res.status(400).json({ error: 'Invalid weatherEnabled' });
+    patch.weatherEnabled = weatherEnabled;
+  }
   if (sunriseOffset !== undefined) {
     if (!isValidOffset(sunriseOffset)) return res.status(400).json({ error: 'Invalid sunriseOffset' });
     patch.sunriseOffset = sunriseOffset;
@@ -121,6 +153,21 @@ settingsRouter.patch('/settings', (req, res) => {
       return res.status(400).json({ error: 'Invalid weatherDurationSeconds' });
     }
     patch.weatherDurationSeconds = weatherDurationSeconds;
+  }
+  // 1-24 inclusive, and an integer: the display slices a forecast array by
+  // this, so a fractional or out-of-range value would either silently show
+  // something nobody asked for or leave the row wider than the screen.
+  if (weatherHourlyHours !== undefined) {
+    if (!isValidCount(weatherHourlyHours, WEATHER_HOURLY_HOURS_MIN, WEATHER_HOURLY_HOURS_MAX)) {
+      return res.status(400).json({ error: 'Invalid weatherHourlyHours' });
+    }
+    patch.weatherHourlyHours = weatherHourlyHours;
+  }
+  if (weatherDailyDays !== undefined) {
+    if (!isValidCount(weatherDailyDays, WEATHER_DAILY_DAYS_MIN, WEATHER_DAILY_DAYS_MAX)) {
+      return res.status(400).json({ error: 'Invalid weatherDailyDays' });
+    }
+    patch.weatherDailyDays = weatherDailyDays;
   }
   if (windUnit !== undefined) {
     if (!WIND_UNITS.includes(windUnit)) return res.status(400).json({ error: 'Invalid windUnit' });

@@ -25,6 +25,9 @@ export default function GeneralSettings({
   onSetClockFlashDivider,
   onSetWeatherInterval,
   onSetWeatherDuration,
+  onSetWeatherHourlyHours,
+  onSetWeatherDailyDays,
+  onSetWeatherEnabled,
   onSaveLocation,
   onError,
 }) {
@@ -78,6 +81,9 @@ export default function GeneralSettings({
         settingsLoading={settingsLoading}
         onSetWeatherInterval={onSetWeatherInterval}
         onSetWeatherDuration={onSetWeatherDuration}
+        onSetWeatherHourlyHours={onSetWeatherHourlyHours}
+        onSetWeatherDailyDays={onSetWeatherDailyDays}
+        onSetWeatherEnabled={onSetWeatherEnabled}
       />
     </section>
   );

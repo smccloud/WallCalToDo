@@ -136,12 +136,26 @@ describe('PATCH /api/settings', () => {
     [{ clockFlashDivider: 0 }, 'Invalid clockFlashDivider'],
     [{ privacyMode: 'yes' }, 'Invalid privacyMode'],
     [{ advancedEnabled: 1 }, 'Invalid advancedEnabled'],
+    [{ weatherEnabled: 'yes' }, 'Invalid weatherEnabled'],
+    [{ weatherEnabled: 1 }, 'Invalid weatherEnabled'],
     [{ location: {} }, 'Invalid location'],
     [{ location: { lat: 'x', lon: 0 } }, 'Invalid location'],
     [{ sunriseOffset: { minutes: 7, direction: 'before' } }, 'Invalid sunriseOffset'],
     [{ sunriseOffset: { minutes: 30, direction: 'sideways' } }, 'Invalid sunriseOffset'],
     [{ weatherIntervalMinutes: 17 }, 'Invalid weatherIntervalMinutes'],
     [{ weatherDurationSeconds: 999 }, 'Invalid weatherDurationSeconds'],
+    [{ weatherHourlyHours: 0 }, 'Invalid weatherHourlyHours'],
+    [{ weatherHourlyHours: 25 }, 'Invalid weatherHourlyHours'],
+    [{ weatherHourlyHours: -1 }, 'Invalid weatherHourlyHours'],
+    // A fractional count would slice an array at a non-integer and show
+    // something nobody asked for, so it is rejected rather than rounded.
+    [{ weatherHourlyHours: 6.5 }, 'Invalid weatherHourlyHours'],
+    [{ weatherHourlyHours: '12' }, 'Invalid weatherHourlyHours'],
+    [{ weatherHourlyHours: null }, 'Invalid weatherHourlyHours'],
+    [{ weatherDailyDays: 4 }, 'Invalid weatherDailyDays'],
+    [{ weatherDailyDays: 11 }, 'Invalid weatherDailyDays'],
+    [{ weatherDailyDays: 7.5 }, 'Invalid weatherDailyDays'],
+    [{ weatherDailyDays: '7' }, 'Invalid weatherDailyDays'],
   ])('rejects %j with %s', async (patch, message) => {
     const { status, body } = await api('/settings', { method: 'PATCH', body: JSON.stringify(patch) });
     expect(status).toBe(400);

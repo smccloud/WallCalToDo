@@ -1113,11 +1113,17 @@ body {
 }
 
 .weather-view__hours {
-  grid-template-columns: repeat(24, minmax(0, 1fr));
+  /* One column per hour actually rendered, not per hour asked for -- see the
+     note at the <ol> in WeatherView.jsx. Falls back to 24 so the strip still
+     has its columns if this ever renders without the custom property. */
+  grid-template-columns: repeat(var(--hourly-count, 24), minmax(0, 1fr));
 }
 
 .weather-view__days {
-  grid-template-columns: repeat(10, minmax(0, 1fr));
+  /* As with the hourly strip above: one column per day actually rendered,
+     with the design's own 10 as the fallback if the custom property is
+     missing. */
+  grid-template-columns: repeat(var(--daily-count, 10), minmax(0, 1fr));
 }
 
 .weather-view__hour,
@@ -1129,10 +1135,11 @@ body {
   gap: 0.15em;
   min-width: 0;
   text-align: center;
-  /* Hairlines between columns rather than gaps: 23 of them close together
-     read as one continuous strip of forecast rather than 24 separate facts,
-     which is what this is. Skipped on the first, so the left edge aligns
-     with the label above it instead of floating in from nowhere. */
+  /* Hairlines between columns rather than gaps: however many there are, close
+     together they read as one continuous strip of forecast rather than a row
+     of separate facts, which is what this is. Skipped on the first, so the
+     left edge aligns with the label above it instead of floating in from
+     nowhere. */
   border-left: 1px solid var(--color-border);
 }
 
@@ -1235,8 +1242,8 @@ body {
   font-size: clamp(0.65rem, 1vw, 1.1rem);
   color: var(--color-text-muted);
   /* Reserves the line even when the span is empty, which is the point: the
-     component always renders the element (see WeatherView.jsx) so that all
-     24 cells are the same height and the temperature row lines up. */
+     component always renders the element (see WeatherView.jsx) so that every
+     cell in the row is the same height and the temperature row lines up. */
   min-height: 1.3em;
 }
 

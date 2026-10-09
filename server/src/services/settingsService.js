@@ -52,21 +52,58 @@ const DEFAULT_SETTINGS = {
   // behavior is the first item starts selected.
   sunriseOffset: { minutes: 0, direction: 'before' },
   sunsetOffset: { minutes: 0, direction: 'before' },
+  weatherEnabled: false,
   // How often the display hands the whole screen over to the weather view
   // (see frontend/src/components/WeatherView.jsx), and for how long it keeps
-  // it. 0 is "never", and is the default on purpose: this changes what the
-  // wall shows between the calendar and something else, which is a thing to
-  // opt into rather than have happen to someone who upgrades. The duration
-  // exists because an interval alone doesn't define a rotation — without it
-  // the view would either flash past unreadably or never give the calendar
-  // back — and 60s is long enough to read 24 hours of forecast from across a
-  // room and short enough not to feel like the wall has changed its mind.
-  weatherIntervalMinutes: 0,
+  // it. weatherEnabled is the only thing that decides whether the view appears
+  // at all; these two say how often and how long *once it's on*, which is why
+  // 0 minutes no longer means "never" to anybody (the companion app's "Off"
+  // option is the switch now) but stays accepted here so an API client that
+  // still sends it isn't broken.
+  //
+  // 15 rather than 0 is the first interval the companion app offers, so that
+  // turning the view on can't leave it enabled with nothing to repeat on.
+  weatherIntervalMinutes: 15,
   weatherDurationSeconds: 60,
+  // How many hours of hourly forecast the weather view draws across the top
+  // of the wall, 1-24. Its own setting rather than a consequence of the
+  // interval/duration above because it answers a different question: those
+  // two are about *when* the view appears and for how long, this is about
+  // what it says while it's up. 24 is what the view has always shown, and
+  // 24 is also the most the cache can be trusted to supply -- the server
+  // fetches 48 hours so the window is never short even when the reading
+  // underneath it is up to an hour old (see HOURLY_FETCH_HOURS in
+  // weatherService.js).
+  weatherHourlyHours: 24,
+  // How many days of daily forecast the weather view draws underneath the
+  // hours, 5-10. Same reasoning as the hourly count above: the daily strip is
+  // the other half of the view, and someone who plans a week out doesn't
+  // want five columns of it. 10 is what the view has always shown, and 10 is
+  // every day the server fetches (see DAILY_FETCH_DAYS in weatherService.js).
+  weatherDailyDays: 10,
 };
 
 function loadSettings() {
-  return { ...DEFAULT_SETTINGS, ...readJson(SETTINGS_FILE, {}) };
+  const saved = readJson(SETTINGS_FILE, {});
+  const settings = { ...DEFAULT_SETTINGS, ...saved };
+
+  // An install saved before the weather view had its own on/off switch has no
+  // weatherEnabled key at all, and back then "off" was expressed as an
+  // interval of 0. Derive the switch from that rather than taking the
+  // default: the alternative silently switches the weather view off for
+  // anyone who had turned it on, which is the kind of thing that gets
+  // reported as "the update broke my wall".
+  //
+  // Read from `saved`, not from the merged settings, for two reasons. The
+  // merge has already filled the gap with the default we're trying not to
+  // apply; and the *default* interval is a real positive number now, so
+  // reading the merged one would derive "on" for a fresh install that has
+  // never asked for a weather view in its life.
+  if (!('weatherEnabled' in saved)) {
+    settings.weatherEnabled = Number(saved.weatherIntervalMinutes) > 0;
+  }
+
+  return settings;
 }
 
 // Shifts a sun-event time by the configured offset -- 'before' subtracts,

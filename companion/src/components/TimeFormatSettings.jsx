@@ -59,7 +59,7 @@ export default function TimeFormatSettings({ settings, settingsLoading, onSetTim
           together — a blinking colon with no seconds to blink against looks
           like a rendering fault — but stays its own switch, since blinking
           the colon on a plain "5:21 pm" is a perfectly good clock. */}
-      <div className="setting-toggle setting-toggle--tight">
+      <div className="setting-toggle setting-toggle--flush">
         <span className="setting-toggle__label">Flash the divider</span>
         <label className="switch">
           <input

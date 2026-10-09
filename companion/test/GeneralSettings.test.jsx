@@ -18,8 +18,11 @@ const SETTINGS = {
   tempUnit: 'F',
   windUnit: 'mph',
   precipUnit: 'inch',
+  weatherEnabled: true,
   weatherIntervalMinutes: 60,
   weatherDurationSeconds: 60,
+  weatherHourlyHours: 24,
+  weatherDailyDays: 10,
 };
 
 const HANDLER_NAMES = [
@@ -31,8 +34,13 @@ const HANDLER_NAMES = [
   'onSetWindUnit',
   'onSetPrecipUnit',
   'onSetTimeFormat',
+  'onSetClockShowSeconds',
+  'onSetClockFlashDivider',
+  'onSetWeatherEnabled',
   'onSetWeatherInterval',
   'onSetWeatherDuration',
+  'onSetWeatherHourlyHours',
+  'onSetWeatherDailyDays',
   'onSaveLocation',
   'onError',
 ];

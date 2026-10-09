@@ -653,15 +653,22 @@ body {
   gap: 0.5rem;
 }
 
-.sun-offset__select {
-  flex: 1;
-  min-width: 0;
+/* Dropdown chrome, shared by every <select> in the app (the sun-offset
+   amount, the weather view's hourly count). Split from the layout each
+   caller needs so a third dropdown doesn't copy the border and colors too. */
+.select {
   border: 1px solid var(--color-input-border);
   border-radius: 6px;
   padding: 0.4rem 0.5rem;
   font-size: 0.85rem;
   background: var(--color-card-bg);
   color: var(--color-text);
+}
+
+.sun-offset__select {
+  /* Sizing only -- the look is .select's. */
+  flex: 1;
+  min-width: 0;
 }
 
 .segmented--compact {
@@ -736,11 +743,12 @@ body {
   margin-top: 0.75rem;
 }
 
-/* A sub-toggle row: a label on the left, a switch on the right. Shared by
-   every toggle that configures a section above it rather than being a
-   section in its own right — Theme's "Advanced" and Time format's "Show
-   seconds". No divider of its own, since the parent section (.theme-settings
-   / .time-format-settings) already has one above it. */
+/* A toggle row: a label on the left, a switch on the right. Shared by every
+   toggle that configures a section above it rather than being a section in its
+   own right — Theme's "Advanced", Time format's "Show seconds" and "Flash the
+   divider", the weather view's own on/off. No divider of its own, since the
+   parent section (.theme-settings / .time-format-settings /
+   .weather-view-settings) already has one above it. */
 .setting-toggle {
   display: flex;
   align-items: center;
@@ -759,11 +767,12 @@ body {
   color: var(--color-text-muted);
 }
 
-/* Two sub-toggles that belong together (Time format's "Show seconds" and
-   "Flash the divider") read as one pair rather than as two sections: drops
-   the padding-top that reads as a divider and pulls the gap under the
-   preceding hint text down to the usual paragraph spacing. */
-.setting-toggle--tight {
+/* Flush against whatever it follows: either a section label directly above it
+   (the weather view's switch), or a hint paragraph belonging to the toggle
+   before it (Time format's second toggle). Drops the padding-top that reads
+   as a divider without drawing one, and pulls the gap up to ordinary
+   paragraph spacing. */
+.setting-toggle--flush {
   margin-top: 0.75rem;
   padding-top: 0;
 }

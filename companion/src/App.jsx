@@ -228,13 +228,22 @@ export default function App() {
   // Whether the clock's colons blink. Same scope as the above — the wall's
   // own clock, and nothing else on the display.
   const setClockFlashDivider = (clockFlashDivider) => patchSetting({ clockFlashDivider });
+  // The weather view's own on/off — the only thing that decides whether the
+  // display ever leaves the calendar for a forecast. Takes an optional second
+  // setting so enabling can also give the view an interval to repeat on, for
+  // installs whose saved interval is still the 0 that used to mean "off"
+  // (see loadSettings in settingsService.js for the migration).
+  const setWeatherEnabled = (weatherEnabled, also = {}) =>
+    patchSetting({ weatherEnabled, ...also });
   // How often the full-screen weather view takes over the display, in
-  // minutes, and how long it holds it in seconds. 0 minutes means it never
-  // appears; the wall works out which window it's in from the clock (see
-  // isWeatherTime in the frontend's App.jsx), so nothing is sent to displays
-  // beyond the settings themselves.
+  // minutes, and how long it holds it in seconds.
   const setWeatherInterval = (weatherIntervalMinutes) => patchSetting({ weatherIntervalMinutes });
   const setWeatherDuration = (weatherDurationSeconds) => patchSetting({ weatherDurationSeconds });
+  // How many hours of hourly forecast the weather view draws, 1-24, and how
+  // many days, 5-10. Content rather than timing, so they're their own
+  // settings.
+  const setWeatherHourlyHours = (weatherHourlyHours) => patchSetting({ weatherHourlyHours });
+  const setWeatherDailyDays = (weatherDailyDays) => patchSetting({ weatherDailyDays });
 
   // Unlike the settings above, a location save isn't optimistic (there's no
   // sensible "local" value to show before the server geocodes/validates
@@ -492,6 +501,9 @@ export default function App() {
         onSetClockFlashDivider={setClockFlashDivider}
         onSetWeatherInterval={setWeatherInterval}
         onSetWeatherDuration={setWeatherDuration}
+        onSetWeatherHourlyHours={setWeatherHourlyHours}
+        onSetWeatherDailyDays={setWeatherDailyDays}
+        onSetWeatherEnabled={setWeatherEnabled}
         onSaveLocation={saveLocation}
         onError={setError}
       />

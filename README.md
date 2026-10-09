@@ -137,9 +137,10 @@ It ticks once a second, and that's the only thing on the display that does.
 The clock is its own component (`WallClock.jsx`) with its own timer rather than
 a time read off whichever view happens to be up, because both views that show
 one keep a clock of their own for unrelated reasons — the header for the
-month and year, the weather view to trim the forecast to the next 24 hours —
-and a shared tick would mean redrawing 34 forecast columns sixty times a minute
-to redraw a string. Isolated, a tick costs one `<span>`.
+month and year, the weather view to trim its forecast strips to the hours and
+days that haven't gone by — and a shared tick would mean redrawing every
+forecast column sixty times a minute to redraw a string. Isolated, a tick
+costs one `<span>`.
 
 Every *other* time on the display is deliberately left at minutes — an
 agenda entry, an event pill, the hour-by-hour forecast, the sunrise and sunset
@@ -339,13 +340,25 @@ corner of their panel:
 ## Weather view
 
 The display can hand the whole screen over to a weather view for a while and
-then give the calendar back — the next **24 hours** broken out hour by hour
-across the top, the next **10 days** broken out day by day underneath, and
-today's conditions, wind and clock across the top. How often that happens is
-set in the companion app (**Weather view**): an interval — off, every 15
-minutes, half an hour, hourly, 2, 3 or 6 hours — and how long each appearance
-lasts, from 30 seconds to 5 minutes. Off is the default, since it's a change
-to what the wall shows between the calendar and something else.
+then give the calendar back — a run of **hours** broken out hour by hour
+across the top, a run of **days** broken out day by day underneath, and
+today's conditions, wind and clock across the top. Everything about it is set
+in the companion app (**Weather view**):
+
+- **Show the weather view** — the on/off switch, off by default, since this
+  changes what the wall shows between the calendar and something else. While
+  it's off that's the only control shown: everything below configures a view
+  that never comes up, and a card full of numbers that do nothing is worse
+  than a card with one switch on it. The settings underneath are remembered
+  while it's off, so switching back on restores them.
+- **How often** — every 15 minutes, half an hour, hourly, 2, 3 or 6 hours.
+- **For how long** — from 30 seconds to 5 minutes.
+- **Hours of forecast** — 1 to 24, in hour increments (24 by default).
+- **Days of forecast** — 5 to 10, in day increments (10 by default).
+
+The two strip counts are capped by what the backend fetches: 48 hours and 10
+days, with the extra hours there so the hourly strip is never short when the
+cached reading is up to an hour old.
 
 The window is measured against the clock rather than counted down by a timer,
 which is what makes it work on a display nobody is looking after: no state to
@@ -361,8 +374,8 @@ passing through the background colour in between rather than through the
 other view. Both are dense grids of text, and dissolving one into the other
 would leave every row of both legible at once, which from across a room reads
 as a glitch. Sequential also means only one view is ever mounted, and no frame
-of the display is spent rendering the calendar grid and 34 forecast columns at
-the same time. On the way back it reads as the display blinking rather than
+of the display is spent rendering the calendar grid and both forecast strips
+at the same time. On the way back it reads as the display blinking rather than
 switching; on the way out the weather's own intro starts as it fades up, so the
 number is counting as the view arrives. A swap that gets called off partway —
 the reading briefly arriving empty, say — leaves the wall settled on the view it
@@ -630,10 +643,11 @@ all-day events Google really hands over, tagged the same way.)*
   are disabled with an explanatory notice until a location is set, since every
   reading comes from that location. Defaults are the US ones throughout
   (°F, mph, inches).
-- **Weather view** — how often the full-screen forecast takes over the
-  display, and for how long; see [Weather view](#weather-view). The interval
-  is timed from the clock, not from when you turned it on, so an hourly
-  setting appears on the hour.
+- **Weather view** — whether the full-screen forecast appears at all, how
+  often it takes over the display, for how long, and how many hours and days
+  it draws; see [Weather view](#weather-view). The interval is timed from the
+  clock, not from when you turned it on, so an hourly setting appears on the
+  hour.
 
 Every change here pushes to the wall display immediately over the same
 WebSocket connection used for calendar/to-do updates — no refresh needed

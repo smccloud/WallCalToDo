@@ -22,6 +22,12 @@ function effectiveTheme(settings, now) {
 
 // Is the wall supposed to be showing the weather right now?
 //
+// weatherEnabled is the only gate: the companion app's on/off switch decides
+// whether the view appears at all, so the interval below is purely "how often
+// once it's on". (An interval of 0 still suppresses the view as well, because
+// the settings API still accepts it for older clients — two ways to say off
+// is harmless, one of them being a switch people can find.)
+//
 // Measured against the clock rather than counted down by a timer, which is
 // what makes this work at all on a display nobody is looking after: no state
 // to keep, nothing to drift, nothing to reset, and a display that restarts
@@ -35,6 +41,7 @@ function effectiveTheme(settings, now) {
 // matters more than it sounds for something on a wall in a room someone
 // walks through.
 function isWeatherTime(settings, now) {
+  if (!settings?.weatherEnabled) return false;
   const intervalMs = Number(settings?.weatherIntervalMinutes || 0) * 60_000;
   if (intervalMs <= 0) return false;
   const durationMs = Number(settings?.weatherDurationSeconds || 0) * 1000;
@@ -66,7 +73,10 @@ export default function App() {
   // weather is up. The view keeps its own clock for the time readout.
   const [weatherSince, setWeatherSince] = useState(null);
   useEffect(() => {
-    if (!settings?.weatherIntervalMinutes) {
+    // Keyed on the switch rather than the interval: turning the weather view
+    // off has to bring it down even though its interval is still perfectly
+    // good, and gating on the interval would have kept it up.
+    if (!settings?.weatherEnabled) {
       setWeatherSince(null);
       return;
     }
@@ -78,7 +88,7 @@ export default function App() {
     check();
     const timer = setInterval(check, WEATHER_CHECK_MS);
     return () => clearInterval(timer);
-  }, [settings?.weatherIntervalMinutes, settings?.weatherDurationSeconds]);
+  }, [settings?.weatherEnabled, settings?.weatherIntervalMinutes, settings?.weatherDurationSeconds]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = effectiveTheme(settings, now);

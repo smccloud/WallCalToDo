@@ -29,7 +29,7 @@ export default function SunOffsetRow({ title, time, offset, disabled, onChange }
       </p>
       <div className="sun-offset__controls">
         <select
-          className="sun-offset__select"
+          className="select sun-offset__select"
           value={offset.minutes}
           disabled={disabled}
           onChange={(e) => onChange({ ...offset, minutes: Number(e.target.value) })}
