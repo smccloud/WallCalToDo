@@ -86,14 +86,14 @@ export default function GoogleAccounts({
               {account.calendars.map((cal) => (
                 <li key={cal.id} className="calendar-row">
                   <span className="calendar-row__swatch" style={{ background: cal.backgroundColor || '#888' }} />
-                   <span className="calendar-row__label">{`${cal.summary}${cal.accessLevel === 'reader' ? ' (shared)' : ''}`}</span>
-                   <label className="switch">
-                    <input
-                      type="checkbox"
-                      checked={cal.enabled}
-                      disabled={cal.accessLevel !== 'owner'}
-                      onChange={(e) => onToggleCalendar(account.id, cal.id, e.target.checked)}
-                    />
+                    <span className="calendar-row__label">{`${cal.summary}${cal.accessLevel === 'reader' ? ' (shared)' : ''}`}</span>
+                    <label className="switch">
+                      <input
+                        type="checkbox"
+                        checked={cal.enabled}
+                        disabled={false}
+                        onChange={(e) => onToggleCalendar(account.id, cal.id, e.target.checked)}
+                      />
                     <span className="switch__track" />
                   </label>
                 </li>
