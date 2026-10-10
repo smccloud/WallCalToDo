@@ -65,7 +65,7 @@ describe('GeneralSettings', () => {
       'Theme',
       'Time format',
       'Units',
-      'Show Microsoft section',
+      'Show Microsoft Accounts',
       'Weather view',
     ]) {
       expect(getByText(heading)).toBeDefined();
@@ -85,7 +85,7 @@ describe('GeneralSettings', () => {
   it('places the Microsoft section toggle just above the weather view', () => {
     const { getByText } = renderCard();
 
-    const msToggle = getByText('Show Microsoft section');
+    const msToggle = getByText('Show Microsoft Accounts');
     const weatherView = getByText('Weather view');
 
     // DOCUMENT_POSITION_FOLLOWING === 4 — the weather view comes after it.

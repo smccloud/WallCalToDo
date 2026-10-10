@@ -81,7 +81,7 @@ export default function GeneralSettings({
       />
 
       <div className="microsoft-toggle">
-        <span className="settings-label">Show Microsoft section</span>
+        <span className="settings-label">Show Microsoft Accounts</span>
         <label className="switch">
           <input
             type="checkbox"
