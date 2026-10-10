@@ -374,16 +374,16 @@ export default function App() {
     }
   }
 
-  async function disconnectAccount(accountId, email) {
-    if (!window.confirm(`Disconnect ${email}? Its events will disappear from the display.`)) return;
-    setBusyAccountId(accountId);
+  async function setCalendarColor(accountId, calendarId, background) {
     try {
-      await api(`/accounts/${accountId}`, { method: 'DELETE' });
+      await api(`/accounts/${accountId}/calendars/${encodeURIComponent(calendarId)}/color`, {
+        method: 'PATCH',
+        body: JSON.stringify({ background }),
+      });
       await loadAccounts();
     } catch (err) {
       setError(err.message);
-    } finally {
-      setBusyAccountId(null);
+      loadAccounts();
     }
   }
 
@@ -536,6 +536,7 @@ export default function App() {
         onToggleTaskList={toggleTaskList}
         onRefreshTaskLists={refreshTaskLists}
         onDisconnectAccount={disconnectAccount}
+        onSetCalendarColor={setCalendarColor}
         showSection={settings?.googleEnabled ?? true}
       />
 

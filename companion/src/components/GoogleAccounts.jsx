@@ -19,6 +19,7 @@ export default function GoogleAccounts({
   onRefreshTaskLists,
   onRefreshAccount,
   onDisconnectAccount,
+  onSetCalendarColor,
   showSection,
 }) {
   const configured = Boolean(googleCredentials?.configured);
@@ -96,6 +97,15 @@ export default function GoogleAccounts({
                 <li key={cal.id} className="calendar-row">
                   <span className="calendar-row__swatch" style={{ background: cal.backgroundColor || '#888' }} />
                     <span className="calendar-row__label">{`${cal.summary}${cal.accessLevel === 'reader' ? ' (shared)' : ''}`}</span>
+                    {onSetCalendarColor && !cal.isCustom && (
+                      <input
+                        type="color"
+                        className="calendar-row__color"
+                        value={cal.backgroundColor || '#888888'}
+                        onChange={(e) => onSetCalendarColor(account.id, cal.id, e.target.value)}
+                        aria-label="Change calendar color"
+                      />
+                    )}
                     <label className="switch">
                       <input
                         type="checkbox"
