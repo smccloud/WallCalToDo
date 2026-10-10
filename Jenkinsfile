@@ -69,8 +69,6 @@ pipeline {
     post {
         always {
             junit allowEmptyResults: true, testResults: '*/junit.xml'
-        }
-        always {
             // Sends an email regardless of success or failure
             mail to: 'shaun.thomas.mccloud@gmail.com',
                  subject: "Jenkins Build ${currentBuild.fullDisplayName} Finished",
