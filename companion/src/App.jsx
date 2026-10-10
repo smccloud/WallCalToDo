@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import GeneralSettings from './components/GeneralSettings.jsx';
 import GoogleAccounts from './components/GoogleAccounts.jsx';
@@ -374,17 +374,52 @@ export default function App() {
     }
   }
 
-  async function setCalendarColor(accountId, calendarId, background) {
-    try {
-      await api(`/accounts/${accountId}/calendars/${encodeURIComponent(calendarId)}/color`, {
+  // A native color picker fires continuously while the user drags inside it,
+  // so the optimistic swatch moves at once but the request is held until the
+  // choice settles — one write per pick, not one per pixel of drag. Keyed by
+  // calendar so two rows being edited don't cancel each other.
+  const colorTimers = useRef(new Map());
+  useEffect(() => () => colorTimers.current.forEach(clearTimeout), []);
+
+  function saveColor(key, run) {
+    const timers = colorTimers.current;
+    clearTimeout(timers.get(key));
+    timers.set(
+      key,
+      setTimeout(() => {
+        timers.delete(key);
+        run().catch((err) => {
+          setError(err.message);
+          loadAccounts();
+        });
+      }, 250)
+    );
+  }
+
+  // A calendar's color, chosen in the companion app rather than Google. The
+  // optimistic update keeps the swatch and picker in step while the request
+  // is in flight; an empty value means "reset", reverting to Google's color.
+  function setCalendarColor(accountId, calendarId, background) {
+    setAccounts((prev) =>
+      prev.map((account) =>
+        account.id !== accountId
+          ? account
+          : {
+              ...account,
+              calendars: account.calendars.map((cal) =>
+                cal.id === calendarId
+                  ? { ...cal, customColor: background || null, color: background || cal.backgroundColor || null }
+                  : cal
+              ),
+            }
+      )
+    );
+    saveColor(`google:${accountId}:${calendarId}`, () =>
+      api(`/accounts/${accountId}/calendars/${encodeURIComponent(calendarId)}/color`, {
         method: 'PATCH',
         body: JSON.stringify({ background }),
-      });
-      await loadAccounts();
-    } catch (err) {
-      setError(err.message);
-      loadAccounts();
-    }
+      })
+    );
   }
 
   async function toggleTodoList(listId, enabled) {
@@ -417,6 +452,21 @@ export default function App() {
       setError(err.message);
       loadAccounts();
     }
+  }
+
+  // Microsoft's color override, the same idea as the Google setter above: an
+  // optimistic customColor keeps the swatch in step, and an empty value resets
+  // to the color derived from Graph.
+  function setMsCalendarColor(calendarId, color) {
+    setMsCalendars((prev) =>
+      prev.map((cal) => (cal.id === calendarId ? { ...cal, customColor: color || null } : cal))
+    );
+    saveColor(`ms:${calendarId}`, () =>
+      api(`/ms/calendars/${encodeURIComponent(calendarId)}/color`, {
+        method: 'PATCH',
+        body: JSON.stringify({ color }),
+      })
+    );
   }
 
   // Microsoft doesn't push calendar or list changes either, so these are how
@@ -552,6 +602,7 @@ export default function App() {
         clientAddress={authAccess?.clientAddress}
         onSaveCredentials={(creds, extra) => saveCredentials('ms', creds, extra)}
         onToggleCalendar={toggleMsCalendar}
+        onSetCalendarColor={setMsCalendarColor}
         onRefreshCalendars={refreshMsCalendars}
         onToggleTodoList={toggleTodoList}
         onRefreshTodoLists={refreshTodoLists}

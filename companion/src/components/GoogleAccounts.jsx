@@ -95,24 +95,40 @@ export default function GoogleAccounts({
             <ul className="calendar-list">
               {account.calendars.map((cal) => (
                 <li key={cal.id} className="calendar-row">
-                  <span className="calendar-row__swatch" style={{ background: cal.backgroundColor || '#888' }} />
-                    <span className="calendar-row__label">{`${cal.summary}${cal.accessLevel === 'reader' ? ' (shared)' : ''}`}</span>
-                    {onSetCalendarColor && !cal.isCustom && (
+                  <span className="calendar-row__swatch" style={{ background: cal.color || '#888' }} />
+                  <span className="calendar-row__label">{`${cal.summary}${cal.accessLevel === 'reader' ? ' (shared)' : ''}`}</span>
+                  {/* The color the wall will actually use — the user's own
+                      choice when set, Google's otherwise. Choosing writes an
+                      override that survives a calendar refresh; Reset drops
+                      it again. */}
+                  {onSetCalendarColor && (
+                    <span className="calendar-row__color">
                       <input
                         type="color"
-                        className="calendar-row__color"
-                        value={cal.backgroundColor || '#888888'}
+                        value={cal.color || '#888888'}
                         onChange={(e) => onSetCalendarColor(account.id, cal.id, e.target.value)}
-                        aria-label="Change calendar color"
+                        aria-label={`Color for ${cal.summary}`}
+                        title="Customize this calendar's color"
                       />
-                    )}
-                    <label className="switch">
-                      <input
-                        type="checkbox"
-                        checked={cal.enabled}
-                        disabled={false}
-                        onChange={(e) => onToggleCalendar(account.id, cal.id, e.target.checked)}
-                      />
+                      {cal.customColor && (
+                        <button
+                          type="button"
+                          className="calendar-row__color-reset"
+                          onClick={() => onSetCalendarColor(account.id, cal.id, '')}
+                          title="Reset to Google's color"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </span>
+                  )}
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={cal.enabled}
+                      disabled={false}
+                      onChange={(e) => onToggleCalendar(account.id, cal.id, e.target.checked)}
+                    />
                     <span className="switch__track" />
                   </label>
                 </li>

@@ -71,14 +71,20 @@ export function getAuthUrl(setId) {
 }
 
 // List of { id, email, credentialSet: { id, name }, calendars: [{ id,
-// summary, backgroundColor, enabled }] }. Tokens are intentionally omitted —
-// this is what the companion app reads. `credentialSet` is which of the
-// deployment's credentials sets this account's tokens were minted under.
+// summary, backgroundColor, color, customColor, enabled }] }. Tokens are
+// intentionally omitted — this is what the companion app reads.
+// `credentialSet` is which of the deployment's credentials sets this
+// account's tokens were minted under. `color` is the one the display should
+// actually use: the user's own choice when there is one, Google's otherwise.
 export function listAccounts() {
   return Object.values(loadAccounts()).map(({ id, email, calendars, credentialSetId }) => ({
     id,
     email,
-    calendars: (calendars || []).map((cal) => ({ ...cal, accessLevel: cal.accessLevel || 'owner' })),
+    calendars: (calendars || []).map((cal) => ({
+      ...cal,
+      accessLevel: cal.accessLevel || 'owner',
+      color: cal.customColor || cal.backgroundColor || null,
+    })),
     credentialSet: { id: credentialSetId, name: getGoogleSetLabel(credentialSetId) },
   }));
 }
@@ -131,13 +137,20 @@ export async function refreshCalendarList(accountId) {
   } while (pageToken);
 
   const existingById = new Map((account.calendars || []).map((cal) => [cal.id, cal]));
-  account.calendars = items.map((item) => ({
-    id: item.id,
-    summary: item.summaryOverride || item.summary || item.id,
-    backgroundColor: item.backgroundColor || null,
-    accessLevel: item.accessRole === 'owner' ? 'owner' : 'reader',
-    enabled: existingById.get(item.id)?.enabled ?? !item.hidden,
-  }));
+  account.calendars = items.map((item) => {
+    const existing = existingById.get(item.id);
+    return {
+      id: item.id,
+      summary: item.summaryOverride || item.summary || item.id,
+      backgroundColor: item.backgroundColor || null,
+      accessLevel: item.accessRole === 'owner' ? 'owner' : 'reader',
+      enabled: existing?.enabled ?? !item.hidden,
+      // A user-chosen color lives on the record alongside the color Google
+      // reports, so a refresh (which rebuilds the list from Google's own
+      // response) doesn't silently throw the choice away.
+      ...(existing?.customColor ? { customColor: existing.customColor } : {}),
+    };
+  });
 
   saveAccounts(accounts);
   return account.calendars;
@@ -194,7 +207,11 @@ export function setCalendarEnabled(accountId, calendarId, enabled) {
   saveAccounts(accounts);
 }
 
-export function setCalendarColor(accountId, calendarId, background, isCustom = true) {
+// Stores (or clears) the user's own color for a calendar. Passing an empty
+// value drops the override, falling back to the color Google reports. Returns
+// the color the calendar should now display, so the caller can recolor the
+// cached events without re-reading the account.
+export function setCalendarColor(accountId, calendarId, color) {
   const accounts = loadAccounts();
   const account = accounts[accountId];
   if (!account) throw new Error(`Unknown Google account: ${accountId}`);
@@ -202,9 +219,10 @@ export function setCalendarColor(accountId, calendarId, background, isCustom = t
   const calendar = account.calendars.find((cal) => cal.id === calendarId);
   if (!calendar) throw new Error(`Unknown calendar ${calendarId} for account ${accountId}`);
 
-  calendar.backgroundColor = background;
-  calendar.isCustom = isCustom;
+  if (color) calendar.customColor = color;
+  else delete calendar.customColor;
   saveAccounts(accounts);
+  return calendar.customColor || calendar.backgroundColor || null;
 }
 
 // Returns an OAuth2 client hydrated with one account's saved tokens.

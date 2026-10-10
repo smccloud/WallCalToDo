@@ -301,3 +301,41 @@ describe('misbehaved accounts calls', () => {
     expect(status).toBe(400);
   });
 });
+
+describe('PATCH calendar color', () => {
+  it('rejects a malformed Google color before touching the store', async () => {
+    const { status, body } = await api('/accounts/x/calendars/y/color', {
+      method: 'PATCH',
+      body: JSON.stringify({ background: 'not-a-color' }),
+    });
+    expect(status).toBe(400);
+    expect(body.error).toMatch(/invalid color/i);
+  });
+
+  it('rejects a malformed Microsoft color before touching the store', async () => {
+    const { status, body } = await api('/ms/calendars/y/color', {
+      method: 'PATCH',
+      body: JSON.stringify({ color: 'red' }),
+    });
+    expect(status).toBe(400);
+    expect(body.error).toMatch(/invalid color/i);
+  });
+
+  it('400s a valid color for an unknown Google calendar', async () => {
+    const { status, body } = await api('/accounts/nope/calendars/y/color', {
+      method: 'PATCH',
+      body: JSON.stringify({ background: '#123456' }),
+    });
+    expect(status).toBe(400);
+    expect(body.error).toMatch(/unknown/i);
+  });
+
+  it('400s a valid color for an unknown Microsoft calendar', async () => {
+    const { status, body } = await api('/ms/calendars/nope/color', {
+      method: 'PATCH',
+      body: JSON.stringify({ color: '#123456' }),
+    });
+    expect(status).toBe(400);
+    expect(body.error).toMatch(/unknown/i);
+  });
+});

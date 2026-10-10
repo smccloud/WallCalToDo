@@ -229,7 +229,7 @@ export async function pollCalendar() {
       const context = {
         calendarKey: `google:calendar::${key}`,
         calendarLabel: cal.summary,
-        color: cal.backgroundColor,
+        color: cal.customColor || cal.backgroundColor,
         eventColors,
         calendarOrder: calendarOrder++,
       };
@@ -269,6 +269,29 @@ export function dropAccountCache(accountId) {
   }
   saveEvents(cache);
   saveSync(sync);
+}
+
+// Repaints one calendar's already-cached events after its color is changed,
+// so the wall updates immediately. An incremental sync only re-normalizes
+// events that actually changed upstream, so without this a new color would
+// sit in the account record while every cached pill kept the old one until
+// that calendar happened to see an event move. Events carrying a per-event
+// color override keep it; only the calendar's own color — and the fallback
+// `color` where it wasn't overridden — moves. Returns whether anything was
+// cached to repaint.
+export function recolorCalendar(accountId, calendarId, color) {
+  const key = cacheKey(accountId, calendarId);
+  const cache = loadEvents();
+  const entries = cache[key];
+  if (!entries) return false;
+  for (const event of Object.values(entries)) {
+    if (!event) continue;
+    const overridden = Boolean(event.color) && event.color !== event.calendarColor;
+    event.calendarColor = color;
+    if (!overridden) event.color = color;
+  }
+  saveEvents(cache);
+  return true;
 }
 
 // Every event on this account's enabled Google calendars, straight out of

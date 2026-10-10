@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import * as googleAuth from '../auth/googleAuth.js';
 import * as microsoftAuth from '../auth/microsoftAuth.js';
-import { pollCalendar, dropAccountCache } from '../services/calendarService.js';
+import { pollCalendar, dropAccountCache, recolorCalendar as recolorGoogleCalendar } from '../services/calendarService.js';
 import {
   pollMsCalendar,
   dropCalendarCache,
   dropAllCalendarsCache,
+  recolorCalendar as recolorMsCalendar,
 } from '../services/msCalendarService.js';
 import { getCachedTasks, dropListCache, dropAllListsCache } from '../services/todoService.js';
 import {
@@ -19,6 +20,17 @@ import { clientAddress, isTrustedRequest } from '../services/trustedNetworks.js'
 import { broadcast, broadcastCalendar } from '../ws/hub.js';
 
 export const accountsRouter = Router();
+
+// A calendar color comes from a native <input type="color">, so accept only a
+// plain #rgb/#rrggbb. An empty value is meaningful — it clears the override,
+// falling back to the provider's own color — anything else malformed is
+// rejected before it reaches the store.
+const HEX_COLOR = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+function parseColor(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || !HEX_COLOR.test(value)) throw new Error('Invalid color');
+  return value;
+}
 
 // Both calendar providers in one response, so the companion app's single
 // load covers everything. Microsoft's half is a single account rather than a
@@ -153,6 +165,22 @@ accountsRouter.patch('/ms/calendars/:calendarId', (req, res) => {
   }
 });
 
+// Updating a Microsoft calendar's color. Like Google's route above, the
+// cached events are repainted in place and the display rebroadcast, rather
+// than waiting on the poll's own ten-minute throttle to pick the new color up.
+accountsRouter.patch('/ms/calendars/:calendarId/color', (req, res) => {
+  try {
+    const { calendarId } = req.params;
+    const color = parseColor(req.body?.color ?? req.body?.background);
+    const effective = microsoftAuth.setCalendarColor(calendarId, color);
+    recolorMsCalendar(calendarId, effective);
+    broadcastCalendar();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 accountsRouter.delete('/accounts/:accountId', (req, res) => {
   googleAuth.removeAccount(req.params.accountId);
   dropAccountCache(req.params.accountId);
@@ -172,18 +200,16 @@ accountsRouter.patch('/accounts/:accountId/calendars/:calendarId', (req, res) =>
   }
 });
 
-// Updating a calendar's color — only for manually-created calendars where this is allowed.
-accountsRouter.patch('/accounts/:accountId/calendars/:calendarId/color', async (req, res) => {
+// Updating a calendar's color. The cached events are repainted in place and
+// the display is rebroadcast, so the new color shows on the wall right away —
+// a poll wouldn't reliably do it, since an incremental sync only revisits
+// events that changed upstream.
+accountsRouter.patch('/accounts/:accountId/calendars/:calendarId/color', (req, res) => {
   try {
-    const accountId = req.params.accountId;
-    const calendarId = req.params.calendarId;
-    const background = req.body?.background;
-
-    if (!background) throw new Error('Missing color');
-
-    googleAuth.setCalendarColor(accountId, calendarId, background);
-    // Force a repoll to cache the updated colors with the new background
-    await pollCalendar();
+    const { accountId, calendarId } = req.params;
+    const color = parseColor(req.body?.background);
+    const effective = googleAuth.setCalendarColor(accountId, calendarId, color);
+    recolorGoogleCalendar(accountId, calendarId, effective);
     broadcastCalendar();
     res.json({ ok: true });
   } catch (err) {

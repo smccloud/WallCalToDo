@@ -25,6 +25,7 @@ const {
   getCachedGridEvents,
   mergeSimilarEvents,
   pollCalendar,
+  recolorCalendar,
   resetSyncTokens,
 } = await import('../src/services/calendarService.js');
 
@@ -119,6 +120,35 @@ describe('getCachedEvents', () => {
     expect(getCachedGridEvents()).toEqual([]);
     // Restore the default so the rest of this file's tests still see events.
     fs.rmSync(dataPath('settings.json'), { force: true });
+  });
+});
+
+describe('recolorCalendar', () => {
+  const COLORED = (id, calendarColor, color) => ({
+    ...EVENT(id, '2026-06-01T10:00:00'),
+    calendarColor,
+    color,
+  });
+
+  it('repaints a calendar’s cached events, leaving per-event overrides alone', () => {
+    writeJson(EVENTS_FILE, {
+      'acct-1::cal-a': {
+        plain: COLORED('plain', '#111111', '#111111'),
+        overridden: COLORED('overridden', '#111111', '#ff0000'),
+      },
+    });
+
+    expect(recolorCalendar('acct-1', 'cal-a', '#00ff00')).toBe(true);
+
+    const events = getCachedEvents();
+    const plain = events.find((event) => event.id === 'plain');
+    const overridden = events.find((event) => event.id === 'overridden');
+    expect(plain).toMatchObject({ calendarColor: '#00ff00', color: '#00ff00' });
+    expect(overridden).toMatchObject({ calendarColor: '#00ff00', color: '#ff0000' });
+  });
+
+  it('reports nothing to repaint for a calendar with no cache', () => {
+    expect(recolorCalendar('acct-1', 'missing', '#00ff00')).toBe(false);
   });
 });
 

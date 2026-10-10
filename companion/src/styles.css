@@ -223,8 +223,7 @@ body {
   border-top: 1px solid var(--color-border-subtle);
 }
 
-.date-picker-wrapper,
-.color-wheel-container {
+.date-picker-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -232,11 +231,38 @@ body {
   border-radius: 4px;
 }
 
-.color-preview {
-  width: 24px;
-  height: 16px;
-  border-radius: 2px;
-  box-shadow: inset 0 0 0 1px var(--color-border), 0 1px 2px rgba(0,0,0,0.15);
+/* A calendar row's color control: the native picker plus, once a custom
+   color is set, a small link back to the provider's own color. */
+.calendar-row__color {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.calendar-row__color input[type='color'] {
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
+.calendar-row__color-reset {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.calendar-row__color-reset:hover {
+  color: var(--color-text);
 }
 
 .calendar-row__swatch {

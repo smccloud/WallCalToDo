@@ -378,6 +378,25 @@ export function dropCalendarCache(calendarId) {
   saveEvents(cache);
 }
 
+// Repaints one calendar's already-cached events after its color is changed.
+// A Microsoft calendar's `color` always equals its `calendarColor` (Graph has
+// no per-event colors), so both move together. The poll itself throttles to
+// one round every MS_SYNC_INTERVAL_MS, so without this a new color could sit
+// in the calendar list for minutes while every cached pill kept the old one.
+// Returns whether anything was cached to repaint.
+export function recolorCalendar(calendarId, color) {
+  const cache = loadEvents();
+  const entries = cache[calendarId];
+  if (!entries) return false;
+  for (const event of Object.values(entries)) {
+    if (!event) continue;
+    event.calendarColor = color;
+    event.color = color;
+  }
+  saveEvents(cache);
+  return true;
+}
+
 // Wipes every calendar's cached events -- used when the Microsoft account is
 // disconnected entirely, since there's only ever the one account.
 export function dropAllCalendarsCache() {

@@ -311,18 +311,22 @@ const GRAPH_CALENDAR_COLORS = {
 };
 
 function calendarDisplayColor(calendar) {
+  if (calendar.customColor) return calendar.customColor;
   if (calendar.hexColor) return calendar.hexColor;
   return GRAPH_CALENDAR_COLORS[String(calendar.color).toLowerCase()] || GRAPH_CALENDAR_COLORS.auto;
 }
 
-// [{ id, name, color, hexColor, isDefaultCalendar, ownerEmail, enabled, displayColor }]
-// — the same shape googleAuth keeps per calendar (an id, a display name, a
-// color, and the companion app's enabled flag), with Graph's field names
-// kept as they arrive rather than renamed to Google's.
+// [{ id, name, color, hexColor, isDefaultCalendar, ownerEmail, enabled,
+// customColor, displayColor }] — the same shape googleAuth keeps per calendar
+// (an id, a display name, a color, and the companion app's enabled flag),
+// with Graph's field names kept as they arrive rather than renamed to
+// Google's.
 //
-// `displayColor` is that color resolved to the hex the display will actually
-// use. The stored record keeps Graph's own `color`/`hexColor` as they
-// arrived, so it's derived here on read rather than baked in at fetch time —
+// `customColor` is the user's own choice from the companion app, if any;
+// `displayColor` is the color resolved to the hex the display will actually
+// use, which prefers `customColor` and otherwise derives from Graph. The
+// stored record keeps Graph's own `color`/`hexColor` as they arrived, so the
+// derived color is computed here on read rather than baked in at fetch time —
 // changing the palette re-colors every already-connected calendar on the
 // next poll, with nobody having to re-add them in the companion app. One
 // place decides what a Microsoft calendar's color is, so the event pills,
@@ -354,22 +358,29 @@ export async function refreshCalendars() {
   const data = await graphFetch(`${GRAPH_BASE}/me/calendars`, accessToken);
 
   const existing = new Map(storedCalendars().map((cal) => [cal.id, cal]));
-  const calendars = (data.value || []).map((item) => ({
-    id: item.id,
-    name: item.name || item.id,
-    color: item.color || 'auto',
-    hexColor: item.hexColor || null,
-    isDefaultCalendar: Boolean(item.isDefaultCalendar),
-    // Whose calendar this is, lowercased so it can be compared without
-    // worrying about address casing. Nothing reads it right now: it was
-    // added for organizer-based hiding, which was reverted because it hid
-    // too much (see getCachedMsEvents). Kept because it's the one field that
-    // distinguishes a calendar the user owns from one shared with them, so
-    // anything wanting that distinction later has it available rather than
-    // needing another calendar-list round trip.
-    ownerEmail: item.owner?.emailAddress?.address?.toLowerCase() || null,
-    enabled: existing.get(item.id)?.enabled ?? true,
-  }));
+  const calendars = (data.value || []).map((item) => {
+    const previous = existing.get(item.id);
+    return {
+      id: item.id,
+      name: item.name || item.id,
+      color: item.color || 'auto',
+      hexColor: item.hexColor || null,
+      isDefaultCalendar: Boolean(item.isDefaultCalendar),
+      // Whose calendar this is, lowercased so it can be compared without
+      // worrying about address casing. Nothing reads it right now: it was
+      // added for organizer-based hiding, which was reverted because it hid
+      // too much (see getCachedMsEvents). Kept because it's the one field that
+      // distinguishes a calendar the user owns from one shared with them, so
+      // anything wanting that distinction later has it available rather than
+      // needing another calendar-list round trip.
+      ownerEmail: item.owner?.emailAddress?.address?.toLowerCase() || null,
+      enabled: previous?.enabled ?? true,
+      // The user's own color, if they've chosen one, carried across the
+      // refresh Graph just triggered so it isn't lost the way a field derived
+      // only from Graph's response would be.
+      ...(previous?.customColor ? { customColor: previous.customColor } : {}),
+    };
+  });
   writeJson(CALENDARS_FILE, calendars);
   return listCalendars();
 }
@@ -380,4 +391,18 @@ export function setCalendarEnabled(calendarId, enabled) {
   if (!calendar) throw new Error(`Unknown Microsoft calendar: ${calendarId}`);
   calendar.enabled = enabled;
   writeJson(CALENDARS_FILE, calendars);
+}
+
+// Stores (or clears) the user's own color for a calendar, overriding the one
+// derived from Graph's theme name. Passing an empty value drops the override,
+// falling back to the derived color. Returns the color the calendar should
+// now display, so the caller can repaint cached events without re-reading.
+export function setCalendarColor(calendarId, color) {
+  const calendars = storedCalendars();
+  const calendar = calendars.find((cal) => cal.id === calendarId);
+  if (!calendar) throw new Error(`Unknown Microsoft calendar: ${calendarId}`);
+  if (color) calendar.customColor = color;
+  else delete calendar.customColor;
+  writeJson(CALENDARS_FILE, calendars);
+  return calendarDisplayColor(calendar);
 }
