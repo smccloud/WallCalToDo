@@ -303,6 +303,80 @@ function collectGoogleEvents() {
 
 const byStart = (a, b) => new Date(a.start) - new Date(b.start);
 
+// --- Similar-event merge ---
+//
+// The display-wide "combine look-alike events" on/off (see mergeSimilarEvents
+// in settingsService.js). When two calendars both list the same real thing —
+// the school district's "NO SCHOOL" all-day event on its calendar, the same
+// day on the family Google calendar as "K-12 No School" — the wall shows a
+// second, near-identical row. The merge combines those into one entry so a
+// busy day stops repeating itself.
+
+// A slot is what an event *is* regardless of which calendar carries it: for a
+// timed event the exact start/end instants, for an all-day event its day(s),
+// since "same day" is all the "start and end times" an all-day event has.
+// Timed and all-day events can't share a slot, so a midnight-timed event and
+// an all-day one never merge.
+function slotKey(event) {
+  const start = Date.parse(event.start);
+  const end = Date.parse(event.end || event.start);
+  if (Number.isNaN(start) || Number.isNaN(end)) return null;
+  if (event.allDay) {
+    const day = (ms) => {
+      const d = new Date(ms);
+      return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    };
+    return `all-day:${day(start)}:${day(end)}`;
+  }
+  return `timed:${start}:${end}`;
+}
+
+// Titles, stripped to their words: lowercase, punctuation collapsed to a
+// space. "NO SCHOOL" and "K-12 No School" both become comparable this way.
+const normalizeTitle = (title) => (title || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+// "Similar" enough to treat as the same event: identical after stripping;
+// one name is a whole span of the other ("NO SCHOOL" inside
+// "K-12 No School"); or they share most of their words either way ("School
+// Board Meeting" / "School Board Mtg" style drift). The word-overlap branch
+// is deliberately below the containment one — containment is a much stronger
+// signal and covers the common "one calendar is more specific" case outright.
+function titlesSimilar(a, b) {
+  const na = normalizeTitle(a);
+  const nb = normalizeTitle(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if (na.includes(nb) || nb.includes(na)) return true;
+  const aa = na.split(' ');
+  const bb = nb.split(' ');
+  const common = aa.filter((word) => bb.includes(word)).length;
+  return common / new Set([...aa, ...bb]).size >= 0.6;
+}
+
+// Two events are one display entry iff they come from different calendars,
+// occupy the same slot, and read the same way. Same-calendar pairs are never
+// merged — a single calendar listing the same event twice is a real separate
+// entry, not a duplicate of itself.
+function areMergeable(a, b) {
+  if (a.calendarKey && b.calendarKey && a.calendarKey === b.calendarKey) return false;
+  if (!titlesSimilar(a.title, b.title)) return false;
+  const sa = slotKey(a);
+  return sa !== null && sa === slotKey(b);
+}
+
+// The merge itself, gated by the setting. Keeps the first event of each
+// merged group (the feed is already start-sorted, so that's the one that
+// would have appeared first anyway) and drops the rest. Events whose slot
+// can't be parsed, or that match nothing, pass through unchanged.
+export function mergeSimilarEvents(events) {
+  if (!getSettings().mergeSimilarEvents) return events;
+  const kept = [];
+  for (const event of events) {
+    if (!kept.some((other) => areMergeable(event, other))) kept.push(event);
+  }
+  return kept;
+}
+
 // The complete feed: both providers merged, nothing trimmed, and only
 // events from currently-enabled calendars.
 //
@@ -321,13 +395,15 @@ const byStart = (a, b) => new Date(a.start) - new Date(b.start);
 // month grid's trimmed view of the same cache.
 //
 // The display gets one flat list of events regardless of where they came
-// from, so Microsoft's are appended to Google's here rather than the two
-// being kept apart all the way to the frontends. Each side already applies
-// its own enabled-calendar filter and numbers its calendars so the two
-// can't collide (see msCalendarService.js's calendarOrderOffset), and each
-// event carries a provider-unique id and calendarKey.
+  // from, so Microsoft's are appended to Google's here rather than the two
+  // being kept apart all the way to the frontends. Each side already applies
+  // its own enabled-calendar filter and numbers its calendars so the two
+  // can't collide (see msCalendarService.js's calendarOrderOffset), and each
+  // event carries a provider-unique id and calendarKey. The similar-event
+  // merge (see mergeSimilarEvents above) then collapses look-alikes across
+  // calendars into one entry when its toggle is on.
 export function getCachedEvents() {
-  return [...collectGoogleEvents(), ...getCachedMsEvents()].sort(byStart);
+  return mergeSimilarEvents([...collectGoogleEvents(), ...getCachedMsEvents()].sort(byStart));
 }
 
 // The month grid's view of the same cache: identical, except Microsoft's
@@ -337,5 +413,5 @@ export function getCachedEvents() {
 // the agenda lists a whole day — both were being handed the capped list
 // before, so the agenda showed "the next two" meetings and nothing else.
 export function getCachedGridEvents() {
-  return [...collectGoogleEvents(), ...getCachedMsGridEvents()].sort(byStart);
+  return mergeSimilarEvents([...collectGoogleEvents(), ...getCachedMsGridEvents()].sort(byStart));
 }

@@ -25,12 +25,14 @@ const SETTINGS = {
   weatherDailyDays: 10,
   microsoftEnabled: true,
   googleEnabled: true,
+  mergeSimilarEvents: false,
 };
 
 const HANDLER_NAMES = [
   'onSetPrivacyMode',
   'onSetMicrosoftEnabled',
   'onSetGoogleEnabled',
+  'onSetMergeSimilarEvents',
   'onSetTheme',
   'onSetAdvancedEnabled',
   'onSetOffset',
@@ -69,6 +71,7 @@ describe('GeneralSettings', () => {
       'Units',
       'Show Microsoft Accounts',
       'Show Google Accounts',
+      'Combine similar events',
       'Weather view',
     ]) {
       expect(getByText(heading)).toBeDefined();
@@ -95,17 +98,29 @@ describe('GeneralSettings', () => {
     expect(handlers.onSetGoogleEnabled).toHaveBeenCalledWith(false);
   });
 
-  it('places the Microsoft then Google section toggles above the weather view', () => {
+  it('shows the similar-event merge as off and reports it switching on', () => {
+    const { handlers, container } = renderCard();
+    const toggle = container.querySelector('.merge-events-toggle input[type="checkbox"]');
+
+    expect(toggle.checked).toBe(false);
+
+    fireEvent.click(toggle);
+    expect(handlers.onSetMergeSimilarEvents).toHaveBeenCalledWith(true);
+  });
+
+  it('places the display-content toggles above the weather view', () => {
     const { getByText } = renderCard();
 
     const msToggle = getByText('Show Microsoft Accounts');
     const googleToggle = getByText('Show Google Accounts');
+    const mergeToggle = getByText('Combine similar events');
     const weatherView = getByText('Weather view');
 
-    // DOCUMENT_POSITION_FOLLOWING === 4 — Google comes after Microsoft, and
-    // the weather view after both.
+    // DOCUMENT_POSITION_FOLLOWING === 4 — each of these comes after the one
+    // before it, and the weather view after all of them.
     expect(msToggle.compareDocumentPosition(googleToggle) & 4).toBeTruthy();
-    expect(googleToggle.compareDocumentPosition(weatherView) & 4).toBeTruthy();
+    expect(googleToggle.compareDocumentPosition(mergeToggle) & 4).toBeTruthy();
+    expect(mergeToggle.compareDocumentPosition(weatherView) & 4).toBeTruthy();
   });
 
   it('shows privacy mode as on and reports it switching off', () => {

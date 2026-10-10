@@ -214,6 +214,9 @@ export default function App() {
   // Same idea for the Google half of the display: off drops Google
   // calendars and tasks from the wall until it's flipped back on.
   const setGoogleEnabled = (enabled) => patchSetting({ googleEnabled: enabled });
+  // Whether the display combines look-alike events from two calendars (same
+  // slot, similar title) into one entry — see the server's mergeSimilarEvents.
+  const setMergeSimilarEvents = (enabled) => patchSetting({ mergeSimilarEvents: enabled });
   // On the wall display: strips event titles down to just their colored
   // pills, and swaps the today-agenda and to-do list contents for a
   // placeholder notice -- their headings stay so the display still reads
@@ -501,6 +504,7 @@ export default function App() {
         onSetAdvancedEnabled={setAdvancedEnabled}
         onSetMicrosoftEnabled={setMicrosoftEnabled}
         onSetGoogleEnabled={setGoogleEnabled}
+        onSetMergeSimilarEvents={setMergeSimilarEvents}
         onSetOffset={setOffset}
         onSetTempUnit={setTempUnit}
         onSetWindUnit={setWindUnit}

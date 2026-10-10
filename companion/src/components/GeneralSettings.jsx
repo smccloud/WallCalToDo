@@ -7,12 +7,13 @@ import WeatherViewSettings from './WeatherViewSettings.jsx';
 // Privacy, then location (shared by theme and the units below, so it comes
 // before both), then theme, then time format (also location-free, and part
 // of how the display looks like the theme above it), then units, then the
-// per-provider section on/offs — Microsoft's and Google's, each deciding
-// whether that provider's content shows on the wall, so they sit with the
-// display-content settings rather than the account sections further down the
-// page — then the full-screen weather view, last, because it's the one
-// setting here that depends on everything above it: it needs a location, and
-// it's about what the display does with one rather than how it looks.
+// display-content settings — the per-provider section on/offs (Microsoft's
+// and Google's, each deciding whether that provider's content shows on the
+// wall) plus the similar-event merge right beneath them, all sitting with
+// the display-content settings rather than the account sections further
+// down the page — then the full-screen weather view, last, because it's the
+// one setting here that depends on everything above it: it needs a location,
+// and it's about what the display does with one rather than how it looks.
 export default function GeneralSettings({
   settings,
   settingsLoading,
@@ -21,6 +22,7 @@ export default function GeneralSettings({
   onSetAdvancedEnabled,
   onSetMicrosoftEnabled,
   onSetGoogleEnabled,
+  onSetMergeSimilarEvents,
   onSetOffset,
   onSetTempUnit,
   onSetWindUnit,
@@ -113,6 +115,23 @@ export default function GeneralSettings({
       <p className="google-toggle__hint">
         Shows your Google calendars and tasks on the wall display. Turn it off to leave them out without
         disconnecting the account.
+      </p>
+
+      <div className="merge-events-toggle">
+        <span className="settings-label">Combine similar events</span>
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={Boolean(settings?.mergeSimilarEvents)}
+            disabled={settingsLoading}
+            onChange={(e) => onSetMergeSimilarEvents(e.target.checked)}
+          />
+          <span className="switch__track" />
+        </label>
+      </div>
+      <p className="merge-events-toggle__hint">
+        When two calendars list the same event on the same day and time with similar names, shows it once
+        instead of twice — e.g. "NO SCHOOL" and "K-12 No School".
       </p>
 
       <WeatherViewSettings

@@ -23,6 +23,7 @@ const {
   dropAccountCache,
   getCachedEvents,
   getCachedGridEvents,
+  mergeSimilarEvents,
   pollCalendar,
   resetSyncTokens,
 } = await import('../src/services/calendarService.js');
@@ -118,6 +119,84 @@ describe('getCachedEvents', () => {
     expect(getCachedGridEvents()).toEqual([]);
     // Restore the default so the rest of this file's tests still see events.
     fs.rmSync(dataPath('settings.json'), { force: true });
+  });
+});
+
+const SLOT_EVENT = (id, title, calendarKey, overrides = {}) => ({
+  id,
+  title,
+  calendarKey,
+  calendarLabel: calendarKey,
+  start: '2026-06-01T09:00:00',
+  end: '2026-06-01T09:30:00',
+  allDay: false,
+  color: '#111111',
+  ...overrides,
+});
+
+describe('mergeSimilarEvents', () => {
+  beforeEach(() => fs.rmSync(dataPath('settings.json'), { force: true }));
+
+  it('leaves events alone while the toggle is off', () => {
+    const events = [
+      SLOT_EVENT('a', 'NO SCHOOL', 'k1', { allDay: true, start: '2026-06-01', end: '2026-06-01' }),
+      SLOT_EVENT('b', 'K-12 No School', 'k2', { allDay: true, start: '2026-06-01', end: '2026-06-01' }),
+    ];
+    expect(mergeSimilarEvents(events).map((event) => event.id)).toEqual(['a', 'b']);
+  });
+
+  it('combines two calendars’ same-slot look-alikes into the first one', () => {
+    writeJson('settings.json', { mergeSimilarEvents: true });
+    const events = [
+      SLOT_EVENT('a', 'NO SCHOOL', 'k1', { allDay: true, start: '2026-06-01', end: '2026-06-01' }),
+      SLOT_EVENT('b', 'K-12 No School', 'k2', { allDay: true, start: '2026-06-01', end: '2026-06-01' }),
+    ];
+    expect(mergeSimilarEvents(events).map((event) => event.id)).toEqual(['a']);
+  });
+
+  it('keeps same-slot events whose titles are genuinely different', () => {
+    writeJson('settings.json', { mergeSimilarEvents: true });
+    const events = [
+      SLOT_EVENT('a', 'NO SCHOOL', 'k1', { allDay: true, start: '2026-06-01', end: '2026-06-01' }),
+      SLOT_EVENT('b', 'Staff Meeting', 'k2', { allDay: true, start: '2026-06-01', end: '2026-06-01' }),
+    ];
+    expect(mergeSimilarEvents(events).map((event) => event.id)).toEqual(['a', 'b']);
+  });
+
+  it('keeps similar titles that fall on different slots', () => {
+    writeJson('settings.json', { mergeSimilarEvents: true });
+    const events = [
+      SLOT_EVENT('a', 'NO SCHOOL', 'k1', { allDay: true, start: '2026-06-01', end: '2026-06-01' }),
+      SLOT_EVENT('b', 'K-12 No School', 'k2', { allDay: true, start: '2026-06-02', end: '2026-06-02' }),
+    ];
+    expect(mergeSimilarEvents(events).map((event) => event.id)).toEqual(['a', 'b']);
+  });
+
+  it('merges timed events on the same day and times', () => {
+    writeJson('settings.json', { mergeSimilarEvents: true });
+    const events = [
+      SLOT_EVENT('a', 'Math final', 'k1'),
+      SLOT_EVENT('b', 'MATH FINAL', 'k2'),
+    ];
+    expect(mergeSimilarEvents(events).map((event) => event.id)).toEqual(['a']);
+  });
+
+  it('does not merge a timed event with an all-day one at the same instant', () => {
+    writeJson('settings.json', { mergeSimilarEvents: true });
+    const events = [
+      SLOT_EVENT('a', 'No School', 'k1', { allDay: true, start: '2026-06-01', end: '2026-06-01' }),
+      SLOT_EVENT('b', 'K-12 No School', 'k2', { start: '2026-06-01T00:00:00', end: '2026-06-01T00:00:00' }),
+    ];
+    expect(mergeSimilarEvents(events).map((event) => event.id)).toEqual(['a', 'b']);
+  });
+
+  it('never merges two entries from the same calendar', () => {
+    writeJson('settings.json', { mergeSimilarEvents: true });
+    const events = [
+      SLOT_EVENT('a', 'NO SCHOOL', 'k1', { allDay: true, start: '2026-06-01', end: '2026-06-01' }),
+      SLOT_EVENT('b', 'K-12 No School', 'k1', { allDay: true, start: '2026-06-01', end: '2026-06-01' }),
+    ];
+    expect(mergeSimilarEvents(events).map((event) => event.id)).toEqual(['a', 'b']);
   });
 });
 

@@ -21,6 +21,12 @@ const DEFAULT_SETTINGS = {
   // and their calendars/tasks from the display. true shows them if connected
   // (the default for existing installs).
   googleEnabled: true,
+  // Whether events that two calendars both list for the same slot (same day,
+  // same start/end, similar titles — e.g. "NO SCHOOL" and "K-12 No School")
+  // are combined into a single entry on the wall. Off by default: it changes
+  // what the display shows, so it stays an opt-in rather than something an
+  // upgrade does to somebody's wall unasked.
+  mergeSimilarEvents: false,
   // 'F' is the first option in the companion app's Units segmented control,
   // matching the usual "first option starts selected" convention. Temperature
   // was its own Temperature section until wind speed and precipitation

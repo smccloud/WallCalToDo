@@ -91,6 +91,7 @@ settingsRouter.patch('/settings', (req, res) => {
     privacyMode,
     microsoftEnabled,
     googleEnabled,
+    mergeSimilarEvents,
     tempUnit,
     advancedEnabled,
     weatherEnabled,
@@ -133,6 +134,12 @@ settingsRouter.patch('/settings', (req, res) => {
   if (googleEnabled !== undefined) {
     if (typeof googleEnabled !== 'boolean') return res.status(400).json({ error: 'Invalid googleEnabled' });
     patch.googleEnabled = googleEnabled;
+  }
+  // Whether events two calendars both list for the same slot are combined
+  // into one entry on the display (see mergeSimilarEvents in calendarService.js).
+  if (mergeSimilarEvents !== undefined) {
+    if (typeof mergeSimilarEvents !== 'boolean') return res.status(400).json({ error: 'Invalid mergeSimilarEvents' });
+    patch.mergeSimilarEvents = mergeSimilarEvents;
   }
   if (privacyMode !== undefined) {
     if (typeof privacyMode !== 'boolean') return res.status(400).json({ error: 'Invalid privacyMode' });
@@ -215,12 +222,16 @@ settingsRouter.patch('/settings', (req, res) => {
 
   const settings = updateSettings(patch);
   broadcast({ type: 'settings', data: settings });
-  // Turning the Microsoft or Google section off or on changes what the
-  // calendar and to-do feeds contain, but neither feed is re-read just
-  // because a setting changed -- a display would otherwise keep showing the
-  // old items (or keep missing them) until the next poll. Push both now so
-  // the toggle takes effect on the wall the moment it's flipped.
-  if (patch.microsoftEnabled !== undefined || patch.googleEnabled !== undefined) {
+  // Turning the Microsoft or Google section off/on — or toggling the similar-
+  // event merge — changes what the calendar feed contains, but it isn't
+  // re-read just because a setting changed: a display would otherwise keep
+  // showing the old items until the next poll. Push both feeds now so the
+  // toggle takes effect on the wall the moment it's flipped.
+  if (
+    patch.microsoftEnabled !== undefined ||
+    patch.googleEnabled !== undefined ||
+    patch.mergeSimilarEvents !== undefined
+  ) {
     broadcastCalendar();
     broadcast({ type: 'todo', data: getCachedTasks() });
   }
