@@ -44,6 +44,35 @@ async function fetchJson(url) {
   return res.json();
 }
 
+// An AQI value the display can show, or null when none could be fetched. Air
+// quality is genuinely intermittent (a station that goes quiet, a request that
+// lands on a bad hop), so a missing value gets a couple of retries rather than
+// skipping the number for the whole refresh window. Both the US and European
+// scales are asked for in one call and the US preferred: a response with no
+// us_aqi is usually shaped for the other scale rather than empty, and either is
+// a number worth putting on the wall. A fetch that keeps failing returns null
+// and pollWeather keeps the temperature reading instead, exactly as the
+// air-quality call already did on its own.
+const AQI_ATTEMPTS = 3;
+
+async function fetchAqiValue(lat, lon) {
+  for (let attempt = 1; attempt <= AQI_ATTEMPTS; attempt++) {
+    try {
+      const air = await fetchJson(
+        `${AIR_QUALITY_BASE}?latitude=${lat}&longitude=${lon}&current=us_aqi,european_aqi`
+      );
+      const us = air?.current?.us_aqi;
+      if (Number.isFinite(us)) return us;
+      const eu = air?.current?.european_aqi;
+      if (Number.isFinite(eu)) return eu;
+    } catch {
+      // Transient failure -- leave the last good reading alone and try again;
+      // the next attempt may land.
+    }
+  }
+  return null;
+}
+
 // Epoch seconds -> an ISO instant. The forecast is requested as unixtime
 // (below) precisely so this is the only conversion needed: a date-time string
 // with no offset, which is what Open-Meteo returns by default, would be
@@ -84,7 +113,7 @@ export function getCachedWeather() {
 // last good cache is left untouched instead of being overwritten with a
 // null/partial one.
 export async function pollWeather(lat, lon) {
-  const [forecast, airQuality] = await Promise.all([
+  const [forecast, aqi] = await Promise.all([
     // One request for all three: Open-Meteo returns current conditions,
     // hourly series and daily aggregates from a single call, and splitting
     // them would mean three round trips for data that is fetched together
@@ -113,12 +142,11 @@ export async function pollWeather(lat, lon) {
     ),
     // Non-fatal on its own: a smoke alert is a nice-to-have, not worth
     // losing the whole temperature reading over if just this call fails.
-    fetchJson(`${AIR_QUALITY_BASE}?latitude=${lat}&longitude=${lon}&current=us_aqi`).catch(() => null),
+    fetchAqiValue(lat, lon),
   ]);
 
   const tempC = forecast.current.temperature_2m;
   const weatherCode = forecast.current.weather_code;
-  const aqi = airQuality?.current?.us_aqi ?? null;
 
   const toF = (celsius) => Math.round((celsius * 9) / 5 + 32);
 

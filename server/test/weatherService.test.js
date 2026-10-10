@@ -186,6 +186,44 @@ describe('pollWeather', () => {
     expect(reading.isUnhealthyAir).toBe(false);
   });
 
+  it('falls back to the European AQI when the US reading is missing', async () => {
+    respond({ airBody: { current: { european_aqi: 30 } } });
+    expect((await pollWeather(0, 0)).aqi).toBe(30);
+  });
+
+  it('retries the air-quality fetch when a response carries no AQI', async () => {
+    let calls = 0;
+    fetchMock.mockImplementation(async (url) => {
+      if (url.includes(AIR_URL)) {
+        calls += 1;
+        const body = calls < 3 ? { current: {} } : { current: { us_aqi: 88 } };
+        return { ok: true, json: async () => body };
+      }
+      return { ok: true, json: async () => forecast() };
+    });
+
+    const reading = await pollWeather(40.71, -74.0);
+    expect(calls).toBe(3);
+    expect(reading.aqi).toBe(88);
+  });
+
+  it('gives up on AQI after several attempts and keeps the temperature', async () => {
+    let calls = 0;
+    fetchMock.mockImplementation(async (url) => {
+      if (url.includes(AIR_URL)) {
+        calls += 1;
+        throw new Error('air quality down');
+      }
+      return { ok: true, json: async () => forecast() };
+    });
+
+    const reading = await pollWeather(40.71, -74.0);
+    expect(calls).toBe(3);
+    expect(reading.aqi).toBeNull();
+    expect(reading.isUnhealthyAir).toBe(false);
+    expect(reading.tempC).toBe(21.4);
+  });
+
   it('throws on a failed forecast and leaves the last good reading untouched', async () => {
     respond();
     await pollWeather(40.71, -74.0);
