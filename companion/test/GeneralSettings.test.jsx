@@ -23,10 +23,12 @@ const SETTINGS = {
   weatherDurationSeconds: 60,
   weatherHourlyHours: 24,
   weatherDailyDays: 10,
+  microsoftEnabled: true,
 };
 
 const HANDLER_NAMES = [
   'onSetPrivacyMode',
+  'onSetMicrosoftEnabled',
   'onSetTheme',
   'onSetAdvancedEnabled',
   'onSetOffset',
@@ -57,9 +59,37 @@ describe('GeneralSettings', () => {
   it('renders every section it is meant to compose', () => {
     const { getByText } = renderCard();
 
-    for (const heading of ['Privacy mode', 'Location', 'Theme', 'Time format', 'Units', 'Weather view']) {
+    for (const heading of [
+      'Privacy mode',
+      'Location',
+      'Theme',
+      'Time format',
+      'Units',
+      'Show Microsoft section',
+      'Weather view',
+    ]) {
       expect(getByText(heading)).toBeDefined();
     }
+  });
+
+  it('shows the Microsoft section as on and reports it switching off', () => {
+    const { handlers, container } = renderCard();
+    const toggle = container.querySelector('.microsoft-toggle input[type="checkbox"]');
+
+    expect(toggle.checked).toBe(true);
+
+    fireEvent.click(toggle);
+    expect(handlers.onSetMicrosoftEnabled).toHaveBeenCalledWith(false);
+  });
+
+  it('places the Microsoft section toggle just above the weather view', () => {
+    const { getByText } = renderCard();
+
+    const msToggle = getByText('Show Microsoft section');
+    const weatherView = getByText('Weather view');
+
+    // DOCUMENT_POSITION_FOLLOWING === 4 — the weather view comes after it.
+    expect(msToggle.compareDocumentPosition(weatherView) & 4).toBeTruthy();
   });
 
   it('shows privacy mode as on and reports it switching off', () => {

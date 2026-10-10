@@ -206,6 +206,11 @@ export default function App() {
   // real sunrise/sunset regardless of what's saved, on reapplies the saved
   // values without needing to re-enter them.
   const setAdvancedEnabled = (enabled) => patchSetting({ advancedEnabled: enabled });
+  // A real on/off for whether the Microsoft half of the display shows at all,
+  // not just a show/hide for this page's section: the server re-reads it on
+  // every calendar/todo broadcast, so turning it off drops Office365 content
+  // (calendars and to-do lists) from the wall until it's flipped back on.
+  const setMicrosoftEnabled = (enabled) => patchSetting({ microsoftEnabled: enabled });
   // On the wall display: strips event titles down to just their colored
   // pills, and swaps the today-agenda and to-do list contents for a
   // placeholder notice -- their headings stay so the display still reads
@@ -244,7 +249,6 @@ export default function App() {
   // settings.
   const setWeatherHourlyHours = (weatherHourlyHours) => patchSetting({ weatherHourlyHours });
   const setWeatherDailyDays = (weatherDailyDays) => patchSetting({ weatherDailyDays });
-
   // Unlike the settings above, a location save isn't optimistic (there's no
   // sensible "local" value to show before the server geocodes/validates
   // it) and never throws -- LocationSettings owns the busy-state around
@@ -492,6 +496,7 @@ export default function App() {
         onSetPrivacyMode={setPrivacyMode}
         onSetTheme={setTheme}
         onSetAdvancedEnabled={setAdvancedEnabled}
+        onSetMicrosoftEnabled={setMicrosoftEnabled}
         onSetOffset={setOffset}
         onSetTempUnit={setTempUnit}
         onSetWindUnit={setWindUnit}
@@ -541,6 +546,7 @@ export default function App() {
         onToggleTodoList={toggleTodoList}
         onRefreshTodoLists={refreshTodoLists}
         onDisconnect={disconnectMsAccount}
+        showSection={settings?.microsoftEnabled ?? true}
       />
     </div>
   );

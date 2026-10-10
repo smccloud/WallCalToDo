@@ -93,6 +93,24 @@ describe('getCachedTasks', () => {
     m.getCachedGoogleTasks.mockReturnValue([{ id: 'g1', title: 'From Google', completed: false }]);
     expect(getCachedTasks().map((task) => task.id)).toEqual(['g1']);
   });
+
+  it('drops Microsoft tasks while the Microsoft section is switched off', () => {
+    writeJson(TASKS_FILE, {
+      'list-work': {
+        w1: { id: 'w1', title: 'Standup', completed: false, listLabel: 'Work' },
+      },
+    });
+    lists([{ id: 'list-work', displayName: 'Work', enabled: true }]);
+    m.getCachedGoogleTasks.mockReturnValue([{ id: 'g1', title: 'From Google', completed: false }]);
+
+    // The display-wide on/off — off, so Microsoft's half of the to-do feed
+    // disappears but Google tasks are not Microsoft's and so stay.
+    writeJson('settings.json', { microsoftEnabled: false });
+    expect(getCachedTasks().map((task) => task.id)).toEqual(['g1']);
+    // Restore the default so the rest of this file's tests still see MS tasks.
+    fs.rmSync(dataPath('settings.json'), { force: true });
+    expect(getCachedTasks().map((task) => task.id)).toEqual(['g1', 'w1']);
+  });
 });
 
 describe('clearCompletedTasks', () => {

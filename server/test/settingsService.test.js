@@ -18,6 +18,7 @@ describe('settingsService', () => {
     expect(settings.clockShowSeconds).toBe(true);
     expect(settings.clockFlashDivider).toBe(false);
     expect(settings.advancedEnabled).toBe(false);
+    expect(settings.microsoftEnabled).toBe(true);
     expect(settings.weatherEnabled).toBe(false);
     expect(settings.weatherIntervalMinutes).toBe(15);
     expect(settings.weatherDurationSeconds).toBe(60);

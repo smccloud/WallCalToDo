@@ -1,6 +1,7 @@
 import { getAccessToken, graphFetch, isAuthorized, listTodoLists, TODO_SCOPES } from '../auth/microsoftAuth.js';
 import { readJson, writeJson } from '../store/fileStore.js';
 import { getCachedGoogleTasks } from './googleTodoService.js';
+import { getSettings } from './settingsService.js';
 
 const TASKS_CACHE_FILE = 'msTasksCache.json';
 const SYNC_FILE = 'msSync.json';
@@ -153,16 +154,21 @@ export function clearCompletedTasks() {
 
 // Only tasks from currently-enabled lists are returned — toggling a list
 // off in the companion app takes effect immediately, without waiting for
-// or triggering a new poll.
+// or triggering a new poll. The Microsoft half of the list is skipped
+// entirely while the display-wide Microsoft on/off (see microsoftEnabled
+// in settingsService.js) is off; Google tasks are not Microsoft's, so they
+// are not affected by that switch.
 export function getCachedTasks() {
   const cache = loadTasks();
-  const enabledIds = new Set(listTodoLists().filter((list) => list.enabled).map((list) => list.id));
   const tasks = [];
-  for (const [key, entries] of Object.entries(cache)) {
-    if (!enabledIds.has(key)) continue;
-    // Same defensive skip as clearCompletedTasks -- a null entry here
-    // would otherwise reach sortTasks() below and crash on `a.completed`.
-    tasks.push(...Object.values(entries).filter(Boolean));
+  if (getSettings().microsoftEnabled) {
+    const enabledIds = new Set(listTodoLists().filter((list) => list.enabled).map((list) => list.id));
+    for (const [key, entries] of Object.entries(cache)) {
+      if (!enabledIds.has(key)) continue;
+      // Same defensive skip as clearCompletedTasks -- a null entry here
+      // would otherwise reach sortTasks() below and crash on `a.completed`.
+      tasks.push(...Object.values(entries).filter(Boolean));
+    }
   }
   return sortTasks([...tasks, ...getCachedGoogleTasks()]);
 }

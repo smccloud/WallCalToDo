@@ -69,9 +69,17 @@ export default function Microsoft({
   onToggleTodoList,
   onRefreshTodoLists,
   onDisconnect,
+  showSection,
 }) {
   const configured = Boolean(credentialsStatus?.configured);
   const connected = Boolean(account);
+  // A whole-section on/off (see microsoftEnabled in GeneralSettings.jsx): off
+  // hides the entire section — header, credentials, account card, the lot —
+  // matching the display, whose calendar and to-do feeds simply stop carrying
+  // Microsoft content. Nothing is disconnected or deleted; flipping it back
+  // on shows everything exactly as it was.
+  const hiddenByToggle = typeof showSection !== 'undefined' && !showSection;
+  if (hiddenByToggle) return null;
   // An account that connected before this app asked for Calendars.Read holds
   // a token that was never consented to it. Nothing is broken — the to-do
   // half works exactly as before — but the calendar half can't be fetched

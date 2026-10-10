@@ -536,6 +536,25 @@ body {
   margin-bottom: 0.75rem;
 }
 
+/* The Microsoft-section on/off, which sits just above the weather view
+   (see GeneralSettings.jsx) and reads as its own section of that card the
+   same way Units and the weather view do: a top divider, the toggle on its
+   own row with the switch pushed to the right, and a hint beneath. */
+.microsoft-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.microsoft-toggle__hint {
+  margin: 0.5rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
 /* Shared small section-label style -- "Privacy mode" and "Theme" both use
    it, so the two always match without duplicating the same two values. */
 .settings-label {

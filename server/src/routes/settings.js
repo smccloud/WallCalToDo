@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { getSettings, updateSettings } from '../services/settingsService.js';
 import { searchPlaces, reverseGeocode } from '../services/geocodeService.js';
 import { pollWeatherNow } from '../services/poller.js';
-import { broadcast } from '../ws/hub.js';
+import { getCachedTasks } from '../services/todoService.js';
+import { broadcast, broadcastCalendar } from '../ws/hub.js';
 
 export const settingsRouter = Router();
 
@@ -88,6 +89,7 @@ settingsRouter.patch('/settings', (req, res) => {
     theme,
     location,
     privacyMode,
+    microsoftEnabled,
     tempUnit,
     advancedEnabled,
     weatherEnabled,
@@ -114,6 +116,15 @@ settingsRouter.patch('/settings', (req, res) => {
       return res.status(400).json({ error: 'Invalid location' });
     }
     patch.location = location;
+  }
+  // A real on/off for whether the Microsoft half of the display shows at all
+  // -- turning it off drops Office365 calendars and to-do lists from both the
+  // calendar and to-do feeds until it's turned back on (see getCachedMsEvents
+  // and getCachedTasks). Turning it on does not require a connected account:
+  // with none, it simply changes nothing.
+  if (microsoftEnabled !== undefined) {
+    if (typeof microsoftEnabled !== 'boolean') return res.status(400).json({ error: 'Invalid microsoftEnabled' });
+    patch.microsoftEnabled = microsoftEnabled;
   }
   if (privacyMode !== undefined) {
     if (typeof privacyMode !== 'boolean') return res.status(400).json({ error: 'Invalid privacyMode' });
@@ -196,6 +207,15 @@ settingsRouter.patch('/settings', (req, res) => {
 
   const settings = updateSettings(patch);
   broadcast({ type: 'settings', data: settings });
+  // Turning the Microsoft section off or on changes what the calendar and
+  // to-do feeds contain, but neither feed is re-read just because a setting
+  // changed -- a display would otherwise keep showing the old Microsoft items
+  // (or keep missing them) until the next poll. Push both now so the toggle
+  // takes effect on the wall the moment it's flipped.
+  if (patch.microsoftEnabled !== undefined) {
+    broadcastCalendar();
+    broadcast({ type: 'todo', data: getCachedTasks() });
+  }
   // Fire-and-forget: don't make the companion app wait on a weather fetch
   // just to save a location, and don't make someone who just set one up
   // wait up to 15 minutes for the poll loop to get around to it either.

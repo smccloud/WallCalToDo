@@ -7,15 +7,19 @@ import WeatherViewSettings from './WeatherViewSettings.jsx';
 // Privacy, then location (shared by theme and the units below, so it comes
 // before both), then theme, then time format (also location-free, and part
 // of how the display looks like the theme above it), then units, then the
-// full-screen weather view — last, because it's the one setting here that
-// depends on everything above it: it needs a location, and it's about what
-// the display does with one rather than how it looks.
+// Microsoft section on/off (it decides whether Office365 content shows on the
+// wall, so it sits with the display-content settings rather than the account
+// sections further down the page), then the full-screen weather view — last,
+// because it's the one setting here that depends on everything above it: it
+// needs a location, and it's about what the display does with one rather than
+// how it looks.
 export default function GeneralSettings({
   settings,
   settingsLoading,
   onSetPrivacyMode,
   onSetTheme,
   onSetAdvancedEnabled,
+  onSetMicrosoftEnabled,
   onSetOffset,
   onSetTempUnit,
   onSetWindUnit,
@@ -75,6 +79,23 @@ export default function GeneralSettings({
         onSetWindUnit={onSetWindUnit}
         onSetPrecipUnit={onSetPrecipUnit}
       />
+
+      <div className="microsoft-toggle">
+        <span className="settings-label">Show Microsoft section</span>
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={Boolean(settings?.microsoftEnabled)}
+            disabled={settingsLoading}
+            onChange={(e) => onSetMicrosoftEnabled(e.target.checked)}
+          />
+          <span className="switch__track" />
+        </label>
+      </div>
+      <p className="microsoft-toggle__hint">
+        Shows your Office365 calendars and to-do lists on the wall display. Turn it off to leave them out
+        without disconnecting the account.
+      </p>
 
       <WeatherViewSettings
         settings={settings}

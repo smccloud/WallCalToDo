@@ -8,6 +8,7 @@ import {
 import { listAccounts } from '../auth/googleAuth.js';
 import { readJson, writeJson } from '../store/fileStore.js';
 import { config } from '../config.js';
+import { getSettings } from './settingsService.js';
 
 const EVENTS_CACHE_FILE = 'msCalendarEventsCache.json';
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
@@ -582,6 +583,12 @@ function isUpcoming(event, now) {
 // point of the exercise is that toggling a calendar takes effect immediately,
 // without waiting for or triggering a new poll.
 export function getCachedMsEvents() {
+  // The display-wide Microsoft on/off (see microsoftEnabled in
+  // settingsService.js): a section switched off contributes no events to
+  // either feed, without touching the cache -- flipping it back on shows
+  // everything again. The setting is read here at read time so the toggle
+  // takes effect on the next message without a resync of anything.
+  if (!getSettings().microsoftEnabled) return [];
   const cache = loadEvents();
   const enabled = new Set(listCalendars().filter((calendar) => calendar.enabled).map((calendar) => calendar.id));
   const events = [];

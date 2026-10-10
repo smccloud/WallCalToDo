@@ -13,6 +13,10 @@ const DEFAULT_SETTINGS = {
   theme: 'dark',
   location: null,
   privacyMode: false,
+  // Whether to show the Microsoft calendar section — off hides Office365
+  // accounts and their calendars from the display. true shows them if
+  // connected (the default for existing installs).
+  microsoftEnabled: true,
   // 'F' is the first option in the companion app's Units segmented control,
   // matching the usual "first option starts selected" convention. Temperature
   // was its own Temperature section until wind speed and precipitation

@@ -136,6 +136,8 @@ describe('PATCH /api/settings', () => {
     [{ clockFlashDivider: 0 }, 'Invalid clockFlashDivider'],
     [{ privacyMode: 'yes' }, 'Invalid privacyMode'],
     [{ advancedEnabled: 1 }, 'Invalid advancedEnabled'],
+    [{ microsoftEnabled: 'yes' }, 'Invalid microsoftEnabled'],
+    [{ microsoftEnabled: 1 }, 'Invalid microsoftEnabled'],
     [{ weatherEnabled: 'yes' }, 'Invalid weatherEnabled'],
     [{ weatherEnabled: 1 }, 'Invalid weatherEnabled'],
     [{ location: {} }, 'Invalid location'],
@@ -167,6 +169,7 @@ describe('PATCH /api/settings', () => {
       method: 'PATCH',
       body: JSON.stringify({
         advancedEnabled: true,
+        microsoftEnabled: false,
         sunriseOffset: { minutes: 120, direction: 'after' },
         sunsetOffset: { minutes: 15, direction: 'after' },
         weatherIntervalMinutes: 360,
