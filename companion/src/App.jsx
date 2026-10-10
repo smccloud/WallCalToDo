@@ -374,6 +374,19 @@ export default function App() {
     }
   }
 
+  async function disconnectAccount(accountId, email) {
+    if (!window.confirm(`Disconnect ${email}? Its events will disappear from the display.`)) return;
+    setBusyAccountId(accountId);
+    try {
+      await api(`/accounts/${accountId}`, { method: 'DELETE' });
+      await loadAccounts();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyAccountId(null);
+    }
+  }
+
   // A native color picker fires continuously while the user drags inside it,
   // so the optimistic swatch moves at once but the request is held until the
   // choice settles — one write per pick, not one per pixel of drag. Keyed by
