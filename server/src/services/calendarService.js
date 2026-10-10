@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import { getAuthorizedClient, listAccounts } from '../auth/googleAuth.js';
 import { getCachedMsEvents, getCachedMsGridEvents } from './msCalendarService.js';
+import { getSettings } from './settingsService.js';
 import { readJson, writeJson } from '../store/fileStore.js';
 
 const EVENTS_CACHE_FILE = 'googleEventsCache.json';
@@ -275,8 +276,11 @@ export function dropAccountCache(accountId) {
 // own copy by calling this again rather than sharing one array: the grid's
 // half gets Microsoft's per-day overflow count stamped onto its events (see
 // getCachedMsGridEvents), and stamping objects the agenda is about to be
-// handed would put that artefact where it means nothing.
+// handed would put that artefact where it means nothing. The display-wide
+// Google on/off (see googleEnabled in settingsService.js) skips this half
+// entirely while it's off.
 function collectGoogleEvents() {
+  if (!getSettings().googleEnabled) return [];
   const cache = loadEvents();
   const enabledKeys = new Set();
   for (const account of listAccounts()) {

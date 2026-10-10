@@ -138,6 +138,8 @@ describe('PATCH /api/settings', () => {
     [{ advancedEnabled: 1 }, 'Invalid advancedEnabled'],
     [{ microsoftEnabled: 'yes' }, 'Invalid microsoftEnabled'],
     [{ microsoftEnabled: 1 }, 'Invalid microsoftEnabled'],
+    [{ googleEnabled: 'yes' }, 'Invalid googleEnabled'],
+    [{ googleEnabled: 1 }, 'Invalid googleEnabled'],
     [{ weatherEnabled: 'yes' }, 'Invalid weatherEnabled'],
     [{ weatherEnabled: 1 }, 'Invalid weatherEnabled'],
     [{ location: {} }, 'Invalid location'],
@@ -170,6 +172,7 @@ describe('PATCH /api/settings', () => {
       body: JSON.stringify({
         advancedEnabled: true,
         microsoftEnabled: false,
+        googleEnabled: false,
         sunriseOffset: { minutes: 120, direction: 'after' },
         sunsetOffset: { minutes: 15, direction: 'after' },
         weatherIntervalMinutes: 360,

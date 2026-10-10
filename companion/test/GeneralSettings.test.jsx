@@ -24,11 +24,13 @@ const SETTINGS = {
   weatherHourlyHours: 24,
   weatherDailyDays: 10,
   microsoftEnabled: true,
+  googleEnabled: true,
 };
 
 const HANDLER_NAMES = [
   'onSetPrivacyMode',
   'onSetMicrosoftEnabled',
+  'onSetGoogleEnabled',
   'onSetTheme',
   'onSetAdvancedEnabled',
   'onSetOffset',
@@ -66,6 +68,7 @@ describe('GeneralSettings', () => {
       'Time format',
       'Units',
       'Show Microsoft Accounts',
+      'Show Google Accounts',
       'Weather view',
     ]) {
       expect(getByText(heading)).toBeDefined();
@@ -82,14 +85,27 @@ describe('GeneralSettings', () => {
     expect(handlers.onSetMicrosoftEnabled).toHaveBeenCalledWith(false);
   });
 
-  it('places the Microsoft section toggle just above the weather view', () => {
+  it('shows the Google section as on and reports it switching off', () => {
+    const { handlers, container } = renderCard();
+    const toggle = container.querySelector('.google-toggle input[type="checkbox"]');
+
+    expect(toggle.checked).toBe(true);
+
+    fireEvent.click(toggle);
+    expect(handlers.onSetGoogleEnabled).toHaveBeenCalledWith(false);
+  });
+
+  it('places the Microsoft then Google section toggles above the weather view', () => {
     const { getByText } = renderCard();
 
     const msToggle = getByText('Show Microsoft Accounts');
+    const googleToggle = getByText('Show Google Accounts');
     const weatherView = getByText('Weather view');
 
-    // DOCUMENT_POSITION_FOLLOWING === 4 — the weather view comes after it.
-    expect(msToggle.compareDocumentPosition(weatherView) & 4).toBeTruthy();
+    // DOCUMENT_POSITION_FOLLOWING === 4 — Google comes after Microsoft, and
+    // the weather view after both.
+    expect(msToggle.compareDocumentPosition(googleToggle) & 4).toBeTruthy();
+    expect(googleToggle.compareDocumentPosition(weatherView) & 4).toBeTruthy();
   });
 
   it('shows privacy mode as on and reports it switching off', () => {

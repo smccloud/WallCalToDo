@@ -156,8 +156,9 @@ export function clearCompletedTasks() {
 // off in the companion app takes effect immediately, without waiting for
 // or triggering a new poll. The Microsoft half of the list is skipped
 // entirely while the display-wide Microsoft on/off (see microsoftEnabled
-// in settingsService.js) is off; Google tasks are not Microsoft's, so they
-// are not affected by that switch.
+// in settingsService.js) is off; the Google half is skipped the same way
+// by its own display-wide on/off (see googleEnabled in settingsService.js
+// and getCachedGoogleTasks).
 export function getCachedTasks() {
   const cache = loadTasks();
   const tasks = [];

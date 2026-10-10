@@ -17,6 +17,10 @@ const DEFAULT_SETTINGS = {
   // accounts and their calendars from the display. true shows them if
   // connected (the default for existing installs).
   microsoftEnabled: true,
+  // Whether to show the Google calendar section — off hides Google accounts
+  // and their calendars/tasks from the display. true shows them if connected
+  // (the default for existing installs).
+  googleEnabled: true,
   // 'F' is the first option in the companion app's Units segmented control,
   // matching the usual "first option starts selected" convention. Temperature
   // was its own Temperature section until wind speed and precipitation

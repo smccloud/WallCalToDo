@@ -109,6 +109,16 @@ describe('getCachedEvents', () => {
       getCachedEvents().map((event) => event.id)
     );
   });
+
+  it('drops the whole Google half while the Google section is switched off', () => {
+    seedCache();
+    // The display-wide Google on/off (see googleEnabled in settingsService.js).
+    writeJson('settings.json', { googleEnabled: false });
+    expect(getCachedEvents()).toEqual([]);
+    expect(getCachedGridEvents()).toEqual([]);
+    // Restore the default so the rest of this file's tests still see events.
+    fs.rmSync(dataPath('settings.json'), { force: true });
+  });
 });
 
 describe('dropAccountCache', () => {

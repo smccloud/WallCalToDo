@@ -536,11 +536,14 @@ body {
   margin-bottom: 0.75rem;
 }
 
-/* The Microsoft-section on/off, which sits just above the weather view
-   (see GeneralSettings.jsx) and reads as its own section of that card the
-   same way Units and the weather view do: a top divider, the toggle on its
-   own row with the switch pushed to the right, and a hint beneath. */
-.microsoft-toggle {
+/* The per-provider section on/offs (Microsoft's and Google's, see
+   GeneralSettings.jsx), which sit just above the weather view and read as
+   their own sections of that card the same way Units and the weather view
+   do: a top divider, the toggle on its own row with the switch pushed to
+   the right, and a hint beneath. The two stack, so the second's divider
+   separates it from the first's hint. */
+.microsoft-toggle,
+.google-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -549,7 +552,8 @@ body {
   border-top: 1px solid var(--color-border-subtle);
 }
 
-.microsoft-toggle__hint {
+.microsoft-toggle__hint,
+.google-toggle__hint {
   margin: 0.5rem 0 0;
   color: var(--color-text-muted);
   font-size: 0.85rem;

@@ -211,6 +211,9 @@ export default function App() {
   // every calendar/todo broadcast, so turning it off drops Office365 content
   // (calendars and to-do lists) from the wall until it's flipped back on.
   const setMicrosoftEnabled = (enabled) => patchSetting({ microsoftEnabled: enabled });
+  // Same idea for the Google half of the display: off drops Google
+  // calendars and tasks from the wall until it's flipped back on.
+  const setGoogleEnabled = (enabled) => patchSetting({ googleEnabled: enabled });
   // On the wall display: strips event titles down to just their colored
   // pills, and swaps the today-agenda and to-do list contents for a
   // placeholder notice -- their headings stay so the display still reads
@@ -497,6 +500,7 @@ export default function App() {
         onSetTheme={setTheme}
         onSetAdvancedEnabled={setAdvancedEnabled}
         onSetMicrosoftEnabled={setMicrosoftEnabled}
+        onSetGoogleEnabled={setGoogleEnabled}
         onSetOffset={setOffset}
         onSetTempUnit={setTempUnit}
         onSetWindUnit={setWindUnit}
@@ -528,6 +532,7 @@ export default function App() {
         onToggleTaskList={toggleTaskList}
         onRefreshTaskLists={refreshTaskLists}
         onDisconnectAccount={disconnectAccount}
+        showSection={settings?.googleEnabled ?? true}
       />
 
       <Microsoft

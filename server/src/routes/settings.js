@@ -90,6 +90,7 @@ settingsRouter.patch('/settings', (req, res) => {
     location,
     privacyMode,
     microsoftEnabled,
+    googleEnabled,
     tempUnit,
     advancedEnabled,
     weatherEnabled,
@@ -125,6 +126,13 @@ settingsRouter.patch('/settings', (req, res) => {
   if (microsoftEnabled !== undefined) {
     if (typeof microsoftEnabled !== 'boolean') return res.status(400).json({ error: 'Invalid microsoftEnabled' });
     patch.microsoftEnabled = microsoftEnabled;
+  }
+  // Same idea for the Google half of the display (see getCachedEvents and
+  // getCachedGoogleTasks): off drops Google calendars and tasks from both
+  // feeds until it's turned back on.
+  if (googleEnabled !== undefined) {
+    if (typeof googleEnabled !== 'boolean') return res.status(400).json({ error: 'Invalid googleEnabled' });
+    patch.googleEnabled = googleEnabled;
   }
   if (privacyMode !== undefined) {
     if (typeof privacyMode !== 'boolean') return res.status(400).json({ error: 'Invalid privacyMode' });
@@ -207,12 +215,12 @@ settingsRouter.patch('/settings', (req, res) => {
 
   const settings = updateSettings(patch);
   broadcast({ type: 'settings', data: settings });
-  // Turning the Microsoft section off or on changes what the calendar and
-  // to-do feeds contain, but neither feed is re-read just because a setting
-  // changed -- a display would otherwise keep showing the old Microsoft items
-  // (or keep missing them) until the next poll. Push both now so the toggle
-  // takes effect on the wall the moment it's flipped.
-  if (patch.microsoftEnabled !== undefined) {
+  // Turning the Microsoft or Google section off or on changes what the
+  // calendar and to-do feeds contain, but neither feed is re-read just
+  // because a setting changed -- a display would otherwise keep showing the
+  // old items (or keep missing them) until the next poll. Push both now so
+  // the toggle takes effect on the wall the moment it's flipped.
+  if (patch.microsoftEnabled !== undefined || patch.googleEnabled !== undefined) {
     broadcastCalendar();
     broadcast({ type: 'todo', data: getCachedTasks() });
   }

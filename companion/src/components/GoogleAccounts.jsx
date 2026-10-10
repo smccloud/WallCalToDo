@@ -19,9 +19,18 @@ export default function GoogleAccounts({
   onRefreshTaskLists,
   onRefreshAccount,
   onDisconnectAccount,
+  showSection,
 }) {
   const configured = Boolean(googleCredentials?.configured);
   const sets = googleCredentials?.sets || [];
+
+  // A whole-section on/off (see googleEnabled in GeneralSettings.jsx): off
+  // hides the entire section -- header, credentials, account cards, the lot --
+  // matching the display, whose calendar and to-do feeds simply stop carrying
+  // Google content. Nothing is disconnected or deleted; flipping it back on
+  // shows everything exactly as it was.
+  const hiddenByToggle = typeof showSection !== 'undefined' && !showSection;
+  if (hiddenByToggle) return null;
 
   return (
     <>

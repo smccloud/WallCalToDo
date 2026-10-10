@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { getAuthorizedClient, listAccounts } from '../auth/googleAuth.js';
+import { getSettings } from './settingsService.js';
 import { readJson, writeJson } from '../store/fileStore.js';
 
 const CACHE_FILE = 'googleTasksCache.json';
@@ -153,8 +154,11 @@ export async function pollGoogleTasks() {
 }
 
 // Filtered by the current enabled flags at read time, so toggling a list off
-// takes effect on the wall immediately without waiting for a poll.
+// takes effect on the wall immediately without waiting for a poll. Skipped
+// entirely while the display-wide Google on/off (see googleEnabled in
+// settingsService.js) is off.
 export function getCachedGoogleTasks() {
+  if (!getSettings().googleEnabled) return [];
   const cache = loadCache();
   const lists = loadLists();
   const knownIds = new Set(listAccounts().map((a) => a.id));
