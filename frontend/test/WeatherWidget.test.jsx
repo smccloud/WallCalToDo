@@ -66,4 +66,17 @@ describe('WeatherWidget', () => {
     renderAt(NIGHT, WEATHER, { tempUnit: 'F' });
     expect(document.body.textContent).toBe('⛅71°F');
   });
+
+  it('shows a numeric AQI reading when there is one', () => {
+    renderAt(DAY, { ...WEATHER, aqi: 62 }, { ...SUN, tempUnit: 'F' });
+    expect(document.body.textContent).toBe('62 AQI⛅71°F');
+  });
+
+  it('shows no AQI at all when the reading has no value', () => {
+    // The air-quality fetch is best-effort (its failure keeps the temperature
+    // reading), and a cache from before the feature has no `aqi` key at all —
+    // neither should leave a bare "AQI" label on the wall.
+    renderAt(DAY, { ...WEATHER, aqi: null }, { ...SUN, tempUnit: 'F' });
+    expect(document.body.textContent).toBe('⛅71°F');
+  });
 });

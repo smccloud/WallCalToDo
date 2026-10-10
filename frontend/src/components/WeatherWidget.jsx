@@ -37,9 +37,19 @@ export default function WeatherWidget({ weather, settings }) {
   // aren't masked (isUnhealthyAir).
   const temp = formatTemperature(weather.tempC, weather.tempF, settings?.tempUnit);
 
+  // Only a real reading gets the AQI number on the wall. `aqi` can be null
+  // (the air-quality call is best-effort and its failure leaves it null, with
+  // the temperature kept) or missing entirely (a cached reading cached before
+  // the AQI feature existed) -- in either case the span carries no number, so
+  // it carries no label either, rather than reading just " AQI" on the wall.
+  // Number.isFinite also rejects the odd non-numeric value.
+  const hasAqi = Number.isFinite(weather.aqi);
+
   return (
     <div className="weather">
-      <span className={`weather__aqi ${weather.aqi >= 301 ? 'is-hazardous' : weather.aqi > 200 ? 'is-very-unhealthy' : weather.aqi > 150 ? 'is-unhealthy' : weather.aqi > 100 ? 'is-moderate' : ''}`}>{weather.aqi} AQI</span>
+      {hasAqi && (
+        <span className={`weather__aqi ${weather.aqi >= 301 ? 'is-hazardous' : weather.aqi > 200 ? 'is-very-unhealthy' : weather.aqi > 150 ? 'is-unhealthy' : weather.aqi > 100 ? 'is-moderate' : ''}`}>{weather.aqi} AQI</span>
+      )}
       <span className="weather__emoji">{emoji}</span>
       <span className="weather__temp">{temp}</span>
     </div>
