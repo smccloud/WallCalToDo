@@ -950,12 +950,24 @@ orientation" above), depending on your Pi OS version.
 With no mouse attached, the page's own `cursor: none` only hides the pointer
 while it is over the browser's surface, so labwc's default pointer still
 shows on the wall. Hide it at the compositor level with a transparent cursor
-theme:
+theme. Raspberry Pi OS doesn't package one, but the theme is a single
+ready-made cursor file plus symlinks — no compiler and no apt package:
 
 ```
-sudo apt install -y xcursor-transparent-theme
+mkdir -p ~/.local/share/icons/xcursor-transparent/cursors
+cd ~/.local/share/icons/xcursor-transparent/cursors
+curl -fsSL -o transp \
+  https://raw.githubusercontent.com/ebe-forks/xcursor-transparent-theme/master/transp
+for name in default left_ptr arrow hand pointer text xterm crosshair watch \
+            wait move fleur top_left_arrow right_ptr sb_v_double_arrow \
+            sb_h_double_arrow size_hor size_ver size_all openhand closedhand; do
+  ln -sf transp "$name"
+done
+mkdir -p ~/.local/share/icons/default
+printf '[Icon Theme]\nInherits=xcursor-transparent\n' > ~/.local/share/icons/default/index.theme
 mkdir -p ~/.config/labwc
-echo 'XCURSOR_THEME=xcursor-transparent' >> ~/.config/labwc/environment
+grep -qxF 'XCURSOR_THEME=xcursor-transparent' ~/.config/labwc/environment 2>/dev/null || \
+  echo 'XCURSOR_THEME=xcursor-transparent' >> ~/.config/labwc/environment
 ```
 
 Then reboot:
@@ -1072,13 +1084,8 @@ backend) or the request will be turned away.
 - **A mouse pointer stays visible on the wall even with no mouse** — the
   page's `cursor: none` only hides it over the browser's own surface, so the
   compositor's default pointer shows around it. Install the transparent
-  cursor theme and reboot (see setup step 8):
-  ```
-  sudo apt install -y xcursor-transparent-theme
-  mkdir -p ~/.config/labwc
-  echo 'XCURSOR_THEME=xcursor-transparent' >> ~/.config/labwc/environment
-  sudo reboot
-  ```
+  cursor theme and reboot — the commands are in setup step 8 above, and in
+  "Hiding the cursor" in `pi-setup/kiosk/README.md`.
 - **You used a different username than `pi`** — update `User=` and the
   `/home/pi/...` paths in `pi-setup/wallcaltodo.service` before copying it
   to `/etc/systemd/system/`.

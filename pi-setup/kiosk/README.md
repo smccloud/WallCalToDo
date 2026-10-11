@@ -81,20 +81,31 @@ Chromium's window appears, and anywhere the page doesn't cover. That one
 can only be hidden at the compositor level.
 
 On **Wayland/labwc** (Bookworm/Trixie) the reliable fix is a transparent
-cursor theme, so no pointer is ever drawn:
+cursor theme, so no pointer is ever drawn. Raspberry Pi OS doesn't package
+one, but the theme is a single ready-made cursor file plus symlinks — no
+compiler and no apt package:
 
 ```
-sudo apt install -y xcursor-transparent-theme
+mkdir -p ~/.local/share/icons/xcursor-transparent/cursors
+cd ~/.local/share/icons/xcursor-transparent/cursors
+curl -fsSL -o transp \
+  https://raw.githubusercontent.com/ebe-forks/xcursor-transparent-theme/master/transp
+for name in default left_ptr arrow hand pointer text xterm crosshair watch \
+            wait move fleur top_left_arrow right_ptr sb_v_double_arrow \
+            sb_h_double_arrow size_hor size_ver size_all openhand closedhand; do
+  ln -sf transp "$name"
+done
+mkdir -p ~/.local/share/icons/default
+printf '[Icon Theme]\nInherits=xcursor-transparent\n' > ~/.local/share/icons/default/index.theme
 mkdir -p ~/.config/labwc
-echo 'XCURSOR_THEME=xcursor-transparent' >> ~/.config/labwc/environment
+grep -qxF 'XCURSOR_THEME=xcursor-transparent' ~/.config/labwc/environment 2>/dev/null || \
+  echo 'XCURSOR_THEME=xcursor-transparent' >> ~/.config/labwc/environment
 ```
 
 labwc reads `~/.config/labwc/environment` only at startup, so reboot for it
-to take effect. If `xcursor-transparent-theme` isn't packaged for your
-release, the same theme is a small source tree at
-<https://github.com/ebe-forks/xcursor-transparent-theme> — drop its
-`xcursor-transparent` folder into `~/.local/share/icons/` and use the same
-`XCURSOR_THEME` line.
+to take effect. On an older Bookworm install still running **Wayfire**
+instead of labwc, add `export XCURSOR_THEME=xcursor-transparent` to
+`~/.profile` as well.
 
 On **X11/LXDE** the script's `unclutter` already handles this; if you'd
 rather not run it, the transparent theme works there too via
