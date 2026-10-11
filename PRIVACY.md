@@ -11,8 +11,12 @@ page explains what data the software touches and what it does with it.
   Google account email (`userinfo.email`) so the companion app can show
   which account is connected. It cannot create, edit, or delete anything
   in your Google Calendar.
-- **Microsoft To Do** — read-only (`Tasks.Read` scope). It cannot create,
-  edit, or delete tasks in your Microsoft account. (It can remove a
+- **Google Tasks** — read-only (`tasks.readonly` scope), granted by the same
+  Google sign-in as the calendar. It cannot create, edit, or delete tasks
+  in your Google account.
+- **Microsoft calendars and To Do** — read-only (`Calendars.Read` and
+  `Tasks.Read` scopes, from one sign-in). It cannot create, edit, or delete
+  anything in your Microsoft account. (For To Do, it can remove a
   completed task from its own local cache — see "Where your data lives"
   below — but that never touches the real task in Microsoft To Do.)
 

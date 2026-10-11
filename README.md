@@ -1,9 +1,11 @@
 # WallCalToDo
 
 A wall-mounted display (old monitor + Raspberry Pi) that shows your calendars
-and a Microsoft To Do list at the same time. Calendars can come from Google
-and/or Microsoft, and the to-do list is Microsoft To Do — one Microsoft
-account can supply both halves. Works mounted either
+and your to-do list at the same time. Calendars and tasks can come from Google
+and/or Microsoft: Google Calendar and Google Tasks on one side, Microsoft
+(Outlook/Office 365) calendars and Microsoft To Do on the other — so a
+Google-only household needs no Microsoft account, a Microsoft-only one needs
+no Google account, and a mix of both works too. Works mounted either
 way — portrait puts the calendar on top with today's agenda and the to-do
 list below it; landscape puts the calendar on the left with today's agenda
 and to-do stacked in a column beside it. It picks whichever automatically
@@ -31,6 +33,39 @@ overflow on a busy day, and a mix of completed/pending to-do items with
 due dates. A location is set, which is what puts the next sunrise or sunset
 in the header.)*
 
+## Contents
+
+- [Why this exists](#why-this-exists)
+- [How it works](#how-it-works)
+- [Auto-update behavior](#auto-update-behavior)
+- [The clock](#the-clock)
+- [Screen orientation](#screen-orientation)
+- [Sunrise and sunset in the header](#sunrise-and-sunset-in-the-header)
+- [Microsoft calendar fetching](#microsoft-calendar-fetching)
+- [Calendar legend and outside temperature](#calendar-legend-and-outside-temperature)
+- [Weather view](#weather-view)
+- [Holiday decoration](#holiday-decoration)
+- [Companion app](#companion-app)
+  - [Connecting an account from a remote computer](#connecting-an-account-from-a-remote-computer)
+- [Hardware notes](#hardware-notes)
+- [Setup guide](#setup-guide)
+  - [What you'll need](#what-youll-need)
+  - [1. Flash the SD card](#1-flash-the-sd-card)
+  - [2. First boot](#2-first-boot)
+  - [3. Update the OS and install Node.js](#3-update-the-os-and-install-nodejs)
+  - [4. Get the code onto the Pi](#4-get-the-code-onto-the-pi)
+  - [5. Install dependencies and build both apps](#5-install-dependencies-and-build-both-apps)
+  - [6. Run the backend as a background service](#6-run-the-backend-as-a-background-service)
+  - [7. Connect your accounts](#7-connect-your-accounts)
+  - [8. Enable kiosk mode (and rotate the display, if mounting in portrait)](#8-enable-kiosk-mode-and-rotate-the-display-if-mounting-in-portrait)
+  - [9. Mount it](#9-mount-it)
+  - [Managing it later](#managing-it-later)
+  - [Troubleshooting](#troubleshooting)
+- [Local development](#local-development)
+- [Design](#design)
+- [Roadmap](#roadmap)
+- [Credits](#credits)
+
 ## Why this exists
 
 The point of this project isn't a new to-do app — it's to get a wall
@@ -42,8 +77,9 @@ how I organize my life day to day, and I didn't want a wall display that
 meant switching to yet another app just so it had something to show.
 
 So instead of inventing its own data model, WallCalToDo reads straight from
-the same accounts my phone already syncs against — the Google Calendar API
-and the Microsoft Graph calendar and To Do APIs. Anything
+the same accounts my phone already syncs against — the Google Calendar and
+Google Tasks APIs on one side, and the Microsoft Graph calendar and To Do
+APIs on the other. Anything
 I add, check off, or move on my phone shows up on the wall (see "How it
 works" below for the polling delay), because it's the exact same underlying
 data, not a copy of it. The wall display itself is read-only, though —
@@ -56,26 +92,34 @@ reads. I linked my Microsoft account in the To Do app's settings, made it
 the home of my to-do list, and moved the real list over to it — so To Do
 on my phone and the to-do side of this wall display are now reading the
 same Microsoft-backed list, the same way Calendar on my phone and the
-calendar on the wall are reading the same Google account.
+calendar on the wall are reading the same Google account. Google Tasks is
+supported the same way, off the same Google sign-in as the calendar, so a
+Google-first setup can keep its whole to-do list in Google and never touch
+Microsoft at all — the two to-do sources appear as one merged list on the
+wall.
 
 The only one-time cost is connecting your Google account to the Calendar
-app and your Microsoft account to the To Do app if you haven't already —
-after that, nothing about how you actually use your phone changes. The wall
-display is just another window onto accounts you're already keeping up with.
+(and, if you want, Tasks) APIs and/or your Microsoft account to the To Do
+app if you haven't already — after that, nothing about how you actually use
+your phone changes. The wall display is just another window onto accounts
+you're already keeping up with.
 
 ## How it works
 
 ```
 Google Calendar API (N accounts)   ─┐
+Google Tasks API (N accounts)      ─┤
                                     ├─ poll on interval (delta/sync tokens) ─ Node backend ─┬─ WebSocket ─ React kiosk app (Chromium fullscreen, portrait)
-Microsoft Graph API                ─┘                                                       └─ REST ────── React companion app (your phone, same Wi-Fi)
+Microsoft Graph calendars (1 acct) ─┤                                                       └─ REST ────── React companion app (your phone, same Wi-Fi)
+Microsoft Graph To Do (1 account)  ─┘
 ```
 
 - **server/** — Node/Express backend. Handles OAuth for any number of
-  Google accounts plus one Microsoft account, polls each calendar on an
-  interval using delta/sync tokens (cheap, only fetches what changed),
-  polls the outside temperature separately on its own longer interval,
-  and pushes updates to connected displays over a WebSocket. Also exposes
+  Google accounts plus one Microsoft account, polls each calendar and
+  to-do list on an interval using delta/sync tokens where the provider has
+  them (cheap, only fetches what changed), polls the outside temperature
+  separately on its own longer interval, and pushes updates to connected
+  displays over a WebSocket. Also exposes
   the settings API the companion app uses. Serves both built frontends
   too, so the Pi only runs one process in production.
 - **frontend/** — React kiosk app that renders the calendar, today's
@@ -87,8 +131,9 @@ Microsoft Graph API                ─┘                                       
   themselves.
 - **companion/** — React settings app for your phone: connect/disconnect
   Google and Microsoft accounts, toggle individual calendars/lists on or
-  off, and configure theme, location, temperature units, and privacy mode.
-  Reachable at `http://<pi-hostname>:3000/companion` over your home Wi-Fi —
+  off, customize calendar colors, and configure theme, location, time
+  format, units and privacy mode. Reachable at
+  `http://<pi-hostname>:3000/companion` over your home Wi-Fi —
   see "Companion app" below.
 - **pi-setup/** — systemd unit for the backend + kiosk Chromium autostart,
   plus the OS-level display rotation needed for a portrait mount (see
@@ -96,12 +141,15 @@ Microsoft Graph API                ─┘                                       
 
 ## Auto-update behavior
 
-There's no manual refresh step. The backend polls Google calendars, Microsoft
+There's no manual refresh step. The backend polls Google calendars, Google
+Tasks, Microsoft
 calendars, and Microsoft To Do every `POLL_INTERVAL_MS` (default 60s, see
-`server/.env`) — Google and To Do ask "what changed since last time?" using
+`server/.env`) — Google Calendar and Microsoft To Do ask "what changed since
+last time?" using
 **sync tokens**, which is cheap enough to poll frequently if you want faster
-updates (e.g. drop it to 15–20s). Microsoft is the exception and runs on its
-own slower interval, for the reason given under
+updates (e.g. drop it to 15–20s). Google Tasks has no delta feed and is
+re-listed each round (its lists are small), and Microsoft calendars are the
+exception, running on their own slower interval for the reason given under
 [Microsoft calendar fetching](#microsoft-calendar-fetching).
 
 When a poll detects a change, the backend immediately pushes the new data
@@ -124,14 +172,21 @@ The wall's own clock — top right of the calendar, and carried over to the same
 corner when the weather view takes the screen — runs to seconds, `10:04:37 am`.
 Seconds are what make a clock on a wall read as *running* rather than stuck;
 without them, a display that redraws a few times a minute looks broken between
-redraws.
+redraws. They can be turned off in the companion app (**Show seconds**, under
+Time format) — the clock deliberately keeps ticking once a second either way,
+since the tick is what keeps it honest across a suspend or a clock that jumped
+(NTP, a DST change), and re-rendering one small span isn't what costs
+anything — and the two colons can be made to blink (**Blink the colons**),
+which under `prefers-reduced-motion` stands down on its own.
 
 Whether it reads `10:04:37 am` or `22:04:37` is the companion app's **Time
 format** setting (12-hour by default, the only format this display shipped
 with). That setting covers every time on the wall — the clock, agenda start
 times, to-do due dates, the forecast's hour labels and the sunrise/sunset
 readout — so the whole display switches conventions at once rather than
-showing a 12-hour clock next to a 24-hour agenda.
+showing a 12-hour clock next to a 24-hour agenda. The seconds and blinking
+colons above are scoped to the clock alone: an agenda entry or a forecast
+column never shows seconds, because a meeting doesn't start at 10:30:47.
 
 It ticks once a second, and that's the only thing on the display that does.
 The clock is its own component (`WallClock.jsx`) with its own timer rather than
@@ -470,21 +525,22 @@ date rather than say what's on it, the same way the day numbers themselves
 stay visible; only titles go.
 
 <p align="center">
-  <a href="docs/demo-holiday-landscape-dark.png"><img src="docs/demo-holiday-landscape-dark.png" alt="Landscape, dark theme: September 2026, with Labor Day on the 7th and Columbus Day on the 14th ringed in the holidays calendar's own gold, a hammer-and-wrench and a sailboat beside their day numbers" width="380"></a>
-  <a href="docs/demo-holiday-landscape-light.png"><img src="docs/demo-holiday-landscape-light.png" alt="Landscape, light theme: the same September 2026 month" width="380"></a>
+  <a href="docs/demo-holiday-landscape-dark.png"><img src="docs/demo-holiday-landscape-dark.png" alt="Landscape, dark theme: October 2026, with Columbus Day on the 12th and Halloween on the 31st ringed in the holidays calendar's own gold, a sailboat and a jack-o'-lantern beside their day numbers" width="380"></a>
+  <a href="docs/demo-holiday-landscape-light.png"><img src="docs/demo-holiday-landscape-light.png" alt="Landscape, light theme: the same October 2026 month" width="380"></a>
 </p>
 <p align="center">
-  <a href="docs/demo-holiday-portrait-dark.png"><img src="docs/demo-holiday-portrait-dark.png" alt="Portrait, dark theme: September 2026 with the same two holiday days ringed and their images beside the numbers" width="220"></a>
-  <a href="docs/demo-holiday-portrait-light.png"><img src="docs/demo-holiday-portrait-light.png" alt="Portrait, light theme: the same September 2026 month" width="220"></a>
+  <a href="docs/demo-holiday-portrait-dark.png"><img src="docs/demo-holiday-portrait-dark.png" alt="Portrait, dark theme: October 2026 with the same two holiday days ringed and their images beside the numbers" width="220"></a>
+  <a href="docs/demo-holiday-portrait-light.png"><img src="docs/demo-holiday-portrait-light.png" alt="Portrait, light theme: the same October 2026 month" width="220"></a>
 </p>
 
 *(Demo data again, like the four above, with a third calendar added carrying
-the two US holidays that fall in September 2026. Labor Day on the 7th and
-Columbus Day on the 14th are ringed in that calendar's own gold — the same gold
+the two holidays that fall in October 2026. Columbus Day on the 12th and
+Halloween on the 31st are ringed in that calendar's own gold — the same gold
 as their pills, and as the "H" in the legend — with the image each holiday is
 conventionally represented by sitting beside the number, at the number's own
 size. The 15th is today, in the fixed red it always uses.)*
 
+## Companion app
 
 A separate small app (`companion/`) served at `/companion` lets you manage
 everything from your phone or laptop, on the same Wi-Fi as the Pi:
@@ -512,6 +568,27 @@ everything from your phone or laptop, on the same Wi-Fi as the Pi:
   can connect as many Google accounts as you want (e.g. personal + work).
   Reconnecting an account you've already added updates its tokens instead
   of creating a duplicate.
+- **Customize a calendar's color** — the color swatch beside each calendar
+  *is* the picker: click it and the browser's own color chooser opens in
+  place, with no separate control to find. The choice is stored alongside
+  the color the provider reports rather than over it, so a later calendar
+  refresh doesn't wipe it and "reset" can fall back to the provider's own
+  color. It applies to both providers: on the wall, the calendar's pills
+  and its letter-circle in the [legend](#calendar-legend-and-outside-temperature)
+  pick the color up immediately (the server repaints that calendar's cached
+  events on the spot). Graph has no per-event colors, so on the Microsoft
+  side this is the only color a calendar has; on Google's, an individual
+  event can still carry its own override (Google Calendar's "change color
+  of this event"), which the legend shows as a stacked swatch.
+- **Google Tasks** — each connected Google account also lists its Google
+  Tasks lists, each with its own on/off toggle, right under its calendars.
+  The tasks come off the same Google sign-in as the calendar, so nothing
+  extra is connected; they merge with Microsoft To Do items into the one
+  to-do panel on the wall. An account connected before Tasks access was
+  requested says so and needs a disconnect/reconnect to grant it, and
+  **Refresh task lists** pulls in a newly created list (Google has no push
+  for that). Completed tasks stay on the wall for a week and then drop off,
+  the rolling equivalent of the Microsoft side's Monday tidy-up.
 - **Toggle calendars on/off** — each connected account lists every
   calendar the provider returns for it (not just the primary one). Flipping
   a switch hides or shows that calendar's events on the wall display
@@ -598,11 +675,13 @@ all-day events Google really hands over, tagged the same way.)*
   keep the list from accumulating crossed-off items forever — this only
   trims what the wall display shows, it never touches the real task in
   Microsoft To Do, so un-completing or editing one afterward brings it
-  right back. Microsoft calendar events are filtered the same way Google
+  right back.   Microsoft calendar events are filtered the same way Google
   ones are, and each day is capped at two of them — see
   [Microsoft calendar fetching](#microsoft-calendar-fetching) for why, and for
   the polling difference behind it. Since Graph has no per-event colors, a
-  Microsoft calendar's own color is all its pills get.
+  Microsoft calendar's own color is all its pills get — either the color
+  derived from Graph's color theme or one you pick on its swatch in the
+  companion app (see "Customize a calendar's color" above).
 - **Reconnect for calendars** — an account connected before this read
   Microsoft calendars has a token that was never consented to
   `Calendars.Read`, so its to-do lists work but its calendars can't be
@@ -635,7 +714,9 @@ all-day events Google really hands over, tagged the same way.)*
   prints: the ticking clock, agenda start times, to-do due dates, the
   hourly forecast's hour labels and the sunrise/sunset readout. Defaults to
   12-hour, which is the format the display has always used, and like the
-  theme it needs no location.
+  theme it needs no location. Its two sub-toggles are scoped to the wall's
+  own clock alone: **Show seconds** ("10:04:37 am" vs "10:04 am") and
+  **Blink the colons** (see [The clock](#the-clock)).
 - **Units** — one section for the three things the wall measures:
   **temperature** (°F/°C), **wind speed** (mph/km/h/m/s/knots) and
   **precipitation** (inches/millimetres), the latter two feeding the [weather
@@ -643,6 +724,18 @@ all-day events Google really hands over, tagged the same way.)*
   are disabled with an explanatory notice until a location is set, since every
   reading comes from that location. Defaults are the US ones throughout
   (°F, mph, inches).
+- **Show Google Accounts / Show Microsoft Accounts** — a display-wide on/off
+  for each provider's whole half of the wall, separate from the per-calendar
+  and per-list toggles above. Turning one off drops that provider's calendars
+  and to-do items from the display (and hides the matching section on this
+  page) without disconnecting anything, so it's a way to take Google or
+  Microsoft content off the wall temporarily and put it back exactly as it
+  was. Both default to on; a provider with nothing connected has nothing to
+  show either way.
+- **Combine similar events** — when two calendars list the same event on the
+  same day and time with similar names — the school district's "NO SCHOOL"
+  and the family calendar's "K-12 No School" — the wall shows it once instead
+  of twice. Off by default, since it changes what the display shows.
 - **Weather view** — whether the full-screen forecast appears at all, how
   often it takes over the display, for how long, and how many hours and days
   it draws; see [Weather view](#weather-view). The interval is timed from the
@@ -745,8 +838,10 @@ connecting your accounts, and mounting it on the wall.
 - A monitor with an HDMI input, plus the right cable: the Pi 4 has a
   **micro-HDMI** port, older Pis have full-size HDMI
 - A laptop/desktop computer, just to flash the SD card
-- A Google account (for the calendar) and, if you want the to-do list, a
-  Microsoft account with Tasks/To Do items
+- A Google account (for the calendar, and optionally Google Tasks — Google
+  To-Do-style items) and/or a Microsoft account (for Microsoft's calendars
+  and To Do list). At least one of the two providers is needed; a
+  Google-only setup needs no Microsoft account at all.
 - The Pi and your phone/computer all on the same home Wi-Fi network
 
 ### 1. Flash the SD card
@@ -872,22 +967,24 @@ provider's redirect getting back to the Pi through a port forward.
    http://localhost:3000/companion
    ```
 2. Scroll to **Google Calendar**. Click **+ Add credentials set** (or
-   **Where do I get this?** on the entry that appears) to expand the steps
-   for creating your own free Google API credentials — it walks you
+   **Where do I get a new set?** on the entry that appears) to expand the
+   steps for creating your own free Google API credentials — it walks you
    through the Google Cloud Console and tells you exactly what to paste in:
 
-   ![Google Calendar section of the companion app, showing the expanded "Where do I get this?" steps and the Client ID/Client Secret fields](docs/setup-google-credentials.png)
+   ![Google Calendar section of the companion app, showing the expanded "Where do I get a new set?" steps and the Client ID/Client Secret fields](docs/setup-google-credentials.png)
 
    Give the set any name (e.g. "Home"), paste the **Client ID** and
    **Client Secret** it gives you into the fields and click **Save**. You
    can add more sets later — one per Google OAuth app you create (a set
    per organisation whose calendars the wall shows, say).
 3. Each set now shows **+ Add account**. Tap it, sign in, grant access.
-   Repeat for every Google account you want on the display. Each connected
-   account shows the credential set it was connected with and its
-   calendars with a toggle for each one:
+   Repeat for every Google account you want on the display. The one sign-in
+   grants read-only access to both Calendar and Tasks, so the connected
+   account shows the credential set it was connected with, its calendars
+   with a toggle for each one, and its Google Tasks lists underneath, also
+   each with a toggle:
 
-   ![A connected Google account in the companion app, showing its calendar list with per-calendar toggles](docs/setup-google-connected.png)
+   ![A connected Google account in the companion app, showing its calendar list and Google Tasks lists, each with per-row toggles](docs/setup-google-connected.png)
 
 4. Scroll to **Microsoft** and do the same thing — expand **Where do I get
    this?**, follow the Azure Portal steps, paste in the Client ID/Secret it
@@ -1136,14 +1233,12 @@ styling changes stay confined to the style files and component markup.
 
 ## Roadmap
 
-**A second Microsoft account** — the calendar side already takes Google
-(any number of accounts) and Microsoft, but Microsoft itself is still capped
-at one account, because its to-do half has nowhere to disambiguate between
-accounts. Lifting that means a second Microsoft identity on both sides.
-
-**More to-do providers** — the to-do side is still Microsoft-only. Google
-Tasks is the obvious candidate, given the calendar side already talks to
-Google.
+**A second Microsoft account** — both halves now take any number of Google
+accounts (Google Calendar + Google Tasks) alongside the one Microsoft
+account, but Microsoft itself is still capped at one account, because its
+calendar and to-do halves share a single sign-in and the to-do side has
+nowhere to disambiguate between accounts. Lifting that means a second
+Microsoft identity on both sides.
 
 ## Credits
 
