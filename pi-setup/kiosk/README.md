@@ -70,3 +70,54 @@ hidden at the OS level too: `sudo apt install unclutter`.
 Reboot and the Pi should come up straight into the kiosk. To get back to a
 desktop for debugging, SSH in instead of touching the display — kiosk mode
 intentionally has no window chrome.
+
+## Hiding the cursor
+
+The `cursor: none` baked into the page (`frontend/index.html` + `base.css`)
+hides the pointer only while it is over the browser's own surface. On a
+headless kiosk with no mouse there is no "move it and let it time out", so
+the compositor's own default pointer stays visible — at boot before
+Chromium's window appears, and anywhere the page doesn't cover. That one
+can only be hidden at the compositor level.
+
+On **Wayland/labwc** (Bookworm/Trixie) the reliable fix is a transparent
+cursor theme, so no pointer is ever drawn:
+
+```
+sudo apt install -y xcursor-transparent-theme
+mkdir -p ~/.config/labwc
+echo 'XCURSOR_THEME=xcursor-transparent' >> ~/.config/labwc/environment
+```
+
+labwc reads `~/.config/labwc/environment` only at startup, so reboot for it
+to take effect. If `xcursor-transparent-theme` isn't packaged for your
+release, the same theme is a small source tree at
+<https://github.com/ebe-forks/xcursor-transparent-theme> — drop its
+`xcursor-transparent` folder into `~/.local/share/icons/` and use the same
+`XCURSOR_THEME` line.
+
+On **X11/LXDE** the script's `unclutter` already handles this; if you'd
+rather not run it, the transparent theme works there too via
+`~/.icons/default/index.theme`:
+
+```
+printf '[Icon Theme]\nInherits=xcursor-transparent\n' > ~/.icons/default/index.theme
+```
+
+Alternatively, labwc 0.8.4 and newer has a built-in `HideCursor` action.
+Bind it in `~/.config/labwc/rc.xml`:
+
+```xml
+<keyboard>
+  <keybind key="A-W-h">
+    <action name="HideCursor" />
+    <action name="WarpCursor" x="-1" y="-1" />
+  </keybind>
+</keyboard>
+```
+
+and trigger it once on startup by adding `wtype -M alt -M logo h -m alt -m
+logo` to `~/.config/labwc/autostart` (the same `wtype` package the script
+already uses for its F5 refresh). It becomes visible again on any pointer
+input, so the transparent theme above is the better choice on a kiosk with
+no pointer at all.

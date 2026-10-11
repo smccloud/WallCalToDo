@@ -34,10 +34,13 @@ xset s off -dpms 2>/dev/null           # X11 only: disable screen blanking
 
 # unclutter (X11 only — relies on the XScreenSaver extension, which has
 # no Wayland equivalent, so it's a no-op under labwc/Wayland) hides the
-# cursor here as a belt-and-suspenders measure. The actual cursor hiding
-# that works everywhere, including Wayland, is `cursor: none` baked into
-# the page itself (frontend/index.html + base.css) — that's what does the
-# real work on a Bookworm/Trixie default install.
+# cursor here as a belt-and-suspenders measure on X11. `cursor: none` baked
+# into the page (frontend/index.html + base.css) hides it only while the
+# pointer is over the browser's own surface — so on a Wayland/labwc kiosk
+# with no mouse, the compositor's default pointer still shows at boot before
+# Chromium's window appears. Hiding that one is a compositor-level setting,
+# not something this script or the page can do: install the transparent
+# cursor theme and set XCURSOR_THEME. See README.md in this folder.
 command -v unclutter > /dev/null && unclutter -idle 0.5 -root &
 
 # The browser package's binary name varies by Raspberry Pi OS release —

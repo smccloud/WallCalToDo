@@ -947,6 +947,17 @@ auto-launch full-screen on boot, plus rotating the display if you're
 mounting in portrait (skip that part for landscape — see "Screen
 orientation" above), depending on your Pi OS version.
 
+With no mouse attached, the page's own `cursor: none` only hides the pointer
+while it is over the browser's surface, so labwc's default pointer still
+shows on the wall. Hide it at the compositor level with a transparent cursor
+theme:
+
+```
+sudo apt install -y xcursor-transparent-theme
+mkdir -p ~/.config/labwc
+echo 'XCURSOR_THEME=xcursor-transparent' >> ~/.config/labwc/environment
+```
+
 Then reboot:
 
 ```
@@ -1058,6 +1069,16 @@ backend) or the request will be turned away.
 - **Kiosk screen is blank or shows a desktop instead of the app** — SSH in
   and run `pi-setup/kiosk/kiosk.sh` by hand to see its output directly,
   and double check the autostart file syntax in `pi-setup/kiosk/README.md`.
+- **A mouse pointer stays visible on the wall even with no mouse** — the
+  page's `cursor: none` only hides it over the browser's own surface, so the
+  compositor's default pointer shows around it. Install the transparent
+  cursor theme and reboot (see setup step 8):
+  ```
+  sudo apt install -y xcursor-transparent-theme
+  mkdir -p ~/.config/labwc
+  echo 'XCURSOR_THEME=xcursor-transparent' >> ~/.config/labwc/environment
+  sudo reboot
+  ```
 - **You used a different username than `pi`** — update `User=` and the
   `/home/pi/...` paths in `pi-setup/wallcaltodo.service` before copying it
   to `/etc/systemd/system/`.
