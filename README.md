@@ -830,6 +830,27 @@ Step-by-step, assuming no prior experience with any of this. It walks
 through everything: flashing the SD card, installing the software,
 connecting your accounts, and mounting it on the wall.
 
+**Shortcut:** once you've flashed the SD card (step 1), booted, and SSH'd
+in (step 2), steps 3–6 and 8 — the OS packages and Node.js, `.env`, the
+dependency installs and both frontend builds, the systemd service, and
+kiosk autostart (with the transparent cursor and, if you want it, portrait
+rotation) — are automated by `pi-setup/install.sh`:
+
+```
+cd ~/WallCalToDo
+./pi-setup/install.sh                # landscape (default)
+./pi-setup/install.sh --rotate 90    # portrait mount
+```
+
+It detects your user, checkout path and desktop session, is safe to re-run,
+and skips any package your OS release doesn't carry. Run
+`./pi-setup/install.sh --help` for the full set of options, and
+`./pi-setup/install.sh --update` later to `git pull`, rebuild and restart
+after an update. Connecting accounts (step 7) still has to be done by hand
+in a browser, since it needs your own API credentials — the script prints
+where to go when it finishes. The manual steps below remain the
+line-by-line record of what the script does.
+
 ### What you'll need
 
 - A Raspberry Pi (4 recommended — see "Hardware notes" above) with a
@@ -1095,6 +1116,13 @@ cd ~/WallCalToDo && git pull
 cd ~/WallCalToDo/frontend && npm install && npm run build
 cd ~/WallCalToDo/companion && npm install && npm run build
 sudo systemctl restart wallcaltodo
+```
+
+`pi-setup/install.sh --update` does exactly those four steps in one go, if
+you'd rather not type them out:
+
+```
+cd ~/WallCalToDo && ./pi-setup/install.sh --update
 ```
 
 Any change under `server/` needs only the restart; anything under `frontend/`

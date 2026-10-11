@@ -1,5 +1,11 @@
 # Kiosk autostart
 
+The repo root's `pi-setup/install.sh` sets all of this up for you — it
+detects the desktop session, adds the autostart entry, handles portrait
+rotation (`--rotate 90`), and installs the transparent cursor theme. The
+manual steps below are the record of what it does and the place to look if
+you're configuring kiosk mode yourself.
+
 Make the script executable once:
 
 ```
