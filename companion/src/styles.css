@@ -231,45 +231,35 @@ body {
   border-radius: 4px;
 }
 
-/* A calendar row's color control: the native picker plus, once a custom
-   color is set, a small link back to the provider's own color. */
-.calendar-row__color {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-shrink: 0;
-}
-
-.calendar-row__color input[type='color'] {
-  width: 28px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: none;
-  cursor: pointer;
-}
-
-.calendar-row__color-reset {
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--color-text-muted);
-  font: inherit;
-  font-size: 0.75rem;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.calendar-row__color-reset:hover {
-  color: var(--color-text);
-}
-
+/* A calendar row's color control: the swatch is itself the native color
+   picker, so there is no second element. Restyle the input to look like the
+   round swatch rather than a native button. */
 .calendar-row__swatch {
+  appearance: none;
+  -webkit-appearance: none;
   width: 0.75rem;
   height: 0.75rem;
+  padding: 0;
+  border: none;
   border-radius: 50%;
+  background: none;
+  overflow: hidden;
   flex-shrink: 0;
+  cursor: pointer;
+}
+
+.calendar-row__swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.calendar-row__swatch::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+.calendar-row__swatch::-moz-color-swatch {
+  border: none;
+  border-radius: 50%;
 }
 
 .calendar-row__label {

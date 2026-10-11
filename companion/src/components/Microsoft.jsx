@@ -153,33 +153,20 @@ export default function Microsoft({
               const color = cal.customColor || cal.displayColor;
               return (
                 <li key={cal.id} className="calendar-row">
-                  {/* Same swatch the wall display's legend will use for this
-                      calendar — the server resolves Graph's color-theme name to
-                      one hex and sends it as displayColor (see
-                      microsoftAuth.js), rather than each app picking its own. */}
-                  <span className="calendar-row__swatch" style={{ background: color || '#888' }} />
+                  {/* The swatch is the color picker, as on Google's side. Its
+                      color is the one the wall display's legend will use — the
+                      server resolves Graph's color-theme name to one hex and
+                      sends it as displayColor (see microsoftAuth.js), rather
+                      than each app picking its own. */}
+                  <input
+                    type="color"
+                    className="calendar-row__swatch"
+                    value={color || '#888888'}
+                    onChange={(e) => onSetCalendarColor(cal.id, e.target.value)}
+                    aria-label={`Color for ${cal.name}`}
+                    title="Customize this calendar's color"
+                  />
                   <span className="calendar-row__label">{cal.name}</span>
-                  {onSetCalendarColor && (
-                    <span className="calendar-row__color">
-                      <input
-                        type="color"
-                        value={color || '#888888'}
-                        onChange={(e) => onSetCalendarColor(cal.id, e.target.value)}
-                        aria-label={`Color for ${cal.name}`}
-                        title="Customize this calendar's color"
-                      />
-                      {cal.customColor && (
-                        <button
-                          type="button"
-                          className="calendar-row__color-reset"
-                          onClick={() => onSetCalendarColor(cal.id, '')}
-                          title="Reset to the color from Outlook"
-                        >
-                          Reset
-                        </button>
-                      )}
-                    </span>
-                  )}
                   <label className="switch">
                     <input type="checkbox" checked={cal.enabled} onChange={(e) => onToggleCalendar(cal.id, e.target.checked)} />
                     <span className="switch__track" />
