@@ -59,11 +59,9 @@ pipeline {
         }
 
         stage('Build') {
-            steps {
+            parallel {
                 // Inform GitHub the build has started
                 step([$class: 'GitHubSetCommitStatusBuilder', status: 'pending'])
-            }
-            parallel {
                 stage('frontend')  { steps { dir('frontend')  { sh 'npm run build' } } }
                 stage('companion') { steps { dir('companion') { sh 'npm run build' } } }
             }
