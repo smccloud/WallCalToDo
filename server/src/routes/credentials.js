@@ -6,6 +6,7 @@ import {
   updateGoogleSet,
   deleteGoogleSet,
 } from '../services/credentialsService.js';
+import { isTrustedRequest, clientAddress } from '../services/trustedNetworks.js';
 import { accountsUsingSet } from '../auth/googleAuth.js';
 import { resetClient as resetMsalClient } from '../auth/microsoftAuth.js';
 
@@ -31,6 +32,10 @@ const statusWithInUse = () => {
 };
 
 credentialsRouter.get('/credentials', (req, res) => {
+  if (!isTrustedRequest(req)) {
+    const clientAddress = clientAddress(req) || 'unknown';
+    return res.status(403).json({ error: `Reading credentials is only allowed from the Pi's own screen or networks in server/.env's TRUSTED_CIDRS, not ${clientAddress}.` });
+  }
   res.json(statusWithInUse());
 });
 

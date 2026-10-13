@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getSettings, updateSettings } from '../services/settingsService.js';
+import { isTrustedRequest } from '../services/trustedNetworks.js';
 import { searchPlaces, reverseGeocode } from '../services/geocodeService.js';
 import { pollWeatherNow, pollLunchNow } from '../services/poller.js';
 import {
@@ -446,5 +447,8 @@ settingsRouter.patch('/settings', (req, res) => {
   ) {
     pollLunchNow();
   }
-  res.json(settings);
-});
+  if (!isTrustedRequest(req)) {
+    return res.status(403).json({ error: `Changing settings is only allowed from the Pi's own screen or networks in server/.env's TRUSTED_CIDRS, not ${clientAddress(req) || 'unknown'}.` });
+  }
+
+  // Fire-and-forget: don't make the companion app wait on a weather fetch
