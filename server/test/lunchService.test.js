@@ -185,6 +185,12 @@ describe('candidateSlugs', () => {
     expect(candidateSlugs({ city: 'St. Louis' })[0]).toBe('st-louis');
   });
 
+  it('also tries a multi-word name run together, not just hyphenated', () => {
+    const slugs = candidateSlugs({ city: 'Big Lake' });
+    expect(slugs).toContain('big-lake');
+    expect(slugs).toContain('biglake');
+  });
+
   it('also tries the county, and dedupes when it matches the city', () => {
     expect(candidateSlugs({ city: 'Souderton', county: 'Montgomery County' })).toContain('montgomery-county');
     // One base, not two copies of every suffix.

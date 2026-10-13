@@ -56,7 +56,7 @@ const DISTRICT_SUFFIXES = [
   '-county-schools',
 ];
 const DISCOVER_TIMEOUT_MS = 6000;
-const MAX_DISCOVERY_CANDIDATES = 20;
+const MAX_DISCOVERY_CANDIDATES = 24;
 
 function apiBase(district) {
   return `https://${district}${API_SUFFIX}`;
@@ -200,11 +200,22 @@ function slugify(name) {
 }
 
 // The candidate district slugs for a place -- the town/city name and, as a
-// fallback, the county -- each with the common suffixes above. Deduped, capped,
-// and filtered to the same shape the settings route accepts, so a bad guess
-// can never become a request to a hostname we wouldn't otherwise allow.
+// fallback, the county -- each both in its hyphenated and run-together form
+// ("big-lake" and "biglake"; districts with multi-word names use the second
+// about as often as the first), then each with the common suffixes above.
+// Deduped, capped, and filtered to the same shape the settings route accepts,
+// so a bad guess can never become a request to a hostname we wouldn't
+// otherwise allow.
 export function candidateSlugs({ city, county } = {}) {
-  const bases = [...new Set([city, county].map(slugify).filter(Boolean))];
+  const bases = [];
+  for (const name of [city, county]) {
+    const slug = slugify(name);
+    if (!slug) continue;
+    if (!bases.includes(slug)) bases.push(slug);
+    const collapsed = slug.replace(/-/g, '');
+    if (collapsed && !bases.includes(collapsed)) bases.push(collapsed);
+  }
+
   const slugs = [];
   for (const base of bases) {
     for (const suffix of DISTRICT_SUFFIXES) {
