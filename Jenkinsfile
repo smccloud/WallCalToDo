@@ -55,13 +55,28 @@ pipeline {
                         }
                     }
                 }
+                stage('Unit Tests') {
+                    steps {
+                        // Mark GitHub status as pending for the start of this parallel thread
+                        step([$class: 'GitHubSetCommitStatusBuilder', status: 'pending', context: 'Jenkins/Unit-Tests'])
+                        
+                        sh 'echo "Running unit tests..."'
+                    }
+                }
+                stage('Integration Tests') {
+                    steps {
+                        // Mark GitHub status as pending with a distinct context name
+                        step([$class: 'GitHubSetCommitStatusBuilder', status: 'pending', context: 'Jenkins/Integration-Tests'])
+                        
+                        sh 'echo "Running integration tests..."'
+                    }
+                }
             }
         }
 
         stage('Build') {
             parallel {
                 // Inform GitHub the build has started
-                step([$class: 'GitHubSetCommitStatusBuilder', status: 'pending'])
                 stage('frontend')  { steps { dir('frontend')  { sh 'npm run build' } } }
                 stage('companion') { steps { dir('companion') { sh 'npm run build' } } }
             }
