@@ -26,7 +26,7 @@ pipeline {
     stages {
         stage('Install') {
             parallel {
-                stage('server')    { steps { dir('server')    { sh 'npm ci' } } }
+                stage('server')    { steps { dir('server')    { sh '''if [-f .env ] ; then rm -f .env ; fi ; echo 'TRUSTED_CIDRS=' > .env ; npm ci''' } } }
                 stage('frontend')  { steps { dir('frontend')  { sh 'npm ci' } } }
                 stage('companion') { steps { dir('companion') { sh 'npm ci' } } }
             }
