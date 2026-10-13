@@ -108,7 +108,7 @@ describe('menuForTomorrow', () => {
     },
   };
 
-  it('returns tomorrow's menu when today has a menu', () => {
+  it('returns tomorrow menu when today has a menu', () => {
     const tomorrow = new Date(2026, 9, 9, 12);
     expect(menuForTomorrow(lunch, 'lunch', new Date(2026, 9, 8, 12))).toEqual([{ title: null, items: ['Steak'] }]);
   });
