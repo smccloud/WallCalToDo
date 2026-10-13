@@ -56,6 +56,11 @@ beforeEach(async () => {
   vi.resetModules(); // fresh module state: the loop's day/interval trackers
   vi.clearAllMocks();
   vi.useFakeTimers();
+  // Pin the clock to a fixed Thursday. Without this the suite inherits the
+  // real date, and runPoll()'s Monday-only weekly to-do cleanup fires an extra
+  // `todo` broadcast that makes these assertions depend on the weekday CI
+  // happens to run on (build #22 failed exactly this way on a Monday).
+  vi.setSystemTime(new Date('2026-10-08T10:00:00'));
 
   m.pollCalendar.mockResolvedValue({ changed: false, events: [] });
   m.pollMsCalendar.mockResolvedValue({ changed: false });
