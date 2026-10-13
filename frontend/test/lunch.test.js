@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MEAL_ORDER, isLunchTime, mealLabel, menuFor, parseTimeOfDay, pickMeal } from '../src/utils/lunch.js';
+import { MEAL_ORDER, isLunchTime, mealLabel, menuFor, menuForTomorrow, parseTimeOfDay, pickMeal } from '../src/utils/lunch.js';
 
 // The lunch view's whole decision surface, none of which needs a server: when
 // the window opens, which meal is current inside it, and whether there's
@@ -95,6 +95,30 @@ describe('menuFor', () => {
     expect(menuFor(lunch, 'breakfast', at(12))).toBeNull();
     expect(menuFor(lunch, 'lunch', new Date(2026, 9, 9, 12))).toBeNull();
     expect(menuFor(null, 'lunch', at(12))).toBeNull();
+  });
+});
+
+describe('menuForTomorrow', () => {
+  const lunch = {
+    meals: {
+      lunch: {
+        '2026-10-08': [{ title: null, items: ['Pizza'] }],
+        '2026-10-09': [{ title: null, items: ['Steak'] }],
+      },
+    },
+  };
+
+  it('returns tomorrow's menu when today has a menu', () => {
+    const tomorrow = new Date(2026, 9, 9, 12);
+    expect(menuForTomorrow(lunch, 'lunch', new Date(2026, 9, 8, 12))).toEqual([{ title: null, items: ['Steak'] }]);
+  });
+
+  it('returns null when today has no menu for the meal', () => {
+    expect(menuForTomorrow(lunch, 'breakfast', at(12))).toBeNull();
+  });
+
+  it('returns null when lunch is missing', () => {
+    expect(menuForTomorrow(null, 'lunch', at(12))).toBeNull();
   });
 });
 

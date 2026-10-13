@@ -73,3 +73,13 @@ export function menuFor(lunch, meal, date) {
   const sections = meal ? lunch?.meals?.[meal]?.[dateKey(date)] : null;
   return Array.isArray(sections) ? sections : null;
 }
+
+// Get tomorrow's menu for the specified date if available
+export function menuForTomorrow(lunch, meal, todayDate) {
+  if (!lunch || !menuFor(lunch, meal, todayDate)) return null;
+  const tomorrowKey = dateKey(new Date(todayDate));
+  // Tomorrow is today + 1 day
+  const tomorrowDate = new Date(todayDate);
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  return menuFor(lunch, meal, tomorrowDate);
+}

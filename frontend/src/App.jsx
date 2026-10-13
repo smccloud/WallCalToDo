@@ -7,7 +7,7 @@ import DayAgenda from './components/DayAgenda.jsx';
 import TodoView from './components/TodoView.jsx';
 import LunchView from './components/LunchView.jsx';
 import WeatherView from './components/WeatherView.jsx';
-import { isLunchTime, pickMeal, menuFor, MEAL_ORDER } from './utils/lunch.js';
+import { isLunchTime, pickMeal, menuFor, menuForTomorrow, MEAL_ORDER } from './utils/lunch.js';
 
 // 'light'/'dark' settings are direct; 'auto' switches at sunrise/sunset for
 // the location saved in the companion app. Falls back to 'dark' (this
@@ -116,8 +116,25 @@ export default function App() {
   // clock the theme switch uses, so the view appears and hands back on its own
   // as the day passes.
   const lunchServed = MEAL_ORDER.filter((meal) => menuFor(lunch, meal, now));
-  const lunchMeal = isLunchTime(settings, now) ? pickMeal(settings, now, lunchServed) : null;
-  const lunchSections = lunchMeal ? menuFor(lunch, lunchMeal, now) : null;
+  
+  let lunchSections = null;
+  let displayMeal = null;
+  
+  if (lunchServed.length > 0) {
+    displayMeal = isLunchTime(settings, now) ? pickMeal(settings, now, lunchServed) : null;
+    lunchSections = displayMeal ? menuFor(lunch, displayMeal, now) : null;
+  }
+  
+  // If no menu today but tomorrow has one and the setting is enabled, show tomorrow's menu
+  if (!lunchSections && settings?.schoolLunchShowTomorrow && lunchServed.length === 0) {
+    const tomorrowMenu = MEAL_ORDER.map(meal => menuFor(lunch, meal, now));
+    displayMeal = tomorrowMenu.find(m => m);
+    if (displayMeal) {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      lunchSections = menuFor(lunch, displayMeal, tomorrow);
+    }
+  }
 
   // The weather view replaces the display outright, so it needs something to
   // show: a location, and a reading fetched for it. Without either the

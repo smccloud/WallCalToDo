@@ -408,6 +408,19 @@ export default function SchoolLunchSettings({
               onChange={(e) => setTime('schoolLunchMealSwitchTime', e.target.value)}
             />
           </label>
+
+          <div className="setting-toggle">
+            <span className="setting-toggle__label">Show tomorrow's menu</span>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={settings?.schoolLunchShowTomorrow || false}
+                disabled={settingsLoading}
+                onChange={(e) => onSetSchoolLunch({ schoolLunchShowTomorrow: e.target.checked })}
+              />
+              <span className="switch__track" />
+            </label>
+          </div>
         </>
       )}
     </div>
