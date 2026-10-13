@@ -59,6 +59,10 @@ pipeline {
         }
 
         stage('Build') {
+            steps {
+                // Inform GitHub the build has started
+                step([$class: 'GitHubSetCommitStatusBuilder', status: 'pending'])
+            }
             parallel {
                 stage('frontend')  { steps { dir('frontend')  { sh 'npm run build' } } }
                 stage('companion') { steps { dir('companion') { sh 'npm run build' } } }
@@ -74,7 +78,13 @@ pipeline {
                  subject: "Jenkins Build ${currentBuild.fullDisplayName} Finished",
                  body: "The build finished. Check details here: ${env.BUILD_URL}"
         }
+        success {
+            // Set GitHub commit status to universal success
+            step([$class: 'GitHubCommitStatusSetter', statusResultSource: [$class: 'ConditionalStatusResultSource', results: [[$class: 'BetterCouldBeSuccess']]]])
+        }
         failure {
+            // Set GitHub commit status to universal failure
+            step([$class: 'GitHubCommitStatusSetter', statusResultSource: [$class: 'ConditionalStatusResultSource', results: [[$class: 'AnyBuildResultDeterminesStatus']]]])
             // Triggers only if the build fails
             mail to: 'shaun.thomas.mccloud@gmail.com',
                  subject: "ALERT: Build Failed - ${currentBuild.fullDisplayName}",
