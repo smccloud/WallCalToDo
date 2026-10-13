@@ -2,7 +2,14 @@ import { Router } from 'express';
 import { getSettings, updateSettings } from '../services/settingsService.js';
 import { searchPlaces, reverseGeocode } from '../services/geocodeService.js';
 import { pollWeatherNow, pollLunchNow } from '../services/poller.js';
-import { fetchSchools, discoverDistricts } from '../services/lunchService.js';
+import {
+  fetchSchools,
+  fetchLines,
+  discoverDistricts,
+  validateLunchSettings,
+  PROVIDER_LIST,
+} from '../services/lunchService.js';
+import { PROVIDER_IDS, DEFAULT_PROVIDER } from '../services/lunch/index.js';
 import { getCachedTasks } from '../services/todoService.js';
 import { broadcast, broadcastCalendar } from '../ws/hub.js';
 
@@ -37,15 +44,17 @@ const WEATHER_DAILY_DAYS_MAX = 10;
 const WIND_UNITS = ['mph', 'kmh', 'ms', 'kn'];
 const PRECIP_UNITS = ['inch', 'mm'];
 
-// School lunch's district/school slugs and its clock times. The slugs land in
-// a request hostname/path (see lunchService.js), so they're held to the one
-// shape Nutrislice ever uses rather than trusted; the school slug's own bound
-// is longer than the district's because school slugs are. Times are 'HH:MM'
-// local wall time or null, where null on both ends of the window means all
-// day (so enabling the view can't leave it with a window that never opens).
-const LUNCH_SLUG_RE = /^[a-z0-9-]{1,63}$/;
-const LUNCH_SCHOOL_RE = /^[a-z0-9-]{1,100}$/;
+// School lunch's provider, ids and clock times. The ids are opaque and
+// provider-specific (a Nutrislice slug, a numeric site id, a SchoolCafe GUID),
+// so this route only bounds their length and type; the active provider checks
+// its own shape (see validateLunchSettings in lunchService.js) once the patch is
+// merged, which is also what keeps a half-typed id out of a request URL. Times
+// are 'HH:MM' local wall time or null, where null on both ends of the window
+// means all day (so enabling the view can't leave it with a window that never
+// opens).
 const LUNCH_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const LUNCH_ID_MAX = 64;
+const LUNCH_LINE_MAX = 120;
 
 function isValidOffset(offset) {
   return (
@@ -99,30 +108,62 @@ settingsRouter.get('/geocode/reverse', async (req, res) => {
   }
 });
 
-// The schools in a Nutrislice district, for the companion app's school picker
-// -- the district slug is typed by hand (see lunchService.js for why discovery
-// isn't derived from the wall's location), and this turns it into a list of
-// schools to choose from. Validated before the fetch so a bad slug is an
-// immediate 400 rather than a wasted request; a district that resolves but
-// errors upstream is a 502, the same as a bad geocode.
+// The provider list, for the companion app's picker, so the two never disagree
+// about what's available.
+settingsRouter.get('/lunch/providers', (req, res) => {
+  res.json({ providers: PROVIDER_LIST });
+});
+
+// The `provider` query parameter every lunch lookup accepts, keeping the
+// unknown-provider case a clean 400 while an absent one falls back to the
+// default. Returns null for an unknown id.
+function lunchProviderFrom(req) {
+  const provider = req.query.provider;
+  if (provider === undefined) return DEFAULT_PROVIDER;
+  return PROVIDER_IDS.includes(provider) ? provider : null;
+}
+
+// The schools in a district, for the companion app's school picker. What a
+// district id looks like is the provider's business -- a Nutrislice slug, a
+// numeric site id, a SchoolCafe district id -- so this only checks it's
+// non-empty; the provider's own fetch rejects a bad shape. A district that
+// resolves but errors upstream is a 502, the same as a bad geocode.
 settingsRouter.get('/lunch/schools', async (req, res) => {
-  const district = (req.query.district || '').trim().toLowerCase();
-  if (!LUNCH_SLUG_RE.test(district)) return res.status(400).json({ error: 'Invalid district' });
+  const provider = lunchProviderFrom(req);
+  if (!provider) return res.status(400).json({ error: 'Invalid provider' });
+  const district = String(req.query.district || '').trim();
+  if (!district) return res.status(400).json({ error: 'Invalid district' });
+  if (validateLunchSettings({ schoolLunchProvider: provider, schoolLunchDistrict: district })) {
+    return res.status(400).json({ error: 'Invalid district' });
+  }
   try {
-    res.json({ schools: await fetchSchools(district) });
+    res.json({ schools: await fetchSchools(district, provider) });
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
 });
 
-// Best-effort district discovery from the wall's location: the companion app
-// sends the saved lat/lon, and the server reverse-geocodes it to a place name
-// and probes the plausible district slugs (see discoverDistricts in
-// lunchService.js). A place it can't name, or one with no matching district,
-// is an empty list rather than an error -- only a lookup/fetch failure is a
-// 502. Candidates are validated server-side before any request, so this can't
-// be turned into a probe for an arbitrary hostname.
+// SchoolCafe-only: the serving lines within a school. A serving line is what a
+// SchoolCafe menu is actually fetched by, so the picker needs to offer them.
+settingsRouter.get('/lunch/lines', async (req, res) => {
+  const provider = lunchProviderFrom(req);
+  if (!provider) return res.status(400).json({ error: 'Invalid provider' });
+  const school = String(req.query.school || '').trim();
+  if (!school) return res.status(400).json({ error: 'Invalid school' });
+  try {
+    res.json({ lines: await fetchLines(school, String(req.query.district || '').trim(), provider) });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Best-effort district discovery from the wall's location, provider by provider
+// (see discoverDistricts in lunchService.js). A place it can't name, or one with
+// no matching district, is an empty list rather than an error -- only a
+// lookup/fetch failure is a 502.
 settingsRouter.get('/lunch/discover', async (req, res) => {
+  const provider = lunchProviderFrom(req);
+  if (!provider) return res.status(400).json({ error: 'Invalid provider' });
   const lat = parseFloat(req.query.lat);
   const lon = parseFloat(req.query.lon);
   if (
@@ -136,7 +177,7 @@ settingsRouter.get('/lunch/discover', async (req, res) => {
     return res.status(400).json({ error: 'Invalid lat/lon' });
   }
   try {
-    res.json(await discoverDistricts({ lat, lon }));
+    res.json(await discoverDistricts({ lat, lon }, provider));
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
@@ -165,9 +206,11 @@ settingsRouter.patch('/settings', (req, res) => {
     clockShowSeconds,
     clockFlashDivider,
     schoolLunchEnabled,
+    schoolLunchProvider,
     schoolLunchDistrict,
     schoolLunchSchool,
     schoolLunchSchoolName,
+    schoolLunchServingLine,
     schoolLunchStartTime,
     schoolLunchEndTime,
     schoolLunchMealSwitchTime,
@@ -286,24 +329,45 @@ settingsRouter.patch('/settings', (req, res) => {
   }
   // The school lunch view's own on/off. Off leaves the to-do list in place;
   // its other settings are saved regardless so turning it back on restores
-  // the same district/school/window without re-entering them.
+  // the same provider/district/school/window without re-entering them.
   if (schoolLunchEnabled !== undefined) {
     if (typeof schoolLunchEnabled !== 'boolean') {
       return res.status(400).json({ error: 'Invalid schoolLunchEnabled' });
     }
     patch.schoolLunchEnabled = schoolLunchEnabled;
   }
-  if (schoolLunchDistrict !== undefined) {
-    if (schoolLunchDistrict !== null && !LUNCH_SLUG_RE.test(schoolLunchDistrict)) {
-      return res.status(400).json({ error: 'Invalid schoolLunchDistrict' });
+  // Which menu system to read. Provider-specific value shapes are checked below
+  // (validateLunchSettings), after the patch is merged with what's saved.
+  if (schoolLunchProvider !== undefined) {
+    if (typeof schoolLunchProvider !== 'string' || !PROVIDER_IDS.includes(schoolLunchProvider)) {
+      return res.status(400).json({ error: 'Invalid schoolLunchProvider' });
     }
-    patch.schoolLunchDistrict = schoolLunchDistrict;
+    patch.schoolLunchProvider = schoolLunchProvider;
   }
-  if (schoolLunchSchool !== undefined) {
-    if (schoolLunchSchool !== null && !LUNCH_SCHOOL_RE.test(schoolLunchSchool)) {
-      return res.status(400).json({ error: 'Invalid schoolLunchSchool' });
+  // The district and school ids are opaque and provider-specific, so only their
+  // type and length are bounded here. A number is allowed because Health-e Pro's
+  // ids are integers and the companion app may send them as such.
+  for (const [key, value] of [
+    ['schoolLunchDistrict', schoolLunchDistrict],
+    ['schoolLunchSchool', schoolLunchSchool],
+  ]) {
+    if (value === undefined) continue;
+    const ok =
+      value === null ||
+      (typeof value === 'string' && value.length <= LUNCH_ID_MAX) ||
+      (typeof value === 'number' && Number.isInteger(value));
+    if (!ok) return res.status(400).json({ error: `Invalid ${key}` });
+    patch[key] = value;
+  }
+  // SchoolCafe-only: the serving line its menu is fetched by.
+  if (schoolLunchServingLine !== undefined) {
+    if (
+      schoolLunchServingLine !== null &&
+      (typeof schoolLunchServingLine !== 'string' || schoolLunchServingLine.length > LUNCH_LINE_MAX)
+    ) {
+      return res.status(400).json({ error: 'Invalid schoolLunchServingLine' });
     }
-    patch.schoolLunchSchool = schoolLunchSchool;
+    patch.schoolLunchServingLine = schoolLunchServingLine;
   }
   // Purely cosmetic -- it's only ever shown back in the companion app's
   // picker -- but still length-bounded so a runaway string can't be stored.
@@ -315,6 +379,20 @@ settingsRouter.patch('/settings', (req, res) => {
       return res.status(400).json({ error: 'Invalid schoolLunchSchoolName' });
     }
     patch.schoolLunchSchoolName = schoolLunchSchoolName;
+  }
+  // The active provider owns the shape rules for its own ids, checked against
+  // the merged settings so a change to any one identity field is judged in the
+  // context of the others. Only run when an identity field actually changes --
+  // the display-only knobs (on/off, window, switch time) must not be rejected
+  // because a school hasn't been picked yet.
+  if (
+    patch.schoolLunchProvider !== undefined ||
+    patch.schoolLunchDistrict !== undefined ||
+    patch.schoolLunchSchool !== undefined ||
+    patch.schoolLunchServingLine !== undefined
+  ) {
+    const error = validateLunchSettings({ ...getSettings(), ...patch });
+    if (error) return res.status(400).json({ error });
   }
   if (schoolLunchStartTime !== undefined) {
     if (!isValidLunchTime(schoolLunchStartTime)) {
@@ -354,15 +432,17 @@ settingsRouter.patch('/settings', (req, res) => {
   // just to save a location, and don't make someone who just set one up
   // wait up to 15 minutes for the poll loop to get around to it either.
   if (patch.location) pollWeatherNow(patch.location.lat, patch.location.lon);
-  // Changing what the lunch view fetches (its on/off, district, or school)
-  // means the cached menus are for the wrong school or none at all, so refetch
-  // now and push the result rather than letting the wall show the previous
-  // district's menu until the next poll. The window and switch time are pure
-  // display logic and travel in the settings push above.
+  // Changing what the lunch view fetches (its on/off, provider, district,
+  // school, or serving line) means the cached menus are for the wrong school or
+  // none at all, so refetch now and push the result rather than letting the
+  // wall show the previous school's menu until the next poll. The window and
+  // switch time are pure display logic and travel in the settings push above.
   if (
     patch.schoolLunchEnabled !== undefined ||
+    patch.schoolLunchProvider !== undefined ||
     patch.schoolLunchDistrict !== undefined ||
-    patch.schoolLunchSchool !== undefined
+    patch.schoolLunchSchool !== undefined ||
+    patch.schoolLunchServingLine !== undefined
   ) {
     pollLunchNow();
   }

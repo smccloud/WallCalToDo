@@ -86,8 +86,8 @@ describe('fetchSchools', () => {
     respond();
     const schools = await fetchSchools('dallas');
     expect(schools).toEqual([
-      { name: 'Lincoln Elementary', slug: 'lincoln', menuTypes: ['lunch'] },
-      { name: 'Roosevelt High', slug: 'roosevelt', menuTypes: ['breakfast', 'lunch'] },
+      { id: 'lincoln', name: 'Lincoln Elementary', menuTypes: ['lunch'] },
+      { id: 'roosevelt', name: 'Roosevelt High', menuTypes: ['breakfast', 'lunch'] },
     ]);
   });
 
@@ -218,14 +218,14 @@ describe('discoverDistricts', () => {
     const result = await discoverDistricts({ lat: 40.31, lon: -75.32 });
 
     expect(result.place).toBe('Souderton');
-    expect(result.districts).toEqual([{ slug: 'soudertonsd', schoolCount: 2 }]);
+    expect(result.groups).toEqual([{ id: 'soudertonsd', label: 'soudertonsd', schoolCount: 2 }]);
   });
 
   it('returns an empty list, not an error, when nothing resolves', async () => {
     respondDiscovery();
     expect(await discoverDistricts({ lat: 40.31, lon: -75.32 })).toEqual({
       place: 'Souderton',
-      districts: [],
+      groups: [],
     });
   });
 
@@ -233,7 +233,7 @@ describe('discoverDistricts', () => {
     respondDiscovery({ address: {} });
     const result = await discoverDistricts({ lat: 0, lon: 0 });
 
-    expect(result).toEqual({ place: null, districts: [] });
+    expect(result).toEqual({ place: null, groups: [] });
     // The reverse lookup happened; no candidate was worth a second request.
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -249,6 +249,6 @@ describe('discoverDistricts', () => {
     });
 
     const result = await discoverDistricts({ lat: 32.7, lon: -96.8 });
-    expect(result.districts).toEqual([{ slug: 'dallas-sd', schoolCount: 2 }]);
+    expect(result.groups).toEqual([{ id: 'dallas-sd', label: 'dallas-sd', schoolCount: 2 }]);
   });
 });

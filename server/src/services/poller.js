@@ -4,7 +4,7 @@ import { pollTodo, clearCompletedTasks, getCachedTasks } from './todoService.js'
 import { pollGoogleTasks } from './googleTodoService.js';
 import { getSettings } from './settingsService.js';
 import { pollWeather } from './weatherService.js';
-import { pollLunch } from './lunchService.js';
+import { pollLunch, isLunchConfigured } from './lunchService.js';
 import { broadcast } from '../ws/hub.js';
 import { config } from '../config.js';
 
@@ -150,13 +150,12 @@ async function runPoll() {
     await pollWeatherNow(settings.location.lat, settings.location.lon);
   }
 
-  // Same "nowhere to fetch for" reasoning as weather: skip until a district
-  // and school are both saved, so an enabled-but-unconfigured lunch view
-  // doesn't error every cycle.
+  // Same "nowhere to fetch for" reasoning as weather: skip until the active
+  // provider considers the lunch view configured, so an enabled-but-unconfigured
+  // one doesn't error every cycle.
   if (
     settings.schoolLunchEnabled &&
-    settings.schoolLunchDistrict &&
-    settings.schoolLunchSchool &&
+    isLunchConfigured(settings) &&
     Date.now() - lastLunchPollAt >= LUNCH_POLL_INTERVAL_MS
   ) {
     await pollLunchNow();
@@ -178,7 +177,7 @@ async function runPoll() {
 export async function pollLunchNow() {
   lastLunchPollAt = Date.now();
   const settings = getSettings();
-  if (!settings.schoolLunchEnabled || !settings.schoolLunchDistrict || !settings.schoolLunchSchool) {
+  if (!settings.schoolLunchEnabled || !isLunchConfigured(settings)) {
     return;
   }
   try {

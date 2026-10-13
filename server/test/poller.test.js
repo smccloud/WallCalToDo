@@ -18,6 +18,7 @@ const m = vi.hoisted(() => ({
   getSettings: vi.fn(),
   pollWeather: vi.fn(),
   pollLunch: vi.fn(),
+  isLunchConfigured: vi.fn(),
   broadcast: vi.fn(),
 }));
 
@@ -36,7 +37,10 @@ vi.mock('../src/services/todoService.js', () => ({
 vi.mock('../src/services/googleTodoService.js', () => ({ pollGoogleTasks: m.pollGoogleTasks }));
 vi.mock('../src/services/settingsService.js', () => ({ getSettings: m.getSettings }));
 vi.mock('../src/services/weatherService.js', () => ({ pollWeather: m.pollWeather }));
-vi.mock('../src/services/lunchService.js', () => ({ pollLunch: m.pollLunch }));
+vi.mock('../src/services/lunchService.js', () => ({
+  pollLunch: m.pollLunch,
+  isLunchConfigured: m.isLunchConfigured,
+}));
 vi.mock('../src/ws/hub.js', () => ({ broadcast: m.broadcast }));
 vi.mock('../src/config.js', () => ({ config: { pollIntervalMs: 1000 } }));
 
@@ -86,6 +90,11 @@ beforeEach(async () => {
   m.getSettings.mockReturnValue({ theme: 'dark', location: null });
   m.pollWeather.mockResolvedValue({ tempC: 20 });
   m.pollLunch.mockResolvedValue({ meals: { lunch: { '2026-10-08': [{ title: null, items: ['Pizza'] }] } } });
+  // The real check lives in lunchService under the active provider; here the
+  // loop only needs to know "configured" means a district and school are set.
+  m.isLunchConfigured.mockImplementation((settings) =>
+    Boolean(settings?.schoolLunchDistrict && settings.schoolLunchSchool)
+  );
 
   poller = await import('../src/services/poller.js');
 });

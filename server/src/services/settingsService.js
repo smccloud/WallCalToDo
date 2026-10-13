@@ -97,15 +97,19 @@ const DEFAULT_SETTINGS = {
   weatherDailyDays: 10,
   // The optional school lunch view: off by default, because it replaces the
   // to-do list and only makes sense for a household with a school menu to
-  // show. Everything about *what* to fetch is deliberately manual -- the
-  // district slug is the subdomain of the district's Nutrislice site, which
-  // can't be guessed from the wall's location (see lunchService.js). The
-  // school slug and its display name are saved together, the name purely for
-  // the companion app to show back what's selected.
+  // show. schoolLunchProvider picks which menu system to read (see
+  // services/lunch/); the district and school ids are provider-specific, saved
+  // with a display name purely for the companion app to show back what's
+  // selected. schoolLunchServingLine is SchoolCafe-only. Everything about
+  // *what* to fetch is deliberately manual -- none of the providers' ids can be
+  // guessed from the wall's location -- with a best-effort discovery path per
+  // provider (see discoverDistricts in lunchService.js).
   schoolLunchEnabled: false,
+  schoolLunchProvider: 'nutrislice',
   schoolLunchDistrict: null,
   schoolLunchSchool: null,
   schoolLunchSchoolName: null,
+  schoolLunchServingLine: null,
   // The daily window the lunch view replaces the to-do list in, 'HH:MM' local
   // wall time (null on both ends means all day, so enabling the view can't
   // leave it with a window that never opens). schoolLunchMealSwitchTime is

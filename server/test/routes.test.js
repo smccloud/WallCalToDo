@@ -21,14 +21,22 @@ vi.mock('../src/services/poller.js', () => ({
   pollWeatherNow: vi.fn(),
   pollLunchNow: vi.fn(),
 }));
-vi.mock('../src/services/lunchService.js', () => ({
-  fetchSchools: vi.fn(async () => [{ name: 'Lincoln Elementary', slug: 'lincoln', menuTypes: ['lunch'] }]),
-  discoverDistricts: vi.fn(async () => ({
-    place: 'Souderton',
-    districts: [{ slug: 'soudertonsd', schoolCount: 3 }],
-  })),
-  getCachedLunch: vi.fn(() => null),
-}));
+// The network-touching helpers are stubbed, but validateLunchSettings is kept
+// real (importOriginal) so the PATCH suite exercises the actual provider shape
+// rules.
+vi.mock('../src/services/lunchService.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    fetchSchools: vi.fn(async () => [{ id: 'lincoln', name: 'Lincoln Elementary', menuTypes: ['lunch'] }]),
+    fetchLines: vi.fn(async () => [{ id: 'Line 1', name: 'Line 1' }]),
+    discoverDistricts: vi.fn(async () => ({
+      place: 'Souderton',
+      groups: [{ id: 'soudertonsd', label: 'soudertonsd', schoolCount: 3 }],
+    })),
+    getCachedLunch: vi.fn(() => null),
+  };
+});
 
 let server;
 let baseUrl;
@@ -104,7 +112,7 @@ describe('GET /api/lunch/schools', () => {
   it('returns the district’s schools', async () => {
     const { status, body } = await api('/lunch/schools?district=dallas');
     expect(status).toBe(200);
-    expect(body.schools).toEqual([{ name: 'Lincoln Elementary', slug: 'lincoln', menuTypes: ['lunch'] }]);
+    expect(body.schools).toEqual([{ id: 'lincoln', name: 'Lincoln Elementary', menuTypes: ['lunch'] }]);
   });
 });
 
@@ -122,7 +130,7 @@ describe('GET /api/lunch/discover', () => {
   it('returns the districts found near the location', async () => {
     const { status, body } = await api('/lunch/discover?lat=40.31&lon=-75.32');
     expect(status).toBe(200);
-    expect(body).toEqual({ place: 'Souderton', districts: [{ slug: 'soudertonsd', schoolCount: 3 }] });
+    expect(body).toEqual({ place: 'Souderton', groups: [{ id: 'soudertonsd', label: 'soudertonsd', schoolCount: 3 }] });
   });
 });
 
@@ -281,6 +289,92 @@ describe('PATCH /api/settings', () => {
     });
     expect(cleared.status).toBe(200);
     expect(cleared.body.schoolLunchStartTime).toBeNull();
+  });
+});
+
+describe('lunch provider endpoints', () => {
+  it('lists the available providers from the service', async () => {
+    const { status, body } = await api('/lunch/providers');
+    expect(status).toBe(200);
+    expect(body.providers.map((p) => p.id)).toEqual(['nutrislice', 'mealviewer', 'healthepro', 'schoolcafe']);
+  });
+
+  it('rejects an unknown provider before doing any lookup', async () => {
+    const schools = await api('/lunch/schools?provider=bogus&district=dallas');
+    expect(schools.status).toBe(400);
+    expect(schools.body.error).toBe('Invalid provider');
+    const lines = await api('/lunch/lines?provider=bogus&school=lincoln');
+    expect(lines.status).toBe(400);
+    const discover = await api('/lunch/discover?provider=bogus&lat=1&lon=2');
+    expect(discover.status).toBe(400);
+  });
+
+  it('routes the school lookup through the requested provider', async () => {
+    const { status, body } = await api('/lunch/schools?provider=mealviewer&district=HopkinsISD270');
+    expect(status).toBe(200);
+    expect(body.schools).toEqual([{ id: 'lincoln', name: 'Lincoln Elementary', menuTypes: ['lunch'] }]);
+  });
+
+  it('rejects a district the chosen provider can’t accept', async () => {
+    const { status } = await api('/lunch/schools?provider=schoolcafe&district=dallas');
+    expect(status).toBe(400);
+  });
+
+  it('returns a SchoolCafe school’s serving lines', async () => {
+    const { status, body } = await api(
+      '/lunch/lines?provider=schoolcafe&school=c4e37fa7-2a43-4cb1-8c3e-19a1d194d73c'
+    );
+    expect(status).toBe(200);
+    expect(body.lines).toEqual([{ id: 'Line 1', name: 'Line 1' }]);
+  });
+
+  it('requires a school for the serving-line lookup', async () => {
+    const { status, body } = await api('/lunch/lines?provider=schoolcafe');
+    expect(status).toBe(400);
+    expect(body.error).toBe('Invalid school');
+  });
+
+  it('returns discovery groups from the requested provider', async () => {
+    const { status, body } = await api('/lunch/discover?provider=mealviewer&lat=40.31&lon=-75.32');
+    expect(status).toBe(200);
+    expect(body).toEqual({
+      place: 'Souderton',
+      groups: [{ id: 'soudertonsd', label: 'soudertonsd', schoolCount: 3 }],
+    });
+  });
+
+  it('saves a provider switch and rejects an unknown one', async () => {
+    const switched = await api('/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        schoolLunchProvider: 'mealviewer',
+        schoolLunchDistrict: 'HopkinsISD270',
+        schoolLunchSchool: 'EisenhowerElementaryMN',
+      }),
+    });
+    expect(switched.status).toBe(200);
+    expect(switched.body.schoolLunchProvider).toBe('mealviewer');
+
+    const bogus = await api('/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ schoolLunchProvider: 'bogus' }),
+    });
+    expect(bogus.status).toBe(400);
+    expect(bogus.body.error).toBe('Invalid schoolLunchProvider');
+  });
+
+  it('validates a SchoolCafe patch against the serving-line requirement', async () => {
+    const withLine = await api('/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        schoolLunchProvider: 'schoolcafe',
+        schoolLunchDistrict: '1',
+        schoolLunchSchool: 'c4e37fa7-2a43-4cb1-8c3e-19a1d194d73c',
+        schoolLunchServingLine: 'AHS Pizza (Line 1)',
+      }),
+    });
+    expect(withLine.status).toBe(200);
+    expect(withLine.body.schoolLunchServingLine).toBe('AHS Pizza (Line 1)');
   });
 });
 

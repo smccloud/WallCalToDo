@@ -696,6 +696,13 @@ body {
   color: var(--color-text);
 }
 
+/* The menu-provider picker. Sizing only -- the look is the shared .select's --
+   full width so it lines up with the district field below it. */
+.school-lunch-settings__provider {
+  width: 100%;
+  margin-bottom: 0.25rem;
+}
+
 /* The "Find my district" auto-discovery button and the "near <place>"
    caption under it. Full width so it reads as a peer of the manual
    district search below rather than a small inline button. */

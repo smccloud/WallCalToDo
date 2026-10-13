@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 
 // <input type="time"> reads and writes exactly the 'HH:MM' strings the server
@@ -10,14 +10,54 @@ function timeValue(value) {
   return value || '';
 }
 
+// The providers the server offers, used only until /lunch/providers answers
+// (so the picker isn't empty on first paint). Id order matches the server's.
+const FALLBACK_PROVIDERS = [
+  { id: 'nutrislice', label: 'Nutrislice' },
+  { id: 'mealviewer', label: 'MealViewer' },
+  { id: 'healthepro', label: 'Health-e Pro' },
+  { id: 'schoolcafe', label: 'SchoolCafe' },
+];
+
+// The parts of the picker that differ per provider: a Nutrislice district is a
+// hostname slug (lower-cased before it goes out), MealViewer's is a district
+// lookup (case-sensitive), the other two are numeric ids, and only SchoolCafe
+// needs a serving line and has no location discovery.
+const PROVIDER_META = {
+  nutrislice: {
+    districtPlaceholder: 'District slug',
+    districtHint: 'The part before ".nutrislice.com", e.g. "dallas" for dallas.nutrislice.com.',
+    lowercasesDistrict: true,
+    discovers: true,
+  },
+  mealviewer: {
+    districtPlaceholder: 'District id',
+    districtHint: 'MealViewer\'s district id, e.g. "HopkinsISD270".',
+    lowercasesDistrict: false,
+    discovers: true,
+  },
+  healthepro: {
+    districtPlaceholder: 'District id (number)',
+    districtHint: 'Health-e Pro\'s numeric district (organization) id.',
+    lowercasesDistrict: false,
+    discovers: true,
+  },
+  schoolcafe: {
+    districtPlaceholder: 'District id (number)',
+    districtHint: 'SchoolCafe\'s numeric district id.',
+    lowercasesDistrict: false,
+    discovers: false,
+  },
+};
+
+const metaFor = (provider) => PROVIDER_META[provider] || PROVIDER_META.nutrislice;
+
 // Optional school lunch view: replaces the to-do list with the school's
-// breakfast/lunch menus during a daily window (see frontend/src/App.jsx). The
-// district slug is the subdomain of the district's Nutrislice site, which
-// Nutrislice gives no way to look up directly, so this section offers two
-// ways in: "Find my district", which reverse-geocodes the wall's saved
-// location and probes the plausible slugs (see discoverDistricts on the
-// server), and typing the part before ".nutrislice.com" by hand. Either way
-// you then pick your school from the list.
+// breakfast/lunch menus during a daily window (see frontend/src/App.jsx).
+// Which menu system to read is a provider choice; each one names a district
+// (and then a school) differently, so this section adapts its fields to the
+// chosen provider, offers location-based discovery where the provider supports
+// it, and asks for a serving line where the provider needs one (SchoolCafe).
 export default function SchoolLunchSettings({
   settings,
   settingsLoading,
@@ -26,31 +66,71 @@ export default function SchoolLunchSettings({
 }) {
   const enabled = Boolean(settings?.schoolLunchEnabled);
   const location = settings?.location || null;
-  const [district, setDistrict] = useState(settings?.schoolLunchDistrict || '');
+  const [providers, setProviders] = useState(FALLBACK_PROVIDERS);
+  const [provider, setProvider] = useState(settings?.schoolLunchProvider || 'nutrislice');
+  const [district, setDistrict] = useState(settings?.schoolLunchDistrict ? String(settings.schoolLunchDistrict) : '');
   const [schools, setSchools] = useState(null);
-  const [districts, setDistricts] = useState(null);
+  const [groups, setGroups] = useState(null);
+  const [lines, setLines] = useState(null);
   const [searching, setSearching] = useState(false);
+  const [linesLoading, setLinesLoading] = useState(false);
   const [discovering, setDiscovering] = useState(false);
   const [searchError, setSearchError] = useState(null);
 
+  const meta = metaFor(provider);
+  const providerLabel = providers.find((p) => p.id === provider)?.label || 'your menu provider';
+
+  useEffect(() => {
+    let active = true;
+    api('/lunch/providers')
+      .then((data) => {
+        if (active && data?.providers?.length) setProviders(data.providers);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const setTime = (key, value) => onSetSchoolLunch({ [key]: value || null });
 
-  // One lookup path for both entry points: the manual "Find schools" button
-  // and picking a district from the discovery results both end up here, so
-  // the school list and the error handling are defined once.
-  async function findSchoolsFor(slug) {
-    const normalized = slug.trim().toLowerCase();
-    if (!normalized) return;
+  // Switching provider makes every stored id meaningless (they're provider-
+  // specific), so clear them in the same PATCH and start the local picker over.
+  function chooseProvider(next) {
+    setProvider(next);
+    setDistrict('');
+    setSchools(null);
+    setGroups(null);
+    setLines(null);
+    setSearchError(null);
+    onSetSchoolLunch({
+      schoolLunchProvider: next,
+      schoolLunchDistrict: null,
+      schoolLunchSchool: null,
+      schoolLunchSchoolName: null,
+      schoolLunchServingLine: null,
+    });
+  }
+
+  // One lookup path for both entry points: the manual "Find schools" button and
+  // picking a district from the discovery results both end up here, so the
+  // school list and the error handling are defined once.
+  async function findSchoolsFor(value) {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return;
+    const normalized = meta.lowercasesDistrict ? trimmed.toLowerCase() : trimmed;
     setSearching(true);
     setSearchError(null);
     try {
-      const { schools: results } = await api(`/lunch/schools?district=${encodeURIComponent(normalized)}`);
+      const { schools: results } = await api(
+        `/lunch/schools?provider=${provider}&district=${encodeURIComponent(normalized)}`
+      );
       setSchools(results);
       setDistrict(normalized);
       if (results.length === 0) setSearchError('No schools found for that district.');
     } catch (err) {
       // Surfaced inline next to the field, like the location search's errors --
-      // a bad district slug is expected input, not a page-level failure.
+      // a bad district id is expected input, not a page-level failure.
       setSearchError(err.message);
     } finally {
       setSearching(false);
@@ -62,26 +142,26 @@ export default function SchoolLunchSettings({
     findSchoolsFor(district);
   }
 
-  // Hand the wall's saved location to the server, which reverse-geocodes it
-  // and returns the districts it could verify. Doesn't set a district on its
-  // own -- finding one is a suggestion, not a decision, so the user picks.
-  async function discoverDistricts() {
-    if (!location) return;
+  // Hand the wall's saved location to the server, which reverse-geocodes it and
+  // returns the districts it could verify (each as a selectable group). Doesn't
+  // set a district on its own -- finding one is a suggestion, not a decision.
+  async function discover() {
+    if (!location || !meta.discovers) return;
     setDiscovering(true);
     setSearchError(null);
-    setDistricts(null);
+    setGroups(null);
     setSchools(null);
     try {
       const data = await api(
-        `/lunch/discover?lat=${encodeURIComponent(location.lat)}&lon=${encodeURIComponent(location.lon)}`
+        `/lunch/discover?provider=${provider}&lat=${encodeURIComponent(location.lat)}&lon=${encodeURIComponent(location.lon)}`
       );
-      const found = data.districts || [];
-      setDistricts(found);
+      const found = data.groups || [];
+      setGroups(found);
       if (found.length === 0) {
         setSearchError(
           data.place
-            ? `No Nutrislice district found near ${data.place}. Try entering it by hand.`
-            : 'Couldn’t work out where that location is. Try entering the district by hand.'
+            ? `No ${providerLabel} district found near ${data.place}. Try entering it by hand.`
+            : 'Couldn\u2019t work out where that location is. Try entering the district by hand.'
         );
       }
     } catch (err) {
@@ -91,19 +171,43 @@ export default function SchoolLunchSettings({
     }
   }
 
-  function chooseDistrict(slug) {
-    setDistricts(null);
-    findSchoolsFor(slug);
+  function chooseDistrict(group) {
+    setGroups(null);
+    findSchoolsFor(group.id);
+  }
+
+  // SchoolCafe-only: a menu is fetched by serving line, so once a school is
+  // picked its lines are loaded and offered before the choice is complete.
+  async function loadLines(schoolId) {
+    setLinesLoading(true);
+    try {
+      const { lines: results } = await api(
+        `/lunch/lines?provider=schoolcafe&school=${encodeURIComponent(schoolId)}&district=${encodeURIComponent(district.trim())}`
+      );
+      setLines(results);
+      if (results.length === 0) setSearchError('No serving lines found for that school.');
+    } catch (err) {
+      setSearchError(err.message);
+    } finally {
+      setLinesLoading(false);
+    }
   }
 
   function chooseSchool(school) {
     setSchools(null);
     setSearchError(null);
     onSetSchoolLunch({
-      schoolLunchDistrict: district.trim().toLowerCase(),
-      schoolLunchSchool: school.slug,
+      schoolLunchDistrict: district.trim(),
+      schoolLunchSchool: school.id,
       schoolLunchSchoolName: school.name,
     });
+    if (provider === 'schoolcafe') loadLines(school.id);
+  }
+
+  function chooseLine(line) {
+    setLines(null);
+    setSearchError(null);
+    onSetSchoolLunch({ schoolLunchServingLine: line.name });
   }
 
   return (
@@ -111,7 +215,7 @@ export default function SchoolLunchSettings({
       <p className="settings-label section-label">School lunch</p>
       <p className="location-settings__hint">
         Optionally replaces the to-do list with your school's breakfast and lunch menus during a daily window.
-        Menus come from Nutrislice.
+        Choose which menu system to read from below.
       </p>
 
       <div className="setting-toggle setting-toggle--flush">
@@ -129,43 +233,64 @@ export default function SchoolLunchSettings({
 
       {enabled && (
         <>
+          <p className="settings-label section-label">Menu provider</p>
+          <select
+            className="select school-lunch-settings__provider"
+            aria-label="Menu provider"
+            value={provider}
+            disabled={settingsLoading}
+            onChange={(e) => chooseProvider(e.target.value)}
+          >
+            {providers.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
           <p className="settings-label section-label">District and school</p>
-          {location ? (
-            <>
+          {meta.discovers ? (
+            location ? (
+              <>
+                <p className="location-settings__hint">
+                  Look your district up from the wall's saved location, or enter it by hand. {meta.districtHint}
+                </p>
+                <button
+                  type="button"
+                  className="button button--ghost school-lunch-settings__discover"
+                  disabled={discovering || settingsLoading}
+                  onClick={discover}
+                >
+                  {discovering ? 'Searching…' : 'Find my district'}
+                </button>
+                <p className="location-settings__hint school-lunch-settings__near">
+                  near {location.label || 'your saved location'}
+                </p>
+              </>
+            ) : (
               <p className="location-settings__hint">
-                Look your district up from the wall's saved location, or enter its Nutrislice address by
-                hand — the part before ".nutrislice.com", e.g. "dallas" for dallas.nutrislice.com.
+                {meta.districtHint} Set a location above to have it found automatically instead.
               </p>
-              <button
-                type="button"
-                className="button button--ghost school-lunch-settings__discover"
-                disabled={discovering || settingsLoading}
-                onClick={discoverDistricts}
-              >
-                {discovering ? 'Searching…' : 'Find my district'}
-              </button>
-              <p className="location-settings__hint school-lunch-settings__near">
-                near {location.label || 'your saved location'}
-              </p>
-            </>
+            )
           ) : (
             <p className="location-settings__hint">
-              Enter your district's Nutrislice address — the part before ".nutrislice.com", e.g. "dallas" for
-              dallas.nutrislice.com. Set a location above to have it found automatically instead.
+              {meta.districtHint} SchoolCafe has no district search, so it has to be entered by hand.
             </p>
           )}
 
-          {districts && districts.length > 0 && (
+          {groups && groups.length > 0 && (
             <ul className="location-settings__results school-lunch-settings__districts">
-              {districts.map((d) => (
-                <li key={d.slug}>
+              {groups.map((group) => (
+                <li key={group.id}>
                   <button
                     type="button"
                     className="location-settings__result"
                     disabled={settingsLoading || searching}
-                    onClick={() => chooseDistrict(d.slug)}
+                    onClick={() => chooseDistrict(group)}
                   >
-                    {d.slug} ({d.schoolCount} {d.schoolCount === 1 ? 'school' : 'schools'})
+                    {group.label}
+                    {group.schoolCount != null &&
+                      ` (${group.schoolCount} ${group.schoolCount === 1 ? 'school' : 'schools'})`}
                   </button>
                 </li>
               ))}
@@ -175,7 +300,7 @@ export default function SchoolLunchSettings({
           <form className="location-settings__search" onSubmit={findSchools}>
             <input
               type="text"
-              placeholder="District slug"
+              placeholder={meta.districtPlaceholder}
               value={district}
               onChange={(e) => setDistrict(e.target.value)}
             />
@@ -189,7 +314,7 @@ export default function SchoolLunchSettings({
           {schools && schools.length > 0 && (
             <ul className="location-settings__results">
               {schools.map((school) => (
-                <li key={school.slug}>
+                <li key={school.id}>
                   <button
                     type="button"
                     className="location-settings__result"
@@ -203,11 +328,42 @@ export default function SchoolLunchSettings({
             </ul>
           )}
 
+          {(linesLoading || (lines && lines.length > 0)) && (
+            <>
+              <p className="settings-label section-label">Serving line</p>
+              <p className="location-settings__hint">
+                Which line's menu to show. SchoolCafe fetches menus per serving line.
+              </p>
+              {linesLoading ? (
+                <p className="location-settings__hint">Loading serving lines…</p>
+              ) : (
+                <ul className="location-settings__results">
+                  {lines.map((line) => (
+                    <li key={line.id}>
+                      <button
+                        type="button"
+                        className="location-settings__result"
+                        disabled={settingsLoading}
+                        onClick={() => chooseLine(line)}
+                      >
+                        {line.name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+
           {settings?.schoolLunchSchoolName && !schools && (
             <p className="location-settings__current">
               Currently set to{' '}
               <span className="location-settings__current-value">{settings.schoolLunchSchoolName}</span>
             </p>
+          )}
+
+          {provider === 'schoolcafe' && settings?.schoolLunchSchool && !settings?.schoolLunchServingLine && (
+            <p className="settings-notice">Pick a serving line above — SchoolCafe needs one to fetch a menu.</p>
           )}
 
           {!settings?.schoolLunchSchool && (
