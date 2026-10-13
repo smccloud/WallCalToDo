@@ -1,5 +1,7 @@
 # WallCalToDo
 
+[![Build Status](https://jenkins.smccloud.com/job/WallCalToDo/badge/icon?style=plastic)](https://jenkins.smccloud.com/job/WallCalToDo/)
+
 A wall-mounted display (old monitor + Raspberry Pi) that shows your calendars
 and your to-do list at the same time. Calendars and tasks can come from Google
 and/or Microsoft: Google Calendar and Google Tasks on one side, Microsoft
