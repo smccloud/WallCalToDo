@@ -18,6 +18,10 @@ export function useWebSocket() {
   const [todo, setTodo] = useState([]);
   const [settings, setSettings] = useState(null);
   const [weather, setWeather] = useState(null);
+  // The school lunch cache: { district, school, meals: { breakfast, lunch },
+  // fetchedAt } where each meal is a { 'YYYY-MM-DD': sections } week (see
+  // server/src/services/lunchService.js). Null until the server sends one.
+  const [lunch, setLunch] = useState(null);
   const [connected, setConnected] = useState(false);
   const socketRef = useRef(null);
 
@@ -46,6 +50,7 @@ export function useWebSocket() {
         } else if (message.type === 'todo') setTodo(message.data);
         else if (message.type === 'settings') setSettings(message.data);
         else if (message.type === 'weather') setWeather(message.data);
+        else if (message.type === 'lunch') setLunch(message.data);
         // Reloads the page when the server is serving a newer build than the
         // one this document was served -- see utils/buildReload.js for why
         // the wall has to do this itself rather than waiting for someone to
@@ -62,5 +67,5 @@ export function useWebSocket() {
     };
   }, []);
 
-  return { calendar, calendarGrid, todo, settings, weather, connected };
+  return { calendar, calendarGrid, todo, settings, weather, lunch, connected };
 }

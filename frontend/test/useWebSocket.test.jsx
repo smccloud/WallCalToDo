@@ -50,6 +50,7 @@ describe('useWebSocket', () => {
     expect(result.current.todo).toEqual([]);
     expect(result.current.settings).toBeNull();
     expect(result.current.weather).toBeNull();
+    expect(result.current.lunch).toBeNull();
 
     const [url] = FakeWebSocket.instances[0].url.split(':');
     expect(['ws', 'wss']).toContain(url);
@@ -76,6 +77,7 @@ describe('useWebSocket', () => {
       socket.onmessage({ data: JSON.stringify({ type: 'todo', data: [{ id: 't1' }] }) });
       socket.onmessage({ data: JSON.stringify({ type: 'settings', data: { theme: 'light' } }) });
       socket.onmessage({ data: JSON.stringify({ type: 'weather', data: { tempC: 21 } }) });
+      socket.onmessage({ data: JSON.stringify({ type: 'lunch', data: { meals: { lunch: {} } } }) });
     });
 
     expect(result.current.calendar).toEqual([{ id: 'e1' }]);
@@ -83,6 +85,7 @@ describe('useWebSocket', () => {
     expect(result.current.todo).toEqual([{ id: 't1' }]);
     expect(result.current.settings).toEqual({ theme: 'light' });
     expect(result.current.weather).toEqual({ tempC: 21 });
+    expect(result.current.lunch).toEqual({ meals: { lunch: {} } });
   });
 
   it('falls back to the full list for a server that predates the grid split', () => {

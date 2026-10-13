@@ -4,6 +4,7 @@ import { pollTodo, clearCompletedTasks, getCachedTasks } from './todoService.js'
 import { pollGoogleTasks } from './googleTodoService.js';
 import { getSettings } from './settingsService.js';
 import { pollWeather } from './weatherService.js';
+import { pollLunch } from './lunchService.js';
 import { broadcast } from '../ws/hub.js';
 import { config } from '../config.js';
 
@@ -12,12 +13,20 @@ import { config } from '../config.js';
 // of a separate timer.
 const WEATHER_POLL_INTERVAL_MS = 15 * 60 * 1000;
 
+// School menus change weekly, not hourly, so the lunch poll is gated to a
+// much longer interval than even weather's. Each fetch covers a whole
+// Sunday-to-Saturday week at once (see lunchService.js), so six hours is
+// comfortably finer than anyone could notice a menu change.
+const LUNCH_POLL_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
 let timer = null;
 let lastFullResyncDay = null;
 let lastSettingsDay = null;
 let lastCompletedCleanupDay = null;
 let lastWeatherPollAt = 0;
+let lastLunchPollAt = 0;
 let lastCalendarSignature = null;
+let lastLunchSignature = null;
 
 // Pushes the display's calendar feed if it isn't already what every connected
 // display last received. Carries both lists the message holds: `events`, the
@@ -139,6 +148,48 @@ async function runPoll() {
   // entirely rather than erroring every cycle until one's set.
   if (settings.location && Date.now() - lastWeatherPollAt >= WEATHER_POLL_INTERVAL_MS) {
     await pollWeatherNow(settings.location.lat, settings.location.lon);
+  }
+
+  // Same "nowhere to fetch for" reasoning as weather: skip until a district
+  // and school are both saved, so an enabled-but-unconfigured lunch view
+  // doesn't error every cycle.
+  if (
+    settings.schoolLunchEnabled &&
+    settings.schoolLunchDistrict &&
+    settings.schoolLunchSchool &&
+    Date.now() - lastLunchPollAt >= LUNCH_POLL_INTERVAL_MS
+  ) {
+    await pollLunchNow();
+  }
+}
+
+// Fetches, caches, and broadcasts the school's menu for the current week right
+// now, bypassing LUNCH_POLL_INTERVAL_MS -- exported so the settings route can
+// call it the moment the district, school, or on/off changes, rather than
+// making the wall wait up to six hours for the new school's menu to appear.
+// Reads the saved settings itself and does nothing when the feature is off or
+// unconfigured, so the route can call it unconditionally on any lunch change.
+//
+// Diffs the cached menus before broadcasting: the poll that finds the same
+// week (the overwhelmingly common case, since menus only change weekly) then
+// stays silent instead of waking every display's socket for nothing. Sets the
+// gate timestamp on every path, including failure, so a Nutrislice outage is
+// retried on the next interval rather than hammered every cycle.
+export async function pollLunchNow() {
+  lastLunchPollAt = Date.now();
+  const settings = getSettings();
+  if (!settings.schoolLunchEnabled || !settings.schoolLunchDistrict || !settings.schoolLunchSchool) {
+    return;
+  }
+  try {
+    const lunch = await pollLunch();
+    if (!lunch) return;
+    const signature = JSON.stringify(lunch.meals);
+    if (signature === lastLunchSignature) return;
+    lastLunchSignature = signature;
+    broadcast({ type: 'lunch', data: lunch });
+  } catch (err) {
+    console.error('[poller] School lunch poll failed:', err.message);
   }
 }
 

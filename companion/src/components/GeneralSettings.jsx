@@ -2,6 +2,7 @@ import LocationSettings from './LocationSettings.jsx';
 import ThemeSettings from './ThemeSettings.jsx';
 import TimeFormatSettings from './TimeFormatSettings.jsx';
 import UnitsSettings from './UnitsSettings.jsx';
+import SchoolLunchSettings from './SchoolLunchSettings.jsx';
 import WeatherViewSettings from './WeatherViewSettings.jsx';
 
 // Privacy, then location (shared by theme and the units below, so it comes
@@ -11,9 +12,12 @@ import WeatherViewSettings from './WeatherViewSettings.jsx';
 // and Google's, each deciding whether that provider's content shows on the
 // wall) plus the similar-event merge right beneath them, all sitting with
 // the display-content settings rather than the account sections further
-// down the page — then the full-screen weather view, last, because it's the
-// one setting here that depends on everything above it: it needs a location,
-// and it's about what the display does with one rather than how it looks.
+// down the page — then the school lunch view, which is also display content
+// (it swaps the to-do list for a menu) and can use the location above to look
+// a district up but doesn't need one — then the full-screen weather view,
+// last, because it's the one setting here that depends on everything above
+// it: it needs a location, and it's about what the display does with one
+// rather than how it looks.
 export default function GeneralSettings({
   settings,
   settingsLoading,
@@ -35,6 +39,8 @@ export default function GeneralSettings({
   onSetWeatherHourlyHours,
   onSetWeatherDailyDays,
   onSetWeatherEnabled,
+  onSetSchoolLunchEnabled,
+  onSetSchoolLunch,
   onSaveLocation,
   onError,
 }) {
@@ -133,6 +139,13 @@ export default function GeneralSettings({
         When two calendars list the same event on the same day and time with similar names, shows it once
         instead of twice — e.g. "NO SCHOOL" and "K-12 No School".
       </p>
+
+      <SchoolLunchSettings
+        settings={settings}
+        settingsLoading={settingsLoading}
+        onSetSchoolLunchEnabled={onSetSchoolLunchEnabled}
+        onSetSchoolLunch={onSetSchoolLunch}
+      />
 
       <WeatherViewSettings
         settings={settings}

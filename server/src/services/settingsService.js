@@ -95,6 +95,25 @@ const DEFAULT_SETTINGS = {
   // want five columns of it. 10 is what the view has always shown, and 10 is
   // every day the server fetches (see DAILY_FETCH_DAYS in weatherService.js).
   weatherDailyDays: 10,
+  // The optional school lunch view: off by default, because it replaces the
+  // to-do list and only makes sense for a household with a school menu to
+  // show. Everything about *what* to fetch is deliberately manual -- the
+  // district slug is the subdomain of the district's Nutrislice site, which
+  // can't be guessed from the wall's location (see lunchService.js). The
+  // school slug and its display name are saved together, the name purely for
+  // the companion app to show back what's selected.
+  schoolLunchEnabled: false,
+  schoolLunchDistrict: null,
+  schoolLunchSchool: null,
+  schoolLunchSchoolName: null,
+  // The daily window the lunch view replaces the to-do list in, 'HH:MM' local
+  // wall time (null on both ends means all day, so enabling the view can't
+  // leave it with a window that never opens). schoolLunchMealSwitchTime is
+  // when the view flips from breakfast to lunch; null means "whatever the
+  // school actually serves, preferring lunch" (see frontend/src/utils/lunch.js).
+  schoolLunchStartTime: null,
+  schoolLunchEndTime: null,
+  schoolLunchMealSwitchTime: null,
 };
 
 function loadSettings() {

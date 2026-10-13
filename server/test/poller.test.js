@@ -17,6 +17,7 @@ const m = vi.hoisted(() => ({
   pollGoogleTasks: vi.fn(),
   getSettings: vi.fn(),
   pollWeather: vi.fn(),
+  pollLunch: vi.fn(),
   broadcast: vi.fn(),
 }));
 
@@ -35,6 +36,7 @@ vi.mock('../src/services/todoService.js', () => ({
 vi.mock('../src/services/googleTodoService.js', () => ({ pollGoogleTasks: m.pollGoogleTasks }));
 vi.mock('../src/services/settingsService.js', () => ({ getSettings: m.getSettings }));
 vi.mock('../src/services/weatherService.js', () => ({ pollWeather: m.pollWeather }));
+vi.mock('../src/services/lunchService.js', () => ({ pollLunch: m.pollLunch }));
 vi.mock('../src/ws/hub.js', () => ({ broadcast: m.broadcast }));
 vi.mock('../src/config.js', () => ({ config: { pollIntervalMs: 1000 } }));
 
@@ -51,6 +53,20 @@ async function runPoll(pollerInstance = poller) {
 
 const calendarPushes = () =>
   m.broadcast.mock.calls.map(([message]) => message).filter((message) => message.type === 'calendar');
+
+const lunchPushes = () =>
+  m.broadcast.mock.calls.map(([message]) => message).filter((message) => message.type === 'lunch');
+
+// A settings object with the lunch view on and pointed at a school, so a test
+// can turn the feature on without repeating all four keys.
+const lunchSettings = (overrides = {}) => ({
+  theme: 'dark',
+  location: null,
+  schoolLunchEnabled: true,
+  schoolLunchDistrict: 'dallas',
+  schoolLunchSchool: 'elementary',
+  ...overrides,
+});
 
 beforeEach(async () => {
   vi.resetModules(); // fresh module state: the loop's day/interval trackers
@@ -69,6 +85,7 @@ beforeEach(async () => {
   m.clearCompletedTasks.mockReturnValue([]);
   m.getSettings.mockReturnValue({ theme: 'dark', location: null });
   m.pollWeather.mockResolvedValue({ tempC: 20 });
+  m.pollLunch.mockResolvedValue({ meals: { lunch: { '2026-10-08': [{ title: null, items: ['Pizza'] }] } } });
 
   poller = await import('../src/services/poller.js');
 });
@@ -171,6 +188,64 @@ describe('weather', () => {
       'offline'
     );
     expect(m.broadcast).not.toHaveBeenCalled();
+  });
+});
+
+describe('school lunch', () => {
+  it('never polls for lunch while the view is off or unconfigured', async () => {
+    await runPoll();
+    await vi.advanceTimersByTimeAsync(INTERVAL * 3);
+    expect(m.pollLunch).not.toHaveBeenCalled();
+  });
+
+  it('polls lunch once the view is on and a school saved, on the six-hour gate', async () => {
+    await runPoll();
+    m.getSettings.mockReturnValue(lunchSettings());
+
+    await vi.advanceTimersByTimeAsync(INTERVAL); // first round after it was turned on
+    expect(m.pollLunch).toHaveBeenCalledTimes(1);
+    expect(lunchPushes()).toHaveLength(1);
+
+    // Still inside the same six-hour window: no second fetch.
+    await vi.advanceTimersByTimeAsync(INTERVAL * 5);
+    expect(m.pollLunch).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not rebroadcast menus that have not changed', async () => {
+    m.getSettings.mockReturnValue(lunchSettings());
+
+    await poller.pollLunchNow();
+    expect(lunchPushes()).toHaveLength(1);
+
+    await poller.pollLunchNow();
+    expect(lunchPushes()).toHaveLength(1);
+  });
+
+  it('broadcasts again once the menu contents move', async () => {
+    m.getSettings.mockReturnValue(lunchSettings());
+
+    await poller.pollLunchNow();
+    m.pollLunch.mockResolvedValue({ meals: { lunch: { '2026-10-08': [{ title: null, items: ['Tacos'] }] } } });
+    await poller.pollLunchNow();
+
+    expect(lunchPushes()).toHaveLength(2);
+  });
+
+  it('does nothing when called directly while the view is off', async () => {
+    await poller.pollLunchNow();
+    expect(m.pollLunch).not.toHaveBeenCalled();
+    expect(lunchPushes()).toHaveLength(0);
+  });
+
+  it('logs and survives a failed lunch fetch', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    m.getSettings.mockReturnValue(lunchSettings());
+    m.pollLunch.mockRejectedValue(new Error('offline'));
+
+    await poller.pollLunchNow();
+
+    expect(console.error).toHaveBeenCalledWith('[poller] School lunch poll failed:', 'offline');
+    expect(lunchPushes()).toHaveLength(0);
   });
 });
 

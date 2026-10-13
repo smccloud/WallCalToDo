@@ -1,5 +1,5 @@
 import express from 'express';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { writeJson } from '../src/store/fileStore.js';
 import { apiRouter } from '../src/routes/api.js';
 import { accountsRouter } from '../src/routes/accounts.js';
@@ -11,6 +11,24 @@ import { credentialsRouter } from '../src/routes/credentials.js';
 // POST exercises validation without touching real state. broadcast() and
 // broadcastCalendar() are no-ops here because ws/hub's wss is still null
 // (no initWebSocket call), so nothing leaks timers or sockets.
+//
+// The poller and the lunch service's outbound fetch are mocked: a PATCH that
+// changes the lunch school fires a real Nutrislice fetch (see settings.js),
+// and a PATCH of a location fires a real weather fetch -- neither belongs in a
+// route-validation suite. The lunch service is mocked wholesale so the schools
+// endpoint answers from a stub instead of the network.
+vi.mock('../src/services/poller.js', () => ({
+  pollWeatherNow: vi.fn(),
+  pollLunchNow: vi.fn(),
+}));
+vi.mock('../src/services/lunchService.js', () => ({
+  fetchSchools: vi.fn(async () => [{ name: 'Lincoln Elementary', slug: 'lincoln', menuTypes: ['lunch'] }]),
+  discoverDistricts: vi.fn(async () => ({
+    place: 'Souderton',
+    districts: [{ slug: 'soudertonsd', schoolCount: 3 }],
+  })),
+  getCachedLunch: vi.fn(() => null),
+}));
 
 let server;
 let baseUrl;
@@ -65,6 +83,46 @@ describe('GET /api/calendar and /api/todo', () => {
     const todo = await api('/todo');
     expect(todo.status).toBe(200);
     expect(todo.body).toEqual([]);
+  });
+});
+
+describe('GET /api/lunch', () => {
+  it('is null before any menu has been cached', async () => {
+    const { status, body } = await api('/lunch');
+    expect(status).toBe(200);
+    expect(body).toBeNull();
+  });
+});
+
+describe('GET /api/lunch/schools', () => {
+  it('rejects a district slug that isn’t safe to put in a hostname', async () => {
+    const { status, body } = await api('/lunch/schools?district=Evil.example.com');
+    expect(status).toBe(400);
+    expect(body.error).toBe('Invalid district');
+  });
+
+  it('returns the district’s schools', async () => {
+    const { status, body } = await api('/lunch/schools?district=dallas');
+    expect(status).toBe(200);
+    expect(body.schools).toEqual([{ name: 'Lincoln Elementary', slug: 'lincoln', menuTypes: ['lunch'] }]);
+  });
+});
+
+describe('GET /api/lunch/discover', () => {
+  it('rejects a missing or non-numeric location', async () => {
+    expect((await api('/lunch/discover?lat=abc&lon=-75')).status).toBe(400);
+    expect((await api('/lunch/discover')).status).toBe(400);
+  });
+
+  it('rejects a location outside the valid ranges', async () => {
+    expect((await api('/lunch/discover?lat=91&lon=0')).status).toBe(400);
+    expect((await api('/lunch/discover?lat=0&lon=-181')).status).toBe(400);
+  });
+
+  it('returns the districts found near the location', async () => {
+    const { status, body } = await api('/lunch/discover?lat=40.31&lon=-75.32');
+    expect(status).toBe(200);
+    expect(body).toEqual({ place: 'Souderton', districts: [{ slug: 'soudertonsd', schoolCount: 3 }] });
   });
 });
 
@@ -162,6 +220,19 @@ describe('PATCH /api/settings', () => {
     [{ weatherDailyDays: 11 }, 'Invalid weatherDailyDays'],
     [{ weatherDailyDays: 7.5 }, 'Invalid weatherDailyDays'],
     [{ weatherDailyDays: '7' }, 'Invalid weatherDailyDays'],
+    [{ schoolLunchEnabled: 'yes' }, 'Invalid schoolLunchEnabled'],
+    [{ schoolLunchEnabled: 1 }, 'Invalid schoolLunchEnabled'],
+    // The district becomes part of a request hostname, so anything that could
+    // escape the subdomain is rejected rather than fetched.
+    [{ schoolLunchDistrict: 'Evil.example.com' }, 'Invalid schoolLunchDistrict'],
+    [{ schoolLunchDistrict: 'has spaces' }, 'Invalid schoolLunchDistrict'],
+    [{ schoolLunchDistrict: 'has_underscore' }, 'Invalid schoolLunchDistrict'],
+    [{ schoolLunchSchool: '../etc' }, 'Invalid schoolLunchSchool'],
+    [{ schoolLunchSchoolName: 5 }, 'Invalid schoolLunchSchoolName'],
+    [{ schoolLunchStartTime: '7:30' }, 'Invalid schoolLunchStartTime'],
+    [{ schoolLunchStartTime: '25:00' }, 'Invalid schoolLunchStartTime'],
+    [{ schoolLunchEndTime: 'noon' }, 'Invalid schoolLunchEndTime'],
+    [{ schoolLunchMealSwitchTime: '10:60' }, 'Invalid schoolLunchMealSwitchTime'],
   ])('rejects %j with %s', async (patch, message) => {
     const { status, body } = await api('/settings', { method: 'PATCH', body: JSON.stringify(patch) });
     expect(status).toBe(400);
@@ -183,6 +254,33 @@ describe('PATCH /api/settings', () => {
       }),
     });
     expect(status).toBe(200);
+  });
+
+  it('saves a school lunch configuration and clears a time with null', async () => {
+    const { status, body } = await api('/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        schoolLunchEnabled: true,
+        schoolLunchDistrict: 'dallas',
+        schoolLunchSchool: 'lincoln',
+        schoolLunchSchoolName: 'Lincoln Elementary',
+        schoolLunchStartTime: '07:30',
+        schoolLunchEndTime: '13:00',
+        schoolLunchMealSwitchTime: '11:15',
+      }),
+    });
+    expect(status).toBe(200);
+    expect(body.schoolLunchEnabled).toBe(true);
+    expect(body.schoolLunchDistrict).toBe('dallas');
+    expect(body.schoolLunchSchool).toBe('lincoln');
+    expect(body.schoolLunchStartTime).toBe('07:30');
+
+    const cleared = await api('/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ schoolLunchStartTime: null }),
+    });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.schoolLunchStartTime).toBeNull();
   });
 });
 

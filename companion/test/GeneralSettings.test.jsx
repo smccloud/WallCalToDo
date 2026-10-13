@@ -47,6 +47,8 @@ const HANDLER_NAMES = [
   'onSetWeatherDuration',
   'onSetWeatherHourlyHours',
   'onSetWeatherDailyDays',
+  'onSetSchoolLunchEnabled',
+  'onSetSchoolLunch',
   'onSaveLocation',
   'onError',
 ];
@@ -72,6 +74,7 @@ describe('GeneralSettings', () => {
       'Show Microsoft Accounts',
       'Show Google Accounts',
       'Combine similar events',
+      'School lunch',
       'Weather view',
     ]) {
       expect(getByText(heading)).toBeDefined();
@@ -114,13 +117,16 @@ describe('GeneralSettings', () => {
     const msToggle = getByText('Show Microsoft Accounts');
     const googleToggle = getByText('Show Google Accounts');
     const mergeToggle = getByText('Combine similar events');
+    const schoolLunch = getByText('School lunch');
     const weatherView = getByText('Weather view');
 
     // DOCUMENT_POSITION_FOLLOWING === 4 — each of these comes after the one
-    // before it, and the weather view after all of them.
+    // before it, the school lunch view before the weather view (which needs a
+    // location and so stays last), and the weather view after all of them.
     expect(msToggle.compareDocumentPosition(googleToggle) & 4).toBeTruthy();
     expect(googleToggle.compareDocumentPosition(mergeToggle) & 4).toBeTruthy();
-    expect(mergeToggle.compareDocumentPosition(weatherView) & 4).toBeTruthy();
+    expect(mergeToggle.compareDocumentPosition(schoolLunch) & 4).toBeTruthy();
+    expect(schoolLunch.compareDocumentPosition(weatherView) & 4).toBeTruthy();
   });
 
   it('shows privacy mode as on and reports it switching off', () => {

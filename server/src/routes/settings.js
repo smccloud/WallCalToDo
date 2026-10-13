@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { getSettings, updateSettings } from '../services/settingsService.js';
 import { searchPlaces, reverseGeocode } from '../services/geocodeService.js';
-import { pollWeatherNow } from '../services/poller.js';
+import { pollWeatherNow, pollLunchNow } from '../services/poller.js';
+import { fetchSchools, discoverDistricts } from '../services/lunchService.js';
 import { getCachedTasks } from '../services/todoService.js';
 import { broadcast, broadcastCalendar } from '../ws/hub.js';
 
@@ -36,12 +37,26 @@ const WEATHER_DAILY_DAYS_MAX = 10;
 const WIND_UNITS = ['mph', 'kmh', 'ms', 'kn'];
 const PRECIP_UNITS = ['inch', 'mm'];
 
+// School lunch's district/school slugs and its clock times. The slugs land in
+// a request hostname/path (see lunchService.js), so they're held to the one
+// shape Nutrislice ever uses rather than trusted; the school slug's own bound
+// is longer than the district's because school slugs are. Times are 'HH:MM'
+// local wall time or null, where null on both ends of the window means all
+// day (so enabling the view can't leave it with a window that never opens).
+const LUNCH_SLUG_RE = /^[a-z0-9-]{1,63}$/;
+const LUNCH_SCHOOL_RE = /^[a-z0-9-]{1,100}$/;
+const LUNCH_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 function isValidOffset(offset) {
   return (
     offset &&
     OFFSET_MINUTES.includes(offset.minutes) &&
     ['before', 'after'].includes(offset.direction)
   );
+}
+
+function isValidLunchTime(value) {
+  return value === null || (typeof value === 'string' && LUNCH_TIME_RE.test(value));
 }
 
 // A whole number within an inclusive range. Strictly typed rather than
@@ -84,6 +99,49 @@ settingsRouter.get('/geocode/reverse', async (req, res) => {
   }
 });
 
+// The schools in a Nutrislice district, for the companion app's school picker
+// -- the district slug is typed by hand (see lunchService.js for why discovery
+// isn't derived from the wall's location), and this turns it into a list of
+// schools to choose from. Validated before the fetch so a bad slug is an
+// immediate 400 rather than a wasted request; a district that resolves but
+// errors upstream is a 502, the same as a bad geocode.
+settingsRouter.get('/lunch/schools', async (req, res) => {
+  const district = (req.query.district || '').trim().toLowerCase();
+  if (!LUNCH_SLUG_RE.test(district)) return res.status(400).json({ error: 'Invalid district' });
+  try {
+    res.json({ schools: await fetchSchools(district) });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Best-effort district discovery from the wall's location: the companion app
+// sends the saved lat/lon, and the server reverse-geocodes it to a place name
+// and probes the plausible district slugs (see discoverDistricts in
+// lunchService.js). A place it can't name, or one with no matching district,
+// is an empty list rather than an error -- only a lookup/fetch failure is a
+// 502. Candidates are validated server-side before any request, so this can't
+// be turned into a probe for an arbitrary hostname.
+settingsRouter.get('/lunch/discover', async (req, res) => {
+  const lat = parseFloat(req.query.lat);
+  const lon = parseFloat(req.query.lon);
+  if (
+    Number.isNaN(lat) ||
+    Number.isNaN(lon) ||
+    lat < -90 ||
+    lat > 90 ||
+    lon < -180 ||
+    lon > 180
+  ) {
+    return res.status(400).json({ error: 'Invalid lat/lon' });
+  }
+  try {
+    res.json(await discoverDistricts({ lat, lon }));
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
 settingsRouter.patch('/settings', (req, res) => {
   const {
     theme,
@@ -106,6 +164,13 @@ settingsRouter.patch('/settings', (req, res) => {
     timeFormat,
     clockShowSeconds,
     clockFlashDivider,
+    schoolLunchEnabled,
+    schoolLunchDistrict,
+    schoolLunchSchool,
+    schoolLunchSchoolName,
+    schoolLunchStartTime,
+    schoolLunchEndTime,
+    schoolLunchMealSwitchTime,
   } = req.body || {};
   const patch = {};
 
@@ -219,6 +284,56 @@ settingsRouter.patch('/settings', (req, res) => {
     }
     patch.clockFlashDivider = clockFlashDivider;
   }
+  // The school lunch view's own on/off. Off leaves the to-do list in place;
+  // its other settings are saved regardless so turning it back on restores
+  // the same district/school/window without re-entering them.
+  if (schoolLunchEnabled !== undefined) {
+    if (typeof schoolLunchEnabled !== 'boolean') {
+      return res.status(400).json({ error: 'Invalid schoolLunchEnabled' });
+    }
+    patch.schoolLunchEnabled = schoolLunchEnabled;
+  }
+  if (schoolLunchDistrict !== undefined) {
+    if (schoolLunchDistrict !== null && !LUNCH_SLUG_RE.test(schoolLunchDistrict)) {
+      return res.status(400).json({ error: 'Invalid schoolLunchDistrict' });
+    }
+    patch.schoolLunchDistrict = schoolLunchDistrict;
+  }
+  if (schoolLunchSchool !== undefined) {
+    if (schoolLunchSchool !== null && !LUNCH_SCHOOL_RE.test(schoolLunchSchool)) {
+      return res.status(400).json({ error: 'Invalid schoolLunchSchool' });
+    }
+    patch.schoolLunchSchool = schoolLunchSchool;
+  }
+  // Purely cosmetic -- it's only ever shown back in the companion app's
+  // picker -- but still length-bounded so a runaway string can't be stored.
+  if (schoolLunchSchoolName !== undefined) {
+    if (
+      schoolLunchSchoolName !== null &&
+      (typeof schoolLunchSchoolName !== 'string' || schoolLunchSchoolName.length > 120)
+    ) {
+      return res.status(400).json({ error: 'Invalid schoolLunchSchoolName' });
+    }
+    patch.schoolLunchSchoolName = schoolLunchSchoolName;
+  }
+  if (schoolLunchStartTime !== undefined) {
+    if (!isValidLunchTime(schoolLunchStartTime)) {
+      return res.status(400).json({ error: 'Invalid schoolLunchStartTime' });
+    }
+    patch.schoolLunchStartTime = schoolLunchStartTime;
+  }
+  if (schoolLunchEndTime !== undefined) {
+    if (!isValidLunchTime(schoolLunchEndTime)) {
+      return res.status(400).json({ error: 'Invalid schoolLunchEndTime' });
+    }
+    patch.schoolLunchEndTime = schoolLunchEndTime;
+  }
+  if (schoolLunchMealSwitchTime !== undefined) {
+    if (!isValidLunchTime(schoolLunchMealSwitchTime)) {
+      return res.status(400).json({ error: 'Invalid schoolLunchMealSwitchTime' });
+    }
+    patch.schoolLunchMealSwitchTime = schoolLunchMealSwitchTime;
+  }
 
   const settings = updateSettings(patch);
   broadcast({ type: 'settings', data: settings });
@@ -239,5 +354,17 @@ settingsRouter.patch('/settings', (req, res) => {
   // just to save a location, and don't make someone who just set one up
   // wait up to 15 minutes for the poll loop to get around to it either.
   if (patch.location) pollWeatherNow(patch.location.lat, patch.location.lon);
+  // Changing what the lunch view fetches (its on/off, district, or school)
+  // means the cached menus are for the wrong school or none at all, so refetch
+  // now and push the result rather than letting the wall show the previous
+  // district's menu until the next poll. The window and switch time are pure
+  // display logic and travel in the settings push above.
+  if (
+    patch.schoolLunchEnabled !== undefined ||
+    patch.schoolLunchDistrict !== undefined ||
+    patch.schoolLunchSchool !== undefined
+  ) {
+    pollLunchNow();
+  }
   res.json(settings);
 });

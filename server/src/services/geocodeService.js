@@ -27,3 +27,24 @@ export async function reverseGeocode(lat, lon) {
   const data = await nominatimFetch(`/reverse?format=json&zoom=10&lat=${lat}&lon=${lon}`);
   return data.display_name || null;
 }
+
+// Nominatim models a town's name under whichever OSM tag fits the place, so a
+// reverse lookup has to try the common ones before falling back to the county.
+// Ordered most- to least-specific so a real city wins over a broad district.
+const CITY_KEYS = ['city', 'town', 'village', 'municipality', 'locality', 'hamlet'];
+
+// The structured pieces behind reverseGeocode's single string, for the school
+// lunch discovery path (see lunchService.discoverDistricts): which town the
+// wall is in, and the county as a fallback, so a candidate district slug can
+// be derived from an actual place name rather than from raw coordinates.
+// `label` is the same friendly string reverseGeocode returns.
+export async function reverseGeocodeDetail(lat, lon) {
+  const data = await nominatimFetch(`/reverse?format=jsonv2&zoom=10&lat=${lat}&lon=${lon}`);
+  const address = data.address || {};
+  return {
+    city: CITY_KEYS.map((key) => address[key]).find(Boolean) || null,
+    county: address.county || null,
+    state: address.state || null,
+    label: data.display_name || null,
+  };
+}

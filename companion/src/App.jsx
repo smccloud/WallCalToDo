@@ -255,6 +255,18 @@ export default function App() {
   // settings.
   const setWeatherHourlyHours = (weatherHourlyHours) => patchSetting({ weatherHourlyHours });
   const setWeatherDailyDays = (weatherDailyDays) => patchSetting({ weatherDailyDays });
+  // Whether the wall swaps the to-do list for the school's lunch menu during
+  // its window. Off by default; the rest of the school-lunch settings are
+  // saved regardless so turning it back on restores the same district, school,
+  // and window.
+  const setSchoolLunchEnabled = (schoolLunchEnabled) => patchSetting({ schoolLunchEnabled });
+  // Every other school-lunch field (district, school slug and its display
+  // name, the window, the meal switch) in one handler: they're all saved the
+  // same way, and the district/school trio has to travel together in one PATCH
+  // so the server sees a coherent school rather than a district with the
+  // previous school still attached. Changing any of these makes the server
+  // refetch the menu (see the lunch hook at the end of routes/settings.js).
+  const setSchoolLunch = (patch) => patchSetting(patch);
   // Unlike the settings above, a location save isn't optimistic (there's no
   // sensible "local" value to show before the server geocodes/validates
   // it) and never throws -- LocationSettings owns the busy-state around
@@ -580,6 +592,8 @@ export default function App() {
         onSetWeatherHourlyHours={setWeatherHourlyHours}
         onSetWeatherDailyDays={setWeatherDailyDays}
         onSetWeatherEnabled={setWeatherEnabled}
+        onSetSchoolLunchEnabled={setSchoolLunchEnabled}
+        onSetSchoolLunch={setSchoolLunch}
         onSaveLocation={saveLocation}
         onError={setError}
       />

@@ -5,7 +5,9 @@ import CalendarHeader from './components/CalendarHeader.jsx';
 import CalendarView from './components/CalendarView.jsx';
 import DayAgenda from './components/DayAgenda.jsx';
 import TodoView from './components/TodoView.jsx';
+import LunchView from './components/LunchView.jsx';
 import WeatherView from './components/WeatherView.jsx';
+import { isLunchTime, pickMeal, menuFor, MEAL_ORDER } from './utils/lunch.js';
 
 // 'light'/'dark' settings are direct; 'auto' switches at sunrise/sunset for
 // the location saved in the companion app. Falls back to 'dark' (this
@@ -55,7 +57,7 @@ function isWeatherTime(settings, now) {
 const WEATHER_CHECK_MS = 5_000;
 
 export default function App() {
-  const { calendar, calendarGrid, todo, settings, weather, connected } = useWebSocket();
+  const { calendar, calendarGrid, todo, settings, weather, lunch, connected } = useWebSocket();
 
   // Its own clock, same pattern as CalendarView/DayAgenda: this only needs
   // to catch the sunrise/sunset boundary passing, not tick every second, so
@@ -105,6 +107,18 @@ export default function App() {
   // ever unmeasurable, in which case .secondary's own CSS fallback covers it.
   const [todayHeight, setTodayHeight] = useState(null);
 
+  // The school lunch view replaces the to-do slot during its window, and only
+  // when there's actually a menu for the meal that's current right now. The
+  // second half is what keeps it from being a worse to-do list: a weekend or
+  // holiday has no menu for today, and a week that hasn't arrived yet is just
+  // a pending fetch -- in both cases the to-do list stays up rather than the
+  // wall showing an empty panel. Re-evaluated every minute off the same `now`
+  // clock the theme switch uses, so the view appears and hands back on its own
+  // as the day passes.
+  const lunchServed = MEAL_ORDER.filter((meal) => menuFor(lunch, meal, now));
+  const lunchMeal = isLunchTime(settings, now) ? pickMeal(settings, now, lunchServed) : null;
+  const lunchSections = lunchMeal ? menuFor(lunch, lunchMeal, now) : null;
+
   // The weather view replaces the display outright, so it needs something to
   // show: a location, and a reading fetched for it. Without either the
   // calendar stays up rather than the wall blanking to an error — the same
@@ -131,7 +145,11 @@ export default function App() {
         <CalendarView events={calendarGrid} privacyMode={privacyMode} onMeasureSplit={setTodayHeight} />
         <div className="secondary" style={{ '--today-height': todayHeight ? `${todayHeight}px` : undefined }}>
           <DayAgenda events={calendar} privacyMode={privacyMode} settings={settings} />
-          <TodoView tasks={todo} privacyMode={privacyMode} weather={weather} settings={settings} />
+          {lunchSections ? (
+            <LunchView meal={lunchMeal} sections={lunchSections} weather={weather} settings={settings} />
+          ) : (
+            <TodoView tasks={todo} privacyMode={privacyMode} weather={weather} settings={settings} />
+          )}
         </div>
       </div>
     </div>

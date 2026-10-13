@@ -595,6 +595,7 @@ body {
 .theme-settings,
 .time-format-settings,
 .units-settings,
+.school-lunch-settings,
 .weather-view-settings {
   margin-top: 1rem;
   padding-top: 1rem;
@@ -666,6 +667,51 @@ body {
 .location-settings__times {
   margin: 0 0 0.75rem;
   font-weight: 600;
+}
+
+/* The school lunch view's time fields: a Start/End pair on one row, and the
+   breakfast-to-lunch switch as its own row below. Same input chrome as
+   .location-settings__search input, split out because these sit under a
+   stacked label rather than beside a button. */
+.school-lunch-settings__times {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.school-lunch-settings__time {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.school-lunch-settings__time input {
+  border: 1px solid var(--color-input-border);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.9rem;
+  background: var(--color-card-bg);
+  color: var(--color-text);
+}
+
+/* The "Find my district" auto-discovery button and the "near <place>"
+   caption under it. Full width so it reads as a peer of the manual
+   district search below rather than a small inline button. */
+.school-lunch-settings__discover {
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+.school-lunch-settings__near {
+  margin: 0.4rem 0 0.75rem;
+}
+
+/* Discovery results reuse the location picker's list chrome; this only
+   spaces them off the manual search form that follows. */
+.school-lunch-settings__districts {
+  margin-bottom: 0.75rem;
 }
 
 .location-settings__current {

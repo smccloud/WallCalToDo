@@ -25,6 +25,13 @@ describe('settingsService', () => {
     expect(settings.weatherIntervalMinutes).toBe(15);
     expect(settings.weatherDurationSeconds).toBe(60);
     expect(settings.weatherHourlyHours).toBe(24);
+    expect(settings.schoolLunchEnabled).toBe(false);
+    expect(settings.schoolLunchDistrict).toBeNull();
+    expect(settings.schoolLunchSchool).toBeNull();
+    expect(settings.schoolLunchSchoolName).toBeNull();
+    expect(settings.schoolLunchStartTime).toBeNull();
+    expect(settings.schoolLunchEndTime).toBeNull();
+    expect(settings.schoolLunchMealSwitchTime).toBeNull();
     expect(settings.sunriseOffset).toEqual({ minutes: 0, direction: 'before' });
     expect(settings.sunsetOffset).toEqual({ minutes: 0, direction: 'before' });
   });

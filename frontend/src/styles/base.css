@@ -620,7 +620,8 @@ body {
 }
 
 .agenda,
-.todo {
+.todo,
+.lunch {
   min-height: 0;
   padding: var(--space-sm) var(--space-md);
   font-size: 1.125rem;
@@ -628,11 +629,12 @@ body {
   color: var(--color-text-agenda);
 }
 
-.todo {
-  /* A column so .todo-list (flex: 1 below) gets a definite, bounded
-     height, and the weather widget after it (see WeatherWidget.jsx) can
-     be pinned to the bottom via flex the same way the legend is in
-     .agenda — see below. Overflow itself moved to .todo-list's own
+.todo,
+.lunch {
+  /* A column so .todo-list/.lunch-list (flex: 1 below) gets a definite,
+     bounded height, and any trailing widget (.todo's weather, see
+     WeatherWidget.jsx) can be pinned to the bottom via flex the same way the
+     legend is in .agenda — see below. Overflow itself moved to the list's own
      scrolling instead of happening here. */
   display: flex;
   flex-direction: column;
@@ -641,7 +643,8 @@ body {
 }
 
 @media (orientation: landscape) {
-  .todo {
+  .todo,
+  .lunch {
     /* Stacked under the agenda now, not beside it -- the divider moves
        to match. */
     border-left: none;
@@ -659,7 +662,8 @@ body {
 }
 
 .agenda__heading,
-.todo__heading {
+.todo__heading,
+.lunch__heading {
   font-size: 1.75rem;
   margin: 0 0 var(--space-sm);
 }
@@ -920,6 +924,62 @@ body {
      fight for the same row width. */
   margin-top: 0.2em;
   font-size: 0.6em;
+  color: var(--color-text-muted);
+}
+
+/* The school lunch view's list, in place of .todo-list during its window (see
+   LunchView.jsx). Same flex: 1 / min-height: 0 / overflow-y: auto contract as
+   .todo-list so the shrink-to-fit search has a bounded box to fit against,
+   and the same --lunch-font-size control point so a section heading and the
+   items under it scale together. */
+.lunch-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  font-size: var(--lunch-font-size, 22px);
+}
+
+.lunch-list__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+/* A menu's own section titles ("Entrees", "Sides") -- small, spaced, and
+   muted, so they read as labels for the foods below rather than competing
+   with them. Sized in em off --lunch-font-size so it shrinks with the list. */
+.lunch-list__section-title {
+  margin: 0;
+  font-size: 0.62em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.lunch-list__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+.lunch-list__item {
+  /* Hanging indent: the list marker sits in the gutter so a food name that
+     wraps lines up under itself rather than under the bullet. */
+  padding-left: 1em;
+  position: relative;
+}
+
+.lunch-list__item::before {
+  content: '•';
+  position: absolute;
+  left: 0.15em;
   color: var(--color-text-muted);
 }
 
