@@ -55,22 +55,6 @@ pipeline {
                         }
                     }
                 }
-                stage('Unit Tests') {
-                    steps {
-                        // Mark GitHub status as pending for the start of this parallel thread
-                        step([$class: 'GitHubSetCommitStatusBuilder', status: 'pending', context: 'Jenkins/Unit-Tests'])
-                        
-                        sh 'echo "Running unit tests..."'
-                    }
-                }
-                stage('Integration Tests') {
-                    steps {
-                        // Mark GitHub status as pending with a distinct context name
-                        step([$class: 'GitHubSetCommitStatusBuilder', status: 'pending', context: 'Jenkins/Integration-Tests'])
-                        
-                        sh 'echo "Running integration tests..."'
-                    }
-                }
             }
         }
 
@@ -91,13 +75,7 @@ pipeline {
                  subject: "Jenkins Build ${currentBuild.fullDisplayName} Finished",
                  body: "The build finished. Check details here: ${env.BUILD_URL}"
         }
-        success {
-            // Set GitHub commit status to universal success
-            step([$class: 'GitHubCommitStatusSetter', statusResultSource: [$class: 'ConditionalStatusResultSource', results: [[$class: 'BetterCouldBeSuccess']]]])
-        }
         failure {
-            // Set GitHub commit status to universal failure
-            step([$class: 'GitHubCommitStatusSetter', statusResultSource: [$class: 'ConditionalStatusResultSource', results: [[$class: 'AnyBuildResultDeterminesStatus']]]])
             // Triggers only if the build fails
             mail to: 'shaun.thomas.mccloud@gmail.com',
                  subject: "ALERT: Build Failed - ${currentBuild.fullDisplayName}",
