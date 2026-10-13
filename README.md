@@ -834,7 +834,24 @@ connecting your accounts, and mounting it on the wall.
 in (step 2), steps 3–6 and 8 — the OS packages and Node.js, `.env`, the
 dependency installs and both frontend builds, the systemd service, and
 kiosk autostart (with the transparent cursor and, if you want it, portrait
-rotation) — are automated by `pi-setup/install.sh`:
+rotation) — are automated by `pi-setup/install.sh`.
+
+**One line, on a freshly flashed Pi** (run as your normal user, *not* root —
+it uses sudo itself where needed): it installs git, clones the repo to
+`~/WallCalToDo`, then re-runs itself from the checkout to do everything else,
+kiosk mode included:
+
+```
+curl -fsSL https://raw.githubusercontent.com/smccloud/WallCalToDo/main/pi-setup/install.sh | bash
+```
+
+For a portrait mount, add `-s -- --rotate 90`:
+
+```
+curl -fsSL https://raw.githubusercontent.com/smccloud/WallCalToDo/main/pi-setup/install.sh | bash -s -- --rotate 90
+```
+
+Already have the checkout? Run the script in place:
 
 ```
 cd ~/WallCalToDo

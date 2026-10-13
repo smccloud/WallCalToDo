@@ -15,7 +15,19 @@
 # autostart lines and the cursor theme are left alone if already present,
 # and builds are simply redone.
 #
-# Usage:
+# One-line install from a freshly flashed Pi (as the normal desktop user, NOT
+# root -- the script uses sudo where it needs to):
+#
+#   curl -fsSL https://raw.githubusercontent.com/smccloud/WallCalToDo/main/pi-setup/install.sh | bash
+#   wget -qO-  https://raw.githubusercontent.com/smccloud/WallCalToDo/main/pi-setup/install.sh | bash
+#
+# Piped in like that it installs git, clones the repo to ~/WallCalToDo, then
+# re-runs itself from the checkout to do everything below. Options are passed
+# through after `bash -s --`, e.g.:
+#
+#   ... | bash -s -- --rotate 90
+#
+# Usage (from an existing checkout):
 #   ./pi-setup/install.sh [options]
 #
 # Options:
@@ -41,7 +53,8 @@
 #   -h, --help           Show this help and exit.
 #
 # Environment equivalents: WALLCALTODO_USER, WALLCALTODO_DIR,
-# WALLCALTODO_PORT, WALLCALTODO_ROTATE, WALLCALTODO_SESSION.
+# WALLCALTODO_PORT, WALLCALTODO_ROTATE, WALLCALTODO_SESSION,
+# WALLCALTODO_REPO (clone URL), WALLCALTODO_REF (branch/tag to clone).
 
 set -euo pipefail
 
@@ -67,10 +80,21 @@ step() { printf '\n%s==> %s%s\n' "$C_BOLD" "$*" "$C_RESET"; }
 # Argument parsing
 # ---------------------------------------------------------------------------
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Where this script physically lives, when it's a file in a checkout. Empty
+# when it's piped in from curl/wget -- there is no path then, which is exactly
+# the signal that this is a fresh machine and the repo still has to be cloned.
+SELF_DIR=""
+if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+  SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 
 # Default --dir to the repo root (parent of pi-setup/), overridable via env.
-DEFAULT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# When piped in, there is no repo yet, so default to the standard clone path.
+if [ -n "$SELF_DIR" ] && [ -d "$SELF_DIR/../server" ]; then
+  DEFAULT_DIR="$(cd "$SELF_DIR/.." && pwd)"
+else
+  DEFAULT_DIR="$HOME/WallCalToDo"
+fi
 APP_DIR="${WALLCALTODO_DIR:-$DEFAULT_DIR}"
 APP_USER="${WALLCALTODO_USER:-${SUDO_USER:-$(id -un)}}"
 ROTATE="${WALLCALTODO_ROTATE:-none}"
@@ -100,6 +124,10 @@ It is safe to re-run: every step checks current state first, existing
 autostart lines and the cursor theme are left alone if already present,
 and builds are simply redone.
 
+Piped in from a fresh machine (curl/wget | bash), it first installs git,
+clones the repo to ~/WallCalToDo (or --dir), and re-runs itself from the
+checkout. Pass options through with: bash -s -- --rotate 90
+
 Usage:
   ./pi-setup/install.sh [options]
 
@@ -115,7 +143,7 @@ Options:
   --user <name>        User the backend runs as and owns the checkout.
                        Default: $SUDO_USER, else the current user.
   --dir <path>         Where the checkout lives. Default: the repo this
-                       script is in.
+                       script is in, else ~/WallCalToDo when piped in.
   --port <number>      Backend port. Default: from .env, else 3000.
   --skip-apt           Don't touch apt (no OS packages, no Node install).
   --skip-build         Don't npm install/build (reuse existing dist/).
@@ -126,9 +154,14 @@ Options:
   -h, --help           Show this help and exit.
 
 Environment equivalents: WALLCALTODO_USER, WALLCALTODO_DIR,
-WALLCALTODO_PORT, WALLCALTODO_ROTATE, WALLCALTODO_SESSION.
+WALLCALTODO_PORT, WALLCALTODO_ROTATE, WALLCALTODO_SESSION,
+WALLCALTODO_REPO, WALLCALTODO_REF.
 EOF
 }
+
+# Keep the original args: the parsing loop below shifts them all away, but a
+# piped-in run has to hand them to the cloned copy of this script.
+ORIG_ARGS=("$@")
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -155,16 +188,69 @@ case "$ROTATE" in
 esac
 
 # ---------------------------------------------------------------------------
-# Preflight
+# Bootstrap: fetch prerequisites and clone the repo when piped in fresh
 # ---------------------------------------------------------------------------
-
-step "WallCalToDo installer"
 
 if [ "$(id -u)" -eq 0 ]; then
   die "run this as the normal desktop user, not root. It uses sudo where it needs to."
 fi
 
 command -v sudo >/dev/null 2>&1 || die "sudo is required."
+
+is_checkout() {
+  [ -n "${1:-}" ] && [ -f "$1/server/package.json" ] && [ -f "$1/pi-setup/install.sh" ]
+}
+
+bootstrap_checkout() {
+  if is_checkout "$APP_DIR"; then
+    return 0
+  fi
+
+  step "Fetching prerequisites and cloning WallCalToDo"
+  ok "target: $APP_DIR"
+
+  if [ -e "$APP_DIR" ] && [ ! -e "$APP_DIR/.git" ] && [ -n "$(ls -A "$APP_DIR" 2>/dev/null)" ]; then
+    die "$APP_DIR exists but isn't a WallCalToDo checkout (use --dir)"
+  fi
+
+  if ! command -v git >/dev/null 2>&1; then
+    log "installing git (needed to clone the repo)"
+    sudo apt-get update
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git ca-certificates
+  fi
+
+  local repo_url="${WALLCALTODO_REPO:-https://github.com/smccloud/WallCalToDo.git}"
+  local repo_ref="${WALLCALTODO_REF:-}"
+
+  mkdir -p "$(dirname "$APP_DIR")"
+  if [ -e "$APP_DIR/.git" ]; then
+    log "updating existing checkout at $APP_DIR"
+    git -C "$APP_DIR" pull --ff-only
+  else
+    log "cloning $repo_url"
+    if [ -n "$repo_ref" ]; then
+      git clone --branch "$repo_ref" "$repo_url" "$APP_DIR"
+    else
+      git clone "$repo_url" "$APP_DIR"
+    fi
+  fi
+
+  is_checkout "$APP_DIR" || die "the clone didn't produce a WallCalToDo checkout at $APP_DIR"
+  ok "checkout ready at $APP_DIR"
+
+  # Hand off to the freshly cloned copy so the running logic always matches the
+  # checkout on disk (and --help/--update behave the same however you got here).
+  log "re-running the installer from the checkout"
+  exec "$APP_DIR/pi-setup/install.sh" "$@"
+}
+
+bootstrap_checkout "${ORIG_ARGS[@]}"
+
+# ---------------------------------------------------------------------------
+# Preflight
+# ---------------------------------------------------------------------------
+
+step "WallCalToDo installer"
 
 if [ ! -d "$APP_DIR" ]; then
   die "checkout not found at $APP_DIR (use --dir)"
