@@ -94,3 +94,19 @@ export function isTrustedRequest(req) {
   const address = clientAddress(req);
   return address ? isTrustedAddress(address) : false;
 }
+
+// Express middleware for the routers that can change state: reads stay open so
+// the display and companion app keep working over the home network, while
+// anything that mutates server state or triggers an upstream fetch is limited
+// to the Pi's own screen plus the networks above. Mount it with
+// `router.use(requireTrusted)` before the routes, so no state-changing handler
+// can be reached without passing through here -- the alternative (one guard per
+// route) is exactly the kind of list that grows a hole when a route is added.
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+export function requireTrusted(req, res, next) {
+  if (SAFE_METHODS.has(req.method) || isTrustedRequest(req)) return next();
+  res.status(403).json({
+    error: `Changing server state is only allowed from the Pi's own screen or networks in server/.env's TRUSTED_CIDRS, not ${clientAddress(req) || 'unknown'}.`,
+  });
+}

@@ -26,9 +26,21 @@ pipeline {
     stages {
         stage('Install') {
             parallel {
-                stage('server')    { steps { dir('server')    { sh '''if [-f .env ] ; then rm -f .env ; fi ; echo 'TRUSTED_CIDRS=' > .env ; npm ci''' } } }
+                stage('server')    { steps { dir('server')    { sh '''if [ -f .env ] ; then rm -f .env ; fi ; echo 'TRUSTED_CIDRS=' > .env ; npm ci''' } } }
                 stage('frontend')  { steps { dir('frontend')  { sh 'npm ci' } } }
                 stage('companion') { steps { dir('companion') { sh 'npm ci' } } }
+            }
+        }
+
+        // Built before Test on purpose: the server's build-stamp check reads
+        // frontend/dist/index.html -- the same file the Pi is served -- so the
+        // test only passes on a workspace that has already built the frontend.
+        // Building first makes that explicit instead of relying on a stale
+        // dist left behind by an earlier run.
+        stage('Build') {
+            parallel {
+                stage('frontend')  { steps { dir('frontend')  { sh 'npm run build' } } }
+                stage('companion') { steps { dir('companion') { sh 'npm run build' } } }
             }
         }
 
@@ -55,14 +67,6 @@ pipeline {
                         }
                     }
                 }
-            }
-        }
-
-        stage('Build') {
-            parallel {
-                // Inform GitHub the build has started
-                stage('frontend')  { steps { dir('frontend')  { sh 'npm run build' } } }
-                stage('companion') { steps { dir('companion') { sh 'npm run build' } } }
             }
         }
     }

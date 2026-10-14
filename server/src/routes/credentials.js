@@ -6,11 +6,17 @@ import {
   updateGoogleSet,
   deleteGoogleSet,
 } from '../services/credentialsService.js';
-import { isTrustedRequest, clientAddress } from '../services/trustedNetworks.js';
+import { requireTrusted } from '../services/trustedNetworks.js';
 import { accountsUsingSet } from '../auth/googleAuth.js';
 import { resetClient as resetMsalClient } from '../auth/microsoftAuth.js';
 
 export const credentialsRouter = Router();
+
+// Reads (GET) stay open so the companion app can show what's saved over the
+// home network; adding, editing, or removing a credential set is limited to
+// the Pi's own screen and server/.env's TRUSTED_CIDRS. Mounted once, ahead of
+// every route, so a route added later can't forget it.
+credentialsRouter.use(requireTrusted);
 
 // { google: { sets: [{ id, name, clientId, configured, inUseBy }], configured,
 // redirectUri }, ms: { clientId, configured, redirectUri, tenantId } } — never
@@ -32,10 +38,6 @@ const statusWithInUse = () => {
 };
 
 credentialsRouter.get('/credentials', (req, res) => {
-  if (!isTrustedRequest(req)) {
-    const clientAddress = clientAddress(req) || 'unknown';
-    return res.status(403).json({ error: `Reading credentials is only allowed from the Pi's own screen or networks in server/.env's TRUSTED_CIDRS, not ${clientAddress}.` });
-  }
   res.json(statusWithInUse());
 });
 

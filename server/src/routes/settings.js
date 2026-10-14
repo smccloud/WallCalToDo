@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getSettings, updateSettings } from '../services/settingsService.js';
-import { isTrustedRequest, clientAddress } from '../services/trustedNetworks.js';
+import { requireTrusted } from '../services/trustedNetworks.js';
 import { searchPlaces, reverseGeocode } from '../services/geocodeService.js';
 import { pollWeatherNow, pollLunchNow } from '../services/poller.js';
 import {
@@ -15,6 +15,12 @@ import { getCachedTasks } from '../services/todoService.js';
 import { broadcast, broadcastCalendar } from '../ws/hub.js';
 
 export const settingsRouter = Router();
+
+// Reads (GET) stay open so the display and companion app keep working over the
+// home network; only state changes are limited to the Pi's own screen and
+// server/.env's TRUSTED_CIDRS. Mounted once, ahead of every route, so a route
+// added later can't forget it.
+settingsRouter.use(requireTrusted);
 
 const OFFSET_MINUTES = [0, 15, 30, 45, 60, 120, 180];
 
@@ -191,13 +197,6 @@ settingsRouter.get('/lunch/discover', async (req, res) => {
 });
 
 settingsRouter.patch('/settings', (req, res) => {
-  // Settings changes are only allowed from the Pi's own screen or networks in
-  // server/.env's TRUSTED_CIDRS. Checked up front, before anything is read or
-  // written, so an untrusted client can't mutate state and only then be told
-  // it wasn't allowed.
-  if (!isTrustedRequest(req)) {
-    return res.status(403).json({ error: `Changing settings is only allowed from the Pi's own screen or networks in server/.env's TRUSTED_CIDRS, not ${clientAddress(req) || 'unknown'}.` });
-  }
   const {
     theme,
     location,

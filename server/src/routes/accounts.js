@@ -16,10 +16,16 @@ import {
   setGoogleTaskListEnabled,
   pollGoogleTasks,
 } from '../services/googleTodoService.js';
-import { clientAddress, isTrustedRequest } from '../services/trustedNetworks.js';
+import { clientAddress, isTrustedRequest, requireTrusted } from '../services/trustedNetworks.js';
 import { broadcast, broadcastCalendar } from '../ws/hub.js';
 
 export const accountsRouter = Router();
+
+// Reads (GET) stay open so the display and companion app keep working over the
+// home network; every state change and upstream refresh is limited to the Pi's
+// own screen and server/.env's TRUSTED_CIDRS. Mounted once, ahead of every
+// route, so a route added later can't forget it.
+accountsRouter.use(requireTrusted);
 
 // A calendar color comes from a native <input type="color">, so accept only a
 // plain #rgb/#rrggbb. An empty value is meaningful — it clears the override,
@@ -30,14 +36,6 @@ function parseColor(value) {
   if (value === undefined || value === null || value === '') return null;
   if (typeof value !== 'string' || !HEX_COLOR.test(value)) throw new Error('Invalid color');
   return value;
-}
-
-// Guard for state-changing, non-cursor routes that modify cached data.
-function requireTrusted() {
-  if (!isTrustedRequest(this.req)) {
-    const clientAddress = clientAddress(this.req) || 'unknown';
-    this.status(403).json({ error: `State changes from ${clientAddress} are only allowed from the Pi's own screen or networks in server/.env's TRUSTED_CIDRS.` });
-  }
 }
 
 // Both calendar providers in one response, so the companion app's single
@@ -97,7 +95,6 @@ accountsRouter.get('/todo/lists', async (req, res) => {
 // and To Do — and their cached events/tasks, then rebroadcasts each feed so
 // the wall display empties out immediately.
 accountsRouter.delete('/ms/account', async (req, res) => {
-  requireTrusted.call(this);
   try {
     await microsoftAuth.disconnectAccount();
     dropAllCalendarsCache();
@@ -214,10 +211,6 @@ accountsRouter.patch('/accounts/:accountId/calendars/:calendarId', (req, res) =>
 // a poll wouldn't reliably do it, since an incremental sync only revisits
 // events that changed upstream.
 accountsRouter.patch('/accounts/:accountId/calendars/:calendarId/color', (req, res) => {
-  if (!isTrustedRequest(req)) {
-    const clientAddress = clientAddress(req) || 'unknown';
-    return res.status(403).json({ error: `Changing calendar colors from ${clientAddress} is only allowed from the Pi's own screen or networks in server/.env's TRUSTED_CIDRS.` });
-  }
   try {
     const { accountId, calendarId } = req.params;
     const color = parseColor(req.body?.background);
@@ -234,10 +227,6 @@ accountsRouter.patch('/accounts/:accountId/calendars/:calendarId/color', (req, r
 // calendar-list changes, so this is a deliberate refresh rather than
 // something polled automatically.
 accountsRouter.post('/accounts/:accountId/refresh', async (req, res) => {
-  if (!isTrustedRequest(req)) {
-    const clientAddress = clientAddress(req) || 'unknown';
-    return res.status(403).json({ error: `Accessing calendar changes from ${clientAddress} is only allowed from the Pi's own screen or networks in server/.env's TRUSTED_CIDRS.` });
-  }
   try {
     const calendars = await googleAuth.refreshCalendarList(req.params.accountId);
     const { changed } = await pollCalendar();
@@ -251,10 +240,6 @@ accountsRouter.post('/accounts/:accountId/refresh', async (req, res) => {
 // Manual "check for new/removed task lists on this Google account" -- same
 // idea as the calendar refresh above. Also re-polls so the wall reflects it.
 accountsRouter.post('/accounts/:accountId/task-lists/refresh', async (req, res) => {
-  if (!isTrustedRequest(req)) {
-    const clientAddress = clientAddress(req) || 'unknown';
-    return res.status(403).json({ error: `Accessing calendars/tasks from ${clientAddress} is only allowed from the Pi's own screen or networks in server/.env's TRUSTED_CIDRS.` });
-  }
   try {
     const taskLists = await refreshGoogleTaskLists(req.params.accountId);
     await pollGoogleTasks();
