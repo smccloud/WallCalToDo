@@ -11,7 +11,9 @@ no Google account, and a mix of both works too. Works mounted either
 way — portrait puts the calendar on top with today's agenda and the to-do
 list below it; landscape puts the calendar on the left with today's agenda
 and to-do stacked in a column beside it. It picks whichever automatically
-based on the screen's own aspect ratio, no configuration needed.
+based on the screen's own aspect ratio, no configuration needed. During a
+window you set, the to-do list gives its slot to your school's lunch menu —
+see [School lunch view](#school-lunch-view).
 
 <p align="center">
   <img src="docs/wall-photo.png" alt="WallCalToDo mounted on a wall in a custom wood frame, portrait orientation" width="360">
@@ -46,6 +48,7 @@ in the header.)*
 - [Microsoft calendar fetching](#microsoft-calendar-fetching)
 - [Calendar legend and outside temperature](#calendar-legend-and-outside-temperature)
 - [Weather view](#weather-view)
+- [School lunch view](#school-lunch-view)
 - [Holiday decoration](#holiday-decoration)
 - [Companion app](#companion-app)
   - [Connecting an account from a remote computer](#connecting-an-account-from-a-remote-computer)
@@ -134,7 +137,7 @@ Microsoft Graph To Do (1 account)  ─┘
 - **companion/** — React settings app for your phone: connect/disconnect
   Google and Microsoft accounts, toggle individual calendars/lists on or
   off, customize calendar colors, and configure theme, location, time
-  format, units and privacy mode. Reachable at
+  format, units, privacy mode and the optional school lunch view. Reachable at
   `http://<pi-hostname>:3000/companion` over your home Wi-Fi —
   see "Companion app" below.
 - **pi-setup/** — systemd unit for the backend + kiosk Chromium autostart,
@@ -152,7 +155,10 @@ last time?" using
 updates (e.g. drop it to 15–20s). Google Tasks has no delta feed and is
 re-listed each round (its lists are small), and Microsoft calendars are the
 exception, running on their own slower interval for the reason given under
-[Microsoft calendar fetching](#microsoft-calendar-fetching).
+[Microsoft calendar fetching](#microsoft-calendar-fetching). The school lunch
+menu, when enabled, polls on a much slower six-hour interval of its own, since
+a week's menu changes weekly rather than hourly (see
+[School lunch view](#school-lunch-view)).
 
 When a poll detects a change, the backend immediately pushes the new data
 to every connected display over its WebSocket connection
@@ -491,6 +497,60 @@ inside the rotation's window and fed the frontend canned data in place of the
 WebSocket feed, not committed, same as the fixture behind the calendar
 captures.)*
 
+## School lunch view
+
+During a window you choose, the to-do panel is replaced by the day's school
+lunch menu. It's the same panel in the same place — the outside temperature
+widget stays in its corner across the handover — so the wall doesn't change
+shape when the menu comes up, it just reads what's for lunch instead of what's
+left to do. Set the window to whatever covers the part of the day the question
+actually gets asked, or leave both ends blank to show it all day; outside the
+window the to-do list is back.
+
+The menu is read from the school's own menu system, four of which are
+supported: **Nutrislice**, **MealViewer**, **Health-e Pro** and
+**SchoolCafe**. The companion app picks the provider first, then names the
+district and the school — each provider identifies those differently (a
+Nutrislice district is the slug from its `dallas.nutrislice.com` hostname,
+MealViewer and SchoolCafe use an id, Health-e Pro a numeric one), so the
+fields follow the provider — and with a location already saved it can suggest
+districts near you. SchoolCafe additionally needs a serving line. The whole
+week (Sunday to Saturday) is fetched in one go and cached, and re-fetched
+every six hours — menus change weekly, not hourly — with a failed refresh
+leaving the last good week in place through an outage.
+
+A day that serves both breakfast and lunch can alternate between them: set a
+meal-switch time and the view shows breakfast before it and lunch after, with
+an interval choosing how long each stays up. Without a switch time the view
+shows the meal the school is actually serving, preferring lunch when the day
+has one. A day with no menu at all (a weekend, a holiday, a school closure)
+leaves the to-do list up rather than the panel going blank, and **Show
+tomorrow's menu** extends that same rule forward: when today has nothing, the
+view draws tomorrow's instead and labels it "Tomorrow's Lunch", which is what
+you want on a Sunday evening, not an empty panel. Nothing to configure to turn
+it off, either — with the feature disabled the to-do panel is exactly as it
+was.
+
+The menu's own text is the content, so it scales to fill the panel with the
+same shrink-to-fit rule the to-do list and today's agenda use, and the meal is
+titled at the top ("Lunch", or "Tomorrow's Lunch"). Like everything else on
+the wall it's read-only: the school lunch view is a window onto the menu, not
+a way to order from it.
+
+<p align="center">
+  <a href="docs/demo-lunch-landscape-light.png"><img src="docs/demo-lunch-landscape-light.png" alt="Landscape, light theme: the school lunch view in place of the to-do panel, headed Lunch with the day's entrees, sides and milk" width="380"></a>
+  <a href="docs/demo-lunch-landscape-dark.png"><img src="docs/demo-lunch-landscape-dark.png" alt="Landscape, dark theme: the same lunch menu in the column beside the calendar" width="380"></a>
+</p>
+<p align="center">
+  <a href="docs/demo-lunch-portrait-light.png"><img src="docs/demo-lunch-portrait-light.png" alt="Portrait, light theme: the lunch menu under today's agenda, headed Lunch" width="220"></a>
+  <a href="docs/demo-lunch-portrait-dark.png"><img src="docs/demo-lunch-portrait-dark.png" alt="Portrait, dark theme: the same lunch menu under the calendar" width="220"></a>
+</p>
+
+*(Demo data again, with the feature switched on and its window set to all day
+so the panel stays up for the capture. The menu is a stand-in — cheese pizza,
+chicken nuggets and a veggie burger with the usual sides and milk — not a real
+district's.)*
+
 ## Holiday decoration
 
 A day carrying one of fifteen holidays gets its day number circled in the
@@ -743,6 +803,13 @@ all-day events Google really hands over, tagged the same way.)*
   it draws; see [Weather view](#weather-view). The interval is timed from the
   clock, not from when you turned it on, so an hourly setting appears on the
   hour.
+- **School lunch view** — whether the menu takes over the to-do panel, which
+  menu system to read (**Nutrislice**, **MealViewer**, **Health-e Pro** or
+  **SchoolCafe**), the district and school (with a location-based district
+  search where the provider supports it, and a serving line for SchoolCafe),
+  the window of the day it appears, how it alternates between breakfast and
+  lunch, and whether to fall back to tomorrow's menu when today has none; see
+  [School lunch view](#school-lunch-view). Off by default.
 
 Every change here pushes to the wall display immediately over the same
 WebSocket connection used for calendar/to-do updates — no refresh needed
