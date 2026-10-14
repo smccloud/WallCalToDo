@@ -226,7 +226,6 @@ settingsRouter.patch('/settings', (req, res) => {
     schoolLunchServingLine,
     schoolLunchStartTime,
     schoolLunchEndTime,
-    schoolLunchMealSwitchTime,
     schoolLunchShowTomorrow,
     schoolLunchAlternateSeconds,
   } = req.body || {};
@@ -398,8 +397,8 @@ settingsRouter.patch('/settings', (req, res) => {
   // The active provider owns the shape rules for its own ids, checked against
   // the merged settings so a change to any one identity field is judged in the
   // context of the others. Only run when an identity field actually changes --
-  // the display-only knobs (on/off, window, switch time) must not be rejected
-  // because a school hasn't been picked yet.
+  // the display-only knobs (on/off, window, tomorrow fallback, alternate
+  // interval) must not be rejected because a school hasn't been picked yet.
   if (
     patch.schoolLunchProvider !== undefined ||
     patch.schoolLunchDistrict !== undefined ||
@@ -420,12 +419,6 @@ settingsRouter.patch('/settings', (req, res) => {
       return res.status(400).json({ error: 'Invalid schoolLunchEndTime' });
     }
     patch.schoolLunchEndTime = schoolLunchEndTime;
-  }
-  if (schoolLunchMealSwitchTime !== undefined) {
-    if (!isValidLunchTime(schoolLunchMealSwitchTime)) {
-      return res.status(400).json({ error: 'Invalid schoolLunchMealSwitchTime' });
-    }
-    patch.schoolLunchMealSwitchTime = schoolLunchMealSwitchTime;
   }
   // Whether the view falls back to tomorrow's menu when today has none. Display
   // logic only, so it travels in the settings push like the window above.
@@ -464,8 +457,9 @@ settingsRouter.patch('/settings', (req, res) => {
   // Changing what the lunch view fetches (its on/off, provider, district,
   // school, or serving line) means the cached menus are for the wrong school or
   // none at all, so refetch now and push the result rather than letting the
-  // wall show the previous school's menu until the next poll. The window and
-  // switch time are pure display logic and travel in the settings push above.
+  // wall show the previous school's menu until the next poll. The window, the
+  // tomorrow fallback and the alternate interval are pure display logic and
+  // travel in the settings push above.
   if (
     patch.schoolLunchEnabled !== undefined ||
     patch.schoolLunchProvider !== undefined ||

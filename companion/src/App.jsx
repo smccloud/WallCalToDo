@@ -261,7 +261,7 @@ export default function App() {
   // and window.
   const setSchoolLunchEnabled = (schoolLunchEnabled) => patchSetting({ schoolLunchEnabled });
   // Every other school-lunch field (district, school slug and its display
-  // name, the window, the meal switch) in one handler: they're all saved the
+  // name, the window) in one handler: they're all saved the
   // same way, and the district/school trio has to travel together in one PATCH
   // so the server sees a coherent school rather than a district with the
   // previous school still attached. Changing any of these makes the server

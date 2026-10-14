@@ -55,8 +55,8 @@ const metaFor = (provider) => PROVIDER_META[provider] || PROVIDER_META.nutrislic
 // How often the view flips between breakfast and lunch. These are the values
 // the server validates against (LUNCH_ALTERNATE_SECONDS in
 // server/src/routes/settings.js) with friendlier labels; adding one means
-// adding it in both places. 0 is "Off", which leaves the view on whichever meal
-// the switch-time rule above picks.
+// adding it in both places. 0 is "Off", which leaves the view on lunch
+// whenever the day serves it.
 const ALTERNATE_OPTIONS = [
   { value: 0, label: 'Off' },
   { value: 15, label: 'Every 15 seconds' },
@@ -410,24 +410,10 @@ export default function SchoolLunchSettings({
             </label>
           </div>
 
-          <p className="settings-label section-label">Breakfast to lunch</p>
-          <p className="location-settings__hint">
-            The time the view switches from breakfast to lunch. Leave blank to prefer lunch whenever it's served.
-          </p>
-          <label className="school-lunch-settings__time">
-            <span>Switch</span>
-            <input
-              type="time"
-              value={timeValue(settings?.schoolLunchMealSwitchTime)}
-              disabled={settingsLoading}
-              onChange={(e) => setTime('schoolLunchMealSwitchTime', e.target.value)}
-            />
-          </label>
-
           <p className="settings-label section-label">Alternate breakfast and lunch</p>
           <p className="location-settings__hint">
-            When the school serves both, how often the view flips between them. Off keeps it on whichever meal the
-            switch above picks.
+            When the school serves both, how often the view flips between them. Off keeps it on lunch whenever the
+            day serves it.
           </p>
           <select
             className="select"

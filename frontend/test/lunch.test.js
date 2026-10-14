@@ -69,28 +69,17 @@ describe('isLunchTime', () => {
 
 describe('pickMeal', () => {
   it('is null when neither meal has a menu today', () => {
-    expect(pickMeal({}, at(10), [])).toBeNull();
-    expect(pickMeal({}, at(10), [null, null])).toBeNull();
+    expect(pickMeal([])).toBeNull();
+    expect(pickMeal([null, null])).toBeNull();
   });
 
-  it('prefers lunch with no switch time configured', () => {
-    expect(pickMeal({}, at(7), ['breakfast', 'lunch'])).toBe('lunch');
+  it('prefers lunch when the day serves it', () => {
+    expect(pickMeal(['breakfast', 'lunch'])).toBe('lunch');
+    expect(pickMeal(['lunch'])).toBe('lunch');
   });
 
   it('falls back to whatever is actually served', () => {
-    expect(pickMeal({}, at(7), ['breakfast'])).toBe('breakfast');
-  });
-
-  it('switches breakfast to lunch at the configured time', () => {
-    const settings = { schoolLunchMealSwitchTime: '11:15' };
-    expect(pickMeal(settings, at(10), ['breakfast', 'lunch'])).toBe('breakfast');
-    expect(pickMeal(settings, at(11, 15), ['breakfast', 'lunch'])).toBe('lunch');
-  });
-
-  it('ignores the switch when the meal it would pick is not served', () => {
-    const settings = { schoolLunchMealSwitchTime: '11:15' };
-    expect(pickMeal(settings, at(10), ['lunch'])).toBe('lunch');
-    expect(pickMeal(settings, at(13), ['breakfast'])).toBe('breakfast');
+    expect(pickMeal(['breakfast'])).toBe('breakfast');
   });
 });
 
@@ -105,6 +94,11 @@ describe('menuFor', () => {
     expect(menuFor(lunch, 'breakfast', at(12))).toBeNull();
     expect(menuFor(lunch, 'lunch', new Date(2026, 9, 9, 12))).toBeNull();
     expect(menuFor(null, 'lunch', at(12))).toBeNull();
+  });
+
+  it('treats an empty section list as no menu rather than as an empty panel', () => {
+    const empty = { meals: { lunch: { '2026-10-08': [] } } };
+    expect(menuFor(empty, 'lunch', at(12))).toBeNull();
   });
 });
 
@@ -163,6 +157,15 @@ describe('menuDay', () => {
   it('returns null when neither day has a menu', () => {
     expect(menuDay(lunch, { schoolLunchShowTomorrow: true }, new Date(2026, 9, 10, 12))).toBeNull();
     expect(menuDay(null, { schoolLunchShowTomorrow: true }, at(12))).toBeNull();
+  });
+
+  it('skips an empty today and falls through to tomorrow', () => {
+    const emptyToday = {
+      meals: { lunch: { '2026-10-08': [], '2026-10-09': [{ title: null, items: ['Steak'] }] } },
+    };
+    const day = menuDay(emptyToday, { schoolLunchShowTomorrow: true }, at(12));
+    expect(day.tomorrow).toBe(true);
+    expect(day.meals).toEqual([{ meal: 'lunch', sections: [{ title: null, items: ['Steak'] }] }]);
   });
 });
 

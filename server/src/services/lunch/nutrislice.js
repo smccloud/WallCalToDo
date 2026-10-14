@@ -76,6 +76,13 @@ function collectSchools(data) {
     }));
 }
 
+// Nutrislice answers a day with no menu -- a weekend, a holiday, an
+// unpublished day -- with a lone placeholder item ("There is currently nothing
+// on the menu today") rather than an empty day. It arrives as an ordinary item,
+// so it has to be dropped here or the day reads as a one-line menu and the
+// lunch view replaces the to-do list with it.
+const NOTHING_ON_MENU_RE = /nothing on the menu|no school/i;
+
 // A day's menu_items are a flat, ordered stream of section titles and foods
 // (and the occasional announcement line, or a blank spacer). This folds it into
 // the shape the display draws: a list of titled sections, each with its food
@@ -85,6 +92,7 @@ export function parseMenuItems(items) {
   const entries = [];
   for (const item of items || []) {
     if (!item || item.blank_line) continue;
+    if (NOTHING_ON_MENU_RE.test(item.text || item.food?.name || '')) continue;
     if (item.is_section_title) {
       entries.push({ type: 'category', name: item.text });
       continue;

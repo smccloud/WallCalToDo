@@ -115,6 +115,15 @@ describe('parseMenuItems', () => {
   it('drops blank spacer lines and empty sections', () => {
     expect(parseMenuItems([{ blank_line: true }, { text: 'Entrees', is_section_title: true }])).toEqual([]);
   });
+
+  it('drops Nutrislice’s empty-day placeholder so the day reads as no menu', () => {
+    expect(parseMenuItems([{ text: 'There is currently nothing on the menu today' }])).toEqual([]);
+    expect(parseMenuItems([{ text: 'NO SCHOOL TODAY' }])).toEqual([]);
+    // A placeholder alongside real food is dropped but the food survives.
+    expect(
+      parseMenuItems([{ text: 'There is currently nothing on the menu today' }, { food: { name: 'Pizza' } }])
+    ).toEqual([{ title: null, items: ['Pizza'] }]);
+  });
 });
 
 describe('parseWeek', () => {
@@ -122,6 +131,16 @@ describe('parseWeek', () => {
     const days = parseWeek(weekBody());
     expect(Object.keys(days)).toEqual(['2026-10-05']);
     expect(days['2026-10-05'][0].items).toContain('Cheese Pizza');
+  });
+
+  it('leaves a placeholder-only day out so tomorrow wins the fallback', () => {
+    const week = {
+      days: [
+        { date: '2026-10-10', menu_items: [{ text: 'There is currently nothing on the menu today' }] },
+        { date: '2026-10-12', menu_items: [{ food: { name: 'Tacos' } }] },
+      ],
+    };
+    expect(Object.keys(parseWeek(week))).toEqual(['2026-10-12']);
   });
 });
 

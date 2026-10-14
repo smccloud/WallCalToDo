@@ -114,12 +114,9 @@ const DEFAULT_SETTINGS = {
   schoolLunchShowTomorrow: false,
   // The daily window the lunch view replaces the to-do list in, 'HH:MM' local
   // wall time (null on both ends means all day, so enabling the view can't
-  // leave it with a window that never opens). schoolLunchMealSwitchTime is
-  // when the view flips from breakfast to lunch; null means "whatever the
-  // school actually serves, preferring lunch" (see frontend/src/utils/lunch.js).
+  // leave it with a window that never opens).
   schoolLunchStartTime: null,
   schoolLunchEndTime: null,
-  schoolLunchMealSwitchTime: null,
   // How often the lunch view flips between breakfast and lunch when the day
   // serves both, in seconds; 0 ("Off") leaves it on whichever meal
   // pickMeal chooses (see frontend/src/utils/lunch.js). Off by default so an

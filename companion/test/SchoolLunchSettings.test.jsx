@@ -324,11 +324,10 @@ describe('SchoolLunchSettings', () => {
         ...ON,
         schoolLunchStartTime: '07:30',
         schoolLunchEndTime: '13:00',
-        schoolLunchMealSwitchTime: '11:15',
       });
-      const [start, end, mealSwitch] = timeInputs(handlers.container);
+      const [start, end] = timeInputs(handlers.container);
 
-      expect([start.value, end.value, mealSwitch.value]).toEqual(['07:30', '13:00', '11:15']);
+      expect([start.value, end.value]).toEqual(['07:30', '13:00']);
 
       fireEvent.change(start, { target: { value: '08:00' } });
       expect(handlers.onSetSchoolLunch).toHaveBeenCalledWith({ schoolLunchStartTime: '08:00' });

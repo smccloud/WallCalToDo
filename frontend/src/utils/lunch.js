@@ -44,34 +44,25 @@ export function isLunchTime(settings, now) {
   return from < to ? minutes >= from && minutes < to : minutes >= from || minutes < to;
 }
 
-// Which meal to show. Breakfast before the switch time, lunch after it; the
-// switch is optional, and without it the view falls back to whatever the
-// school actually serves, preferring lunch (the view's namesake) over
-// breakfast. Returns a meal key, or null when neither meal has a menu today --
-// the caller uses that to leave the to-do list up instead of showing an empty
-// panel.
-export function pickMeal(settings, now, servedMeals) {
+// Which meal to show. The view's namesake (lunch) leads whenever the school
+// serves it, falling back to whatever the day actually serves otherwise.
+// Returns a meal key, or null when neither meal has a menu today -- the caller
+// uses that to leave the to-do list up instead of showing an empty panel.
+export function pickMeal(servedMeals) {
   const served = (servedMeals || []).filter(Boolean);
   if (served.length === 0) return null;
-  let preferred;
-  const switchAt = parseTimeOfDay(settings?.schoolLunchMealSwitchTime);
-  if (switchAt === null) {
-    preferred = served.includes('lunch') ? 'lunch' : served[0];
-  } else {
-    const minutes = now.getHours() * 60 + now.getMinutes();
-    preferred = minutes < switchAt ? 'breakfast' : 'lunch';
-  }
-  return served.includes(preferred) ? preferred : served[0];
+  return served.includes('lunch') ? 'lunch' : served[0];
 }
 
 // The sections for one meal on one day, or null when there's no menu (a
 // weekend, a holiday, a school that doesn't serve that meal, or a day still
-// outside the cached week -- see lunchService.js). The cache keys days as
-// 'YYYY-MM-DD', which is the same key dateKey() produces for the wall's local
-// date.
+// outside the cached week -- see lunchService.js). An empty section list counts
+// as no menu too, so a day a provider marked empty never replaces the to-do
+// list. The cache keys days as 'YYYY-MM-DD', which is the same key dateKey()
+// produces for the wall's local date.
 export function menuFor(lunch, meal, date) {
   const sections = meal ? lunch?.meals?.[meal]?.[dateKey(date)] : null;
-  return Array.isArray(sections) ? sections : null;
+  return Array.isArray(sections) && sections.length ? sections : null;
 }
 
 // Every meal that actually has a menu on the given day, in the order a day

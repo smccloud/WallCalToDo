@@ -120,7 +120,7 @@ export default function App() {
   // view: with alternation off it draws the first, with it on the cycle starts
   // there and flips between however many meals the day actually serves.
   const lunchMeals = lunchDay
-    ? orderMeals(lunchDay.meals, pickMeal(settings, now, lunchDay.meals.map((entry) => entry.meal)))
+    ? orderMeals(lunchDay.meals, pickMeal(lunchDay.meals.map((entry) => entry.meal)))
     : null;
 
   // The weather view replaces the display outright, so it needs something to

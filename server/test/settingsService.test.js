@@ -31,7 +31,6 @@ describe('settingsService', () => {
     expect(settings.schoolLunchSchoolName).toBeNull();
     expect(settings.schoolLunchStartTime).toBeNull();
     expect(settings.schoolLunchEndTime).toBeNull();
-    expect(settings.schoolLunchMealSwitchTime).toBeNull();
     expect(settings.schoolLunchShowTomorrow).toBe(false);
     expect(settings.schoolLunchAlternateSeconds).toBe(0);
     expect(settings.sunriseOffset).toEqual({ minutes: 0, direction: 'before' });

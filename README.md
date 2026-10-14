@@ -519,17 +519,18 @@ week (Sunday to Saturday) is fetched in one go and cached, and re-fetched
 every six hours — menus change weekly, not hourly — with a failed refresh
 leaving the last good week in place through an outage.
 
-A day that serves both breakfast and lunch can alternate between them: set a
-meal-switch time and the view shows breakfast before it and lunch after, with
-an interval choosing how long each stays up. Without a switch time the view
-shows the meal the school is actually serving, preferring lunch when the day
-has one. A day with no menu at all (a weekend, a holiday, a school closure)
-leaves the to-do list up rather than the panel going blank, and **Show
-tomorrow's menu** extends that same rule forward: when today has nothing, the
-view draws tomorrow's instead and labels it "Tomorrow's Lunch", which is what
-you want on a Sunday evening, not an empty panel. Nothing to configure to turn
-it off, either — with the feature disabled the to-do panel is exactly as it
-was.
+A day that serves both breakfast and lunch can alternate between them: set an
+interval and the view cycles through the meals the day actually serves, starting
+from lunch. Off by default, so nothing moves until you ask it to.
+
+A day with no menu at all (a weekend, a holiday, a school closure) leaves the
+to-do list up rather than the panel going blank — including a day a provider
+answers with a placeholder like Nutrislice's "There is currently nothing on the
+menu today", which counts as no menu. **Show tomorrow's menu** extends that same
+rule forward: when today has nothing, the view draws tomorrow's instead and
+labels it "Tomorrow's Lunch", which is what you want on a Sunday evening, not an
+empty panel. Nothing to configure to turn it off, either — with the feature
+disabled the to-do panel is exactly as it was.
 
 The menu's own text is the content, so it scales to fill the panel with the
 same shrink-to-fit rule the to-do list and today's agenda use, and the meal is
