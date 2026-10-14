@@ -52,6 +52,20 @@ const PROVIDER_META = {
 
 const metaFor = (provider) => PROVIDER_META[provider] || PROVIDER_META.nutrislice;
 
+// How often the view flips between breakfast and lunch. These are the values
+// the server validates against (LUNCH_ALTERNATE_SECONDS in
+// server/src/routes/settings.js) with friendlier labels; adding one means
+// adding it in both places. 0 is "Off", which leaves the view on whichever meal
+// the switch-time rule above picks.
+const ALTERNATE_OPTIONS = [
+  { value: 0, label: 'Off' },
+  { value: 15, label: 'Every 15 seconds' },
+  { value: 30, label: 'Every 30 seconds' },
+  { value: 60, label: 'Every minute' },
+  { value: 120, label: 'Every 2 minutes' },
+  { value: 300, label: 'Every 5 minutes' },
+];
+
 // Optional school lunch view: replaces the to-do list with the school's
 // breakfast/lunch menus during a daily window (see frontend/src/App.jsx).
 // Which menu system to read is a provider choice; each one names a district
@@ -79,6 +93,7 @@ export default function SchoolLunchSettings({
 
   const meta = metaFor(provider);
   const providerLabel = providers.find((p) => p.id === provider)?.label || 'your menu provider';
+  const alternateSeconds = Number(settings?.schoolLunchAlternateSeconds) || 0;
 
   useEffect(() => {
     let active = true;
@@ -408,6 +423,25 @@ export default function SchoolLunchSettings({
               onChange={(e) => setTime('schoolLunchMealSwitchTime', e.target.value)}
             />
           </label>
+
+          <p className="settings-label section-label">Alternate breakfast and lunch</p>
+          <p className="location-settings__hint">
+            When the school serves both, how often the view flips between them. Off keeps it on whichever meal the
+            switch above picks.
+          </p>
+          <select
+            className="select"
+            aria-label="How often to alternate between breakfast and lunch"
+            value={alternateSeconds}
+            disabled={settingsLoading}
+            onChange={(e) => onSetSchoolLunch({ schoolLunchAlternateSeconds: Number(e.target.value) })}
+          >
+            {ALTERNATE_OPTIONS.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
 
           <div className="setting-toggle">
             <span className="setting-toggle__label">Show tomorrow's menu</span>

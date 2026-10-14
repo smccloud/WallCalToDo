@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import WeatherWidget from './WeatherWidget.jsx';
 import { mealLabel } from '../utils/lunch.js';
 
@@ -8,14 +8,37 @@ import { mealLabel } from '../utils/lunch.js';
 const LUNCH_FONT_MAX = 22;
 const LUNCH_FONT_MIN = 12;
 
-// Data shape: sections = [{ title: string|null, items: string[] }]
+// Data shape: meals = [{ meal: 'breakfast'|'lunch', sections: [{ title, items }] }]
+// (see mealsFor/orderMeals in utils/lunch.js). The first entry is the one
+// pickMeal chose; when alternateSeconds is set and the day serves more than one
+// meal, the view cycles through them at that interval instead of sitting on it.
 //
 // The same shrink-to-fit binary search as TodoView.jsx, against .lunch-list
 // instead of .todo-list. Section headings and item text are all sized in em
 // off --lunch-font-size (see base.css), so the whole menu scales together
 // rather than the headings drifting out of proportion with the items.
-export default function LunchView({ meal, sections, weather, settings }) {
+export default function LunchView({ meals, tomorrow, alternateSeconds, weather, settings }) {
   const listRef = useRef(null);
+  const count = meals.length;
+  const alternateMs = Number(alternateSeconds || 0) * 1000;
+  // Only ever alternate when there's a second meal to alternate to -- one meal,
+  // or an interval of 0 ("Off"), leaves the view on the first entry.
+  const cycling = count > 1 && alternateMs > 0;
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (!cycling) {
+      setIndex(0);
+      return;
+    }
+    setIndex(0);
+    const timer = setInterval(() => setIndex((i) => (i + 1) % count), alternateMs);
+    return () => clearInterval(timer);
+  }, [cycling, alternateMs, count]);
+
+  const active = meals[cycling ? index % count : 0];
+  const { meal, sections } = active;
+  const heading = tomorrow ? `Tomorrow's ${mealLabel(meal)}` : mealLabel(meal);
   const signature = `${meal}:${sections
     .map((section) => `${section.title || ''}[${section.items.join('|')}]`)
     .join(';')}`;
@@ -45,10 +68,10 @@ export default function LunchView({ meal, sections, weather, settings }) {
 
   return (
     <section className="lunch">
-      <h2 className="lunch__heading">{mealLabel(meal)}</h2>
+      <h2 className="lunch__heading">{heading}</h2>
       <div className="lunch-list" ref={listRef}>
-        {sections.map((section, index) => (
-          <div className="lunch-list__section" key={`${section.title || 'section'}-${index}`}>
+        {sections.map((section, sectionIndex) => (
+          <div className="lunch-list__section" key={`${section.title || 'section'}-${sectionIndex}`}>
             {section.title && <h3 className="lunch-list__section-title">{section.title}</h3>}
             <ul className="lunch-list__items">
               {section.items.map((item, itemIndex) => (

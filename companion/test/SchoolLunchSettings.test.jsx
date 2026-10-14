@@ -93,7 +93,7 @@ describe('SchoolLunchSettings', () => {
   describe('the provider picker', () => {
     it('offers every provider and defaults to the saved one', () => {
       const { getByRole } = renderSettings(ON);
-      const select = getByRole('combobox');
+      const select = getByRole('combobox', { name: 'Menu provider' });
 
       expect(select.value).toBe('nutrislice');
       expect([...select.options].map((option) => option.value)).toEqual([
@@ -107,7 +107,9 @@ describe('SchoolLunchSettings', () => {
     it('clears the provider-specific ids when the provider changes', () => {
       const handlers = renderSettings(ON);
 
-      fireEvent.change(handlers.getByRole('combobox'), { target: { value: 'mealviewer' } });
+      fireEvent.change(handlers.getByRole('combobox', { name: 'Menu provider' }), {
+        target: { value: 'mealviewer' },
+      });
       expect(handlers.onSetSchoolLunch).toHaveBeenCalledWith({
         schoolLunchProvider: 'mealviewer',
         schoolLunchDistrict: null,
@@ -338,6 +340,25 @@ describe('SchoolLunchSettings', () => {
 
       fireEvent.change(start, { target: { value: '' } });
       expect(handlers.onSetSchoolLunch).toHaveBeenCalledWith({ schoolLunchStartTime: null });
+    });
+  });
+
+  describe('alternating breakfast and lunch', () => {
+    const selectFor = (getByRole) =>
+      getByRole('combobox', { name: 'How often to alternate between breakfast and lunch' });
+
+    it('defaults to off and sends a number when changed', () => {
+      const handlers = renderSettings(ON);
+      const select = selectFor(handlers.getByRole);
+
+      expect(select.value).toBe('0');
+      fireEvent.change(select, { target: { value: '30' } });
+      expect(handlers.onSetSchoolLunch).toHaveBeenCalledWith({ schoolLunchAlternateSeconds: 30 });
+    });
+
+    it('shows the saved interval', () => {
+      const { getByRole } = renderSettings({ ...ON, schoolLunchAlternateSeconds: 120 });
+      expect(selectFor(getByRole).value).toBe('120');
     });
   });
 });

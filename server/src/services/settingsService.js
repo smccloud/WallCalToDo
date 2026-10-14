@@ -120,6 +120,11 @@ const DEFAULT_SETTINGS = {
   schoolLunchStartTime: null,
   schoolLunchEndTime: null,
   schoolLunchMealSwitchTime: null,
+  // How often the lunch view flips between breakfast and lunch when the day
+  // serves both, in seconds; 0 ("Off") leaves it on whichever meal
+  // pickMeal chooses (see frontend/src/utils/lunch.js). Off by default so an
+  // upgrade doesn't start something moving on somebody's wall unasked.
+  schoolLunchAlternateSeconds: 0,
 };
 
 function loadSettings() {

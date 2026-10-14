@@ -7,7 +7,7 @@ import DayAgenda from './components/DayAgenda.jsx';
 import TodoView from './components/TodoView.jsx';
 import LunchView from './components/LunchView.jsx';
 import WeatherView from './components/WeatherView.jsx';
-import { isLunchTime, pickMeal, menuFor, menuForTomorrow, MEAL_ORDER } from './utils/lunch.js';
+import { isLunchTime, pickMeal, menuDay, orderMeals } from './utils/lunch.js';
 
 // 'light'/'dark' settings are direct; 'auto' switches at sunrise/sunset for
 // the location saved in the companion app. Falls back to 'dark' (this
@@ -108,33 +108,20 @@ export default function App() {
   const [todayHeight, setTodayHeight] = useState(null);
 
   // The school lunch view replaces the to-do slot during its window, and only
-  // when there's actually a menu for the meal that's current right now. The
-  // second half is what keeps it from being a worse to-do list: a weekend or
-  // holiday has no menu for today, and a week that hasn't arrived yet is just
-  // a pending fetch -- in both cases the to-do list stays up rather than the
-  // wall showing an empty panel. Re-evaluated every minute off the same `now`
-  // clock the theme switch uses, so the view appears and hands back on its own
-  // as the day passes.
-  const lunchServed = MEAL_ORDER.filter((meal) => menuFor(lunch, meal, now));
-  
-  let lunchSections = null;
-  let displayMeal = null;
-  
-  if (lunchServed.length > 0) {
-    displayMeal = isLunchTime(settings, now) ? pickMeal(settings, now, lunchServed) : null;
-    lunchSections = displayMeal ? menuFor(lunch, displayMeal, now) : null;
-  }
-  
-  // If no menu today but tomorrow has one and the setting is enabled, show tomorrow's menu
-  if (!lunchSections && settings?.schoolLunchShowTomorrow && lunchServed.length === 0) {
-    const tomorrowMenu = MEAL_ORDER.map(meal => menuFor(lunch, meal, now));
-    displayMeal = tomorrowMenu.find(m => m);
-    if (displayMeal) {
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      lunchSections = menuFor(lunch, displayMeal, tomorrow);
-    }
-  }
+  // when there's actually a menu to draw: today's if it has one, otherwise
+  // tomorrow's when that's turned on. The second half is what keeps it from
+  // being a worse to-do list: a weekend or holiday has no menu for today, and
+  // a week that hasn't arrived yet is just a pending fetch -- in both cases the
+  // to-do list stays up rather than the wall showing an empty panel.
+  // Re-evaluated every minute off the same `now` clock the theme switch uses,
+  // so the view appears and hands back on its own as the day passes.
+  const lunchDay = isLunchTime(settings, now) ? menuDay(lunch, settings, now) : null;
+  // Order so the meal pickMeal would show leads, then hand the whole set to the
+  // view: with alternation off it draws the first, with it on the cycle starts
+  // there and flips between however many meals the day actually serves.
+  const lunchMeals = lunchDay
+    ? orderMeals(lunchDay.meals, pickMeal(settings, now, lunchDay.meals.map((entry) => entry.meal)))
+    : null;
 
   // The weather view replaces the display outright, so it needs something to
   // show: a location, and a reading fetched for it. Without either the
@@ -162,8 +149,14 @@ export default function App() {
         <CalendarView events={calendarGrid} privacyMode={privacyMode} onMeasureSplit={setTodayHeight} />
         <div className="secondary" style={{ '--today-height': todayHeight ? `${todayHeight}px` : undefined }}>
           <DayAgenda events={calendar} privacyMode={privacyMode} settings={settings} />
-          {lunchSections ? (
-            <LunchView meal={lunchMeal} sections={lunchSections} weather={weather} settings={settings} />
+          {lunchMeals ? (
+            <LunchView
+              meals={lunchMeals}
+              tomorrow={lunchDay.tomorrow}
+              alternateSeconds={settings?.schoolLunchAlternateSeconds}
+              weather={weather}
+              settings={settings}
+            />
           ) : (
             <TodoView tasks={todo} privacyMode={privacyMode} weather={weather} settings={settings} />
           )}

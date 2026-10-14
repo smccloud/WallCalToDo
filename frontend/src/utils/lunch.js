@@ -74,12 +74,39 @@ export function menuFor(lunch, meal, date) {
   return Array.isArray(sections) ? sections : null;
 }
 
-// Get tomorrow's menu for the specified date if available
-export function menuForTomorrow(lunch, meal, todayDate) {
-  if (!lunch || !menuFor(lunch, meal, todayDate)) return null;
-  const tomorrowKey = dateKey(new Date(todayDate));
-  // Tomorrow is today + 1 day
-  const tomorrowDate = new Date(todayDate);
-  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-  return menuFor(lunch, meal, tomorrowDate);
+// Every meal that actually has a menu on the given day, in the order a day
+// serves them: [{ meal, sections }]. Empty when the cache has nothing for that
+// day. This is what lets the lunch view alternate between breakfast and lunch
+// (see LunchView.jsx) rather than committing to whichever one meal pickMeal()
+// chose.
+export function mealsFor(lunch, date) {
+  return MEAL_ORDER.map((meal) => ({ meal, sections: menuFor(lunch, meal, date) })).filter(
+    (entry) => entry.sections
+  );
+}
+
+// The day the lunch view should draw from, and the meals on it. Today wins
+// whenever it has any menu at all; only when today has nothing (a weekend, a
+// holiday) does tomorrow get a look, and only when the setting allows it.
+// Returns { date, meals, tomorrow } or null when neither day has a menu -- null
+// is what keeps the to-do list up instead of an empty panel, and `tomorrow`
+// lets the view label what it's showing.
+export function menuDay(lunch, settings, today) {
+  const todayMeals = mealsFor(lunch, today);
+  if (todayMeals.length > 0) return { date: today, meals: todayMeals, tomorrow: false };
+  if (!settings?.schoolLunchShowTomorrow) return null;
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowMeals = mealsFor(lunch, tomorrow);
+  return tomorrowMeals.length > 0 ? { date: tomorrow, meals: tomorrowMeals, tomorrow: true } : null;
+}
+
+// The day's meals with the one pickMeal chose moved to the front: with
+// alternation off the view draws the first entry, and with it on the cycle
+// starts from that meal. Falls back to the given order when nothing matches.
+export function orderMeals(meals, primary) {
+  if (!primary) return meals;
+  const lead = meals.find((entry) => entry.meal === primary);
+  if (!lead) return meals;
+  return [lead, ...meals.filter((entry) => entry.meal !== primary)];
 }

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getSettings, updateSettings } from '../services/settingsService.js';
-import { isTrustedRequest } from '../services/trustedNetworks.js';
+import { isTrustedRequest, clientAddress } from '../services/trustedNetworks.js';
 import { searchPlaces, reverseGeocode } from '../services/geocodeService.js';
 import { pollWeatherNow, pollLunchNow } from '../services/poller.js';
 import {
@@ -56,6 +56,12 @@ const PRECIP_UNITS = ['inch', 'mm'];
 const LUNCH_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const LUNCH_ID_MAX = 64;
 const LUNCH_LINE_MAX = 120;
+
+// How often the lunch view alternates between breakfast and lunch, in seconds.
+// 0 means "off" (stay on the meal pickMeal chose). This list is the authority
+// on what's accepted; the companion app's dropdown offers the same values with
+// friendlier labels ("Every 30 seconds").
+const LUNCH_ALTERNATE_SECONDS = [0, 15, 30, 60, 120, 300];
 
 function isValidOffset(offset) {
   return (
@@ -185,6 +191,13 @@ settingsRouter.get('/lunch/discover', async (req, res) => {
 });
 
 settingsRouter.patch('/settings', (req, res) => {
+  // Settings changes are only allowed from the Pi's own screen or networks in
+  // server/.env's TRUSTED_CIDRS. Checked up front, before anything is read or
+  // written, so an untrusted client can't mutate state and only then be told
+  // it wasn't allowed.
+  if (!isTrustedRequest(req)) {
+    return res.status(403).json({ error: `Changing settings is only allowed from the Pi's own screen or networks in server/.env's TRUSTED_CIDRS, not ${clientAddress(req) || 'unknown'}.` });
+  }
   const {
     theme,
     location,
@@ -215,6 +228,8 @@ settingsRouter.patch('/settings', (req, res) => {
     schoolLunchStartTime,
     schoolLunchEndTime,
     schoolLunchMealSwitchTime,
+    schoolLunchShowTomorrow,
+    schoolLunchAlternateSeconds,
   } = req.body || {};
   const patch = {};
 
@@ -413,6 +428,20 @@ settingsRouter.patch('/settings', (req, res) => {
     }
     patch.schoolLunchMealSwitchTime = schoolLunchMealSwitchTime;
   }
+  // Whether the view falls back to tomorrow's menu when today has none. Display
+  // logic only, so it travels in the settings push like the window above.
+  if (schoolLunchShowTomorrow !== undefined) {
+    if (typeof schoolLunchShowTomorrow !== 'boolean') {
+      return res.status(400).json({ error: 'Invalid schoolLunchShowTomorrow' });
+    }
+    patch.schoolLunchShowTomorrow = schoolLunchShowTomorrow;
+  }
+  if (schoolLunchAlternateSeconds !== undefined) {
+    if (!LUNCH_ALTERNATE_SECONDS.includes(schoolLunchAlternateSeconds)) {
+      return res.status(400).json({ error: 'Invalid schoolLunchAlternateSeconds' });
+    }
+    patch.schoolLunchAlternateSeconds = schoolLunchAlternateSeconds;
+  }
 
   const settings = updateSettings(patch);
   broadcast({ type: 'settings', data: settings });
@@ -447,8 +476,5 @@ settingsRouter.patch('/settings', (req, res) => {
   ) {
     pollLunchNow();
   }
-  if (!isTrustedRequest(req)) {
-    return res.status(403).json({ error: `Changing settings is only allowed from the Pi's own screen or networks in server/.env's TRUSTED_CIDRS, not ${clientAddress(req) || 'unknown'}.` });
-  }
-
-  // Fire-and-forget: don't make the companion app wait on a weather fetch
+  res.json(settings);
+});

@@ -241,6 +241,9 @@ describe('PATCH /api/settings', () => {
     [{ schoolLunchStartTime: '25:00' }, 'Invalid schoolLunchStartTime'],
     [{ schoolLunchEndTime: 'noon' }, 'Invalid schoolLunchEndTime'],
     [{ schoolLunchMealSwitchTime: '10:60' }, 'Invalid schoolLunchMealSwitchTime'],
+    [{ schoolLunchShowTomorrow: 'yes' }, 'Invalid schoolLunchShowTomorrow'],
+    [{ schoolLunchAlternateSeconds: 45 }, 'Invalid schoolLunchAlternateSeconds'],
+    [{ schoolLunchAlternateSeconds: '30' }, 'Invalid schoolLunchAlternateSeconds'],
   ])('rejects %j with %s', async (patch, message) => {
     const { status, body } = await api('/settings', { method: 'PATCH', body: JSON.stringify(patch) });
     expect(status).toBe(400);
@@ -275,6 +278,8 @@ describe('PATCH /api/settings', () => {
         schoolLunchStartTime: '07:30',
         schoolLunchEndTime: '13:00',
         schoolLunchMealSwitchTime: '11:15',
+        schoolLunchShowTomorrow: true,
+        schoolLunchAlternateSeconds: 30,
       }),
     });
     expect(status).toBe(200);
@@ -282,6 +287,8 @@ describe('PATCH /api/settings', () => {
     expect(body.schoolLunchDistrict).toBe('dallas');
     expect(body.schoolLunchSchool).toBe('lincoln');
     expect(body.schoolLunchStartTime).toBe('07:30');
+    expect(body.schoolLunchShowTomorrow).toBe(true);
+    expect(body.schoolLunchAlternateSeconds).toBe(30);
 
     const cleared = await api('/settings', {
       method: 'PATCH',

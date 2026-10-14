@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { MEAL_ORDER, isLunchTime, mealLabel, menuFor, menuForTomorrow, parseTimeOfDay, pickMeal } from '../src/utils/lunch.js';
+import {
+  MEAL_ORDER,
+  isLunchTime,
+  mealLabel,
+  mealsFor,
+  menuDay,
+  menuFor,
+  orderMeals,
+  parseTimeOfDay,
+  pickMeal,
+} from '../src/utils/lunch.js';
 
 // The lunch view's whole decision surface, none of which needs a server: when
 // the window opens, which meal is current inside it, and whether there's
@@ -98,9 +108,31 @@ describe('menuFor', () => {
   });
 });
 
-describe('menuForTomorrow', () => {
+describe('mealsFor', () => {
   const lunch = {
     meals: {
+      breakfast: { '2026-10-08': [{ title: null, items: ['Eggs'] }] },
+      lunch: { '2026-10-08': [{ title: null, items: ['Pizza'] }] },
+    },
+  };
+
+  it('lists every served meal in the order a day serves them', () => {
+    expect(mealsFor(lunch, at(12))).toEqual([
+      { meal: 'breakfast', sections: [{ title: null, items: ['Eggs'] }] },
+      { meal: 'lunch', sections: [{ title: null, items: ['Pizza'] }] },
+    ]);
+  });
+
+  it('leaves out meals with no menu that day', () => {
+    expect(mealsFor(lunch, new Date(2026, 9, 9, 12))).toEqual([]);
+    expect(mealsFor(null, at(12))).toEqual([]);
+  });
+});
+
+describe('menuDay', () => {
+  const lunch = {
+    meals: {
+      breakfast: { '2026-10-08': [{ title: null, items: ['Eggs'] }] },
       lunch: {
         '2026-10-08': [{ title: null, items: ['Pizza'] }],
         '2026-10-09': [{ title: null, items: ['Steak'] }],
@@ -108,17 +140,45 @@ describe('menuForTomorrow', () => {
     },
   };
 
-  it('returns tomorrow menu when today has a menu', () => {
-    const tomorrow = new Date(2026, 9, 9, 12);
-    expect(menuForTomorrow(lunch, 'lunch', new Date(2026, 9, 8, 12))).toEqual([{ title: null, items: ['Steak'] }]);
+  it('draws from today whenever today has a menu', () => {
+    const day = menuDay(lunch, {}, at(12));
+    expect(day.tomorrow).toBe(false);
+    expect(day.meals.map((entry) => entry.meal)).toEqual(['breakfast', 'lunch']);
   });
 
-  it('returns null when today has no menu for the meal', () => {
-    expect(menuForTomorrow(lunch, 'breakfast', at(12))).toBeNull();
+  it('falls back to tomorrow when today has none and the setting allows it', () => {
+    const day = menuDay(lunch, { schoolLunchShowTomorrow: true }, new Date(2026, 9, 7, 12));
+    expect(day.tomorrow).toBe(true);
+    expect(day.meals).toEqual([
+      { meal: 'breakfast', sections: [{ title: null, items: ['Eggs'] }] },
+      { meal: 'lunch', sections: [{ title: null, items: ['Pizza'] }] },
+    ]);
   });
 
-  it('returns null when lunch is missing', () => {
-    expect(menuForTomorrow(null, 'lunch', at(12))).toBeNull();
+  it('keeps the to-do list up when today has none and the fallback is off', () => {
+    expect(menuDay(lunch, {}, new Date(2026, 9, 7, 12))).toBeNull();
+    expect(menuDay(lunch, { schoolLunchShowTomorrow: false }, new Date(2026, 9, 7, 12))).toBeNull();
+  });
+
+  it('returns null when neither day has a menu', () => {
+    expect(menuDay(lunch, { schoolLunchShowTomorrow: true }, new Date(2026, 9, 10, 12))).toBeNull();
+    expect(menuDay(null, { schoolLunchShowTomorrow: true }, at(12))).toBeNull();
+  });
+});
+
+describe('orderMeals', () => {
+  const meals = [
+    { meal: 'breakfast', sections: [] },
+    { meal: 'lunch', sections: [] },
+  ];
+
+  it('moves the preferred meal to the front', () => {
+    expect(orderMeals(meals, 'lunch').map((entry) => entry.meal)).toEqual(['lunch', 'breakfast']);
+  });
+
+  it('leaves the order alone when nothing matches', () => {
+    expect(orderMeals(meals, null)).toEqual(meals);
+    expect(orderMeals(meals, 'dinner')).toEqual(meals);
   });
 });
 
