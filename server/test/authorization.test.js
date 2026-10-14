@@ -71,17 +71,35 @@ describe('read-only requests from an untrusted network', () => {
 });
 
 describe('changes from an untrusted network', () => {
+  // One entry per state-changing route across the three routers. Listing them
+  // all (rather than a sample) is the point: the guard is mounted per router,
+  // so a route added later that somehow escapes it -- or a router that loses
+  // its `router.use(requireTrusted)` -- shows up here instead of shipping a
+  // CWE-862 hole that nothing else would notice.
   it.each([
-    ['/settings', { method: 'PATCH', body: JSON.stringify({ theme: 'light' }) }],
-    ['/credentials/ms', { method: 'PUT', body: JSON.stringify({ clientId: 'x', clientSecret: 'y' }) }],
-    ['/credentials/google', { method: 'POST', body: JSON.stringify({ clientId: 'x', clientSecret: 'y' }) }],
-    ['/credentials/google/abc', { method: 'DELETE' }],
-    ['/ms/account', { method: 'DELETE' }],
-    ['/accounts/abc', { method: 'DELETE' }],
-    ['/todo/lists/abc', { method: 'PATCH', body: JSON.stringify({ enabled: false }) }],
-    ['/accounts/abc/refresh', { method: 'POST' }],
-  ])('are refused with a 403 (%s)', async (path, options) => {
-    const { status, body } = await api(path, { address: FOREIGN, ...options });
+    // settings
+    ['PATCH', '/settings', { body: JSON.stringify({ theme: 'light' }) }],
+    // credentials
+    ['PUT', '/credentials/ms', { body: JSON.stringify({ clientId: 'x', clientSecret: 'y' }) }],
+    ['POST', '/credentials/google', { body: JSON.stringify({ clientId: 'x', clientSecret: 'y' }) }],
+    ['PUT', '/credentials/google/abc', { body: JSON.stringify({ name: 'n' }) }],
+    ['DELETE', '/credentials/google/abc', {}],
+    // accounts — Microsoft
+    ['DELETE', '/ms/account', {}],
+    ['PATCH', '/todo/lists/abc', { body: JSON.stringify({ enabled: false }) }],
+    ['POST', '/todo/refresh', {}],
+    ['POST', '/ms/calendars/refresh', {}],
+    ['PATCH', '/ms/calendars/abc', { body: JSON.stringify({ enabled: false }) }],
+    ['PATCH', '/ms/calendars/abc/color', { body: JSON.stringify({ color: '#fff' }) }],
+    // accounts — Google
+    ['DELETE', '/accounts/abc', {}],
+    ['PATCH', '/accounts/abc/calendars/def', { body: JSON.stringify({ enabled: false }) }],
+    ['PATCH', '/accounts/abc/calendars/def/color', { body: JSON.stringify({ background: '#fff' }) }],
+    ['POST', '/accounts/abc/refresh', {}],
+    ['POST', '/accounts/abc/task-lists/refresh', {}],
+    ['PATCH', '/accounts/abc/task-lists/def', { body: JSON.stringify({ enabled: false }) }],
+  ])('are refused with a 403 (%s %s)', async (method, path, options) => {
+    const { status, body } = await api(path, { address: FOREIGN, method, ...options });
     expect(status).toBe(403);
     expect(body.error).toMatch(/TRUSTED_CIDRS/);
     expect(body.error).toContain(FOREIGN);
