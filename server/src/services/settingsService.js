@@ -110,7 +110,7 @@ const DEFAULT_SETTINGS = {
   schoolLunchSchool: null,
   schoolLunchSchoolName: null,
   schoolLunchServingLine: null,
-  // When true, shows tomorrow's lunch menu if today has none (weekend, holiday, or future week)
+  // When true, the lunch view reads tomorrow's menu instead of today's.
   schoolLunchShowTomorrow: false,
   // The daily window the lunch view replaces the to-do list in, 'HH:MM' local
   // wall time (null on both ends means all day, so enabling the view can't

@@ -441,6 +441,9 @@ export default function SchoolLunchSettings({
               <span className="switch__track" />
             </label>
           </div>
+          <p className="location-settings__hint">
+            Read tomorrow's menu instead of today's. If tomorrow has no menu, the to-do list stays up.
+          </p>
         </>
       )}
     </div>

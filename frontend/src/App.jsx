@@ -108,13 +108,13 @@ export default function App() {
   const [todayHeight, setTodayHeight] = useState(null);
 
   // The school lunch view replaces the to-do slot during its window, and only
-  // when there's actually a menu to draw: today's if it has one, otherwise
-  // tomorrow's when that's turned on. The second half is what keeps it from
-  // being a worse to-do list: a weekend or holiday has no menu for today, and
-  // a week that hasn't arrived yet is just a pending fetch -- in both cases the
-  // to-do list stays up rather than the wall showing an empty panel.
-  // Re-evaluated every minute off the same `now` clock the theme switch uses,
-  // so the view appears and hands back on its own as the day passes.
+  // when there's actually a menu to draw: today's normally, or tomorrow's when
+  // "Show tomorrow's menu" moves the view forward a day. The second half is what
+  // keeps it from being a worse to-do list: whichever day is selected, a weekend
+  // or holiday has no menu, and a week that hasn't arrived yet is just a pending
+  // fetch -- in both cases the to-do list stays up rather than the wall showing
+  // an empty panel. Re-evaluated every minute off the same `now` clock the theme
+  // switch uses, so the view appears and hands back on its own as the day passes.
   const lunchDay = isLunchTime(settings, now) ? menuDay(lunch, settings, now) : null;
   // Order so the meal pickMeal would show leads, then hand the whole set to the
   // view: with alternation off it draws the first, with it on the cycle starts

@@ -1,4 +1,4 @@
-import { dateKey } from './date.js';
+import { addDays, dateKey } from './date.js';
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -46,8 +46,8 @@ export function isLunchTime(settings, now) {
 
 // Which meal to show. The view's namesake (lunch) leads whenever the school
 // serves it, falling back to whatever the day actually serves otherwise.
-// Returns a meal key, or null when neither meal has a menu today -- the caller
-// uses that to leave the to-do list up instead of showing an empty panel.
+// Returns a meal key, or null when the selected day serves neither meal -- the
+// caller uses that to leave the to-do list up instead of showing an empty panel.
 export function pickMeal(servedMeals) {
   const served = (servedMeals || []).filter(Boolean);
   if (served.length === 0) return null;
@@ -76,20 +76,20 @@ export function mealsFor(lunch, date) {
   );
 }
 
-// The day the lunch view should draw from, and the meals on it. Today wins
-// whenever it has any menu at all; only when today has nothing (a weekend, a
-// holiday) does tomorrow get a look, and only when the setting allows it.
-// Returns { date, meals, tomorrow } or null when neither day has a menu -- null
-// is what keeps the to-do list up instead of an empty panel, and `tomorrow`
+// The day the lunch view should draw from, and the meals on it. "Show tomorrow's
+// menu" selects the day rather than acting as a fallback: with it on the view
+// reads tomorrow and ignores today entirely, so a wall set up the night before
+// shows the next school day rather than the one that's about to end. Returns
+// { date, meals, tomorrow } or null when the selected day has no menu -- null is
+// what keeps the to-do list up instead of an empty panel, and covers a weekend,
+// a holiday, a closure, and a day still outside the cached week. `tomorrow`
 // lets the view label what it's showing.
 export function menuDay(lunch, settings, today) {
-  const todayMeals = mealsFor(lunch, today);
-  if (todayMeals.length > 0) return { date: today, meals: todayMeals, tomorrow: false };
-  if (!settings?.schoolLunchShowTomorrow) return null;
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowMeals = mealsFor(lunch, tomorrow);
-  return tomorrowMeals.length > 0 ? { date: tomorrow, meals: tomorrowMeals, tomorrow: true } : null;
+  const selectTomorrow = Boolean(settings?.schoolLunchShowTomorrow);
+  const date = selectTomorrow ? addDays(today, 1) : today;
+  const meals = mealsFor(lunch, date);
+  if (meals.length === 0) return null;
+  return { date, meals, tomorrow: selectTomorrow };
 }
 
 // The day's meals with the one pickMeal chose moved to the front: with

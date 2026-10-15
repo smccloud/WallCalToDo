@@ -526,11 +526,13 @@ from lunch. Off by default, so nothing moves until you ask it to.
 A day with no menu at all (a weekend, a holiday, a school closure) leaves the
 to-do list up rather than the panel going blank — including a day a provider
 answers with a placeholder like Nutrislice's "There is currently nothing on the
-menu today", which counts as no menu. **Show tomorrow's menu** extends that same
-rule forward: when today has nothing, the view draws tomorrow's instead and
-labels it "Tomorrow's Lunch", which is what you want on a Sunday evening, not an
-empty panel. Nothing to configure to turn it off, either — with the feature
-disabled the to-do panel is exactly as it was.
+menu today", which counts as no menu. **Show tomorrow's menu** moves the view a
+day forward: with it on the panel reads tomorrow's menu instead of today's and
+labels it "Tomorrow's Lunch", which is what you want on a Sunday evening. It
+selects the day rather than falling back to it, so if tomorrow has no menu the
+to-do list stays up — the same rule any other empty day gets, and never today's
+menu masquerading as tomorrow's. Nothing to configure to turn it off, either —
+with the feature disabled the to-do panel is exactly as it was.
 
 The menu's own text is the content, so it scales to fill the panel with the
 same shrink-to-fit rule the to-do list and today's agenda use, and the meal is
@@ -809,7 +811,7 @@ all-day events Google really hands over, tagged the same way.)*
   **SchoolCafe**), the district and school (with a location-based district
   search where the provider supports it, and a serving line for SchoolCafe),
   the window of the day it appears, how it alternates between breakfast and
-  lunch, and whether to fall back to tomorrow's menu when today has none; see
+  lunch, and whether to show tomorrow's menu instead of today's; see
   [School lunch view](#school-lunch-view). Off by default.
 
 Every change here pushes to the wall display immediately over the same
