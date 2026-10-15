@@ -1,0 +1,48 @@
+name: Feature request
+description: Suggest an idea or improvement for WallCalToDo
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please provide details below.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: Is your feature request related to a problem? If so, describe it.
+      placeholder: I'm frustrated when...
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What would you like to see added or changed?
+      placeholder: Describe the feature you'd like
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative solutions or features you've considered?
+      placeholder: Describe alternatives
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Mockups, screenshots, examples, or other context
+      placeholder: Add any other context here
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component(s)
+      description: Which part of WallCalToDo does this affect?
+      multiple: true
+      options:
+        - Frontend display (calendar/todo/lunch/weather)
+        - Server/API
+        - Companion app
+        - Pi setup/kiosk
+        - Documentation
+        - Other
