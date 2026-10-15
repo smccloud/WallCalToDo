@@ -1,0 +1,87 @@
+name: Bug report
+description: Report an issue with WallCalToDo
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. To help us fix it, please fill out the details below.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Clear and concise description of the bug
+      placeholder: Describe the issue
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+      placeholder: Describe expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Steps to reproduce the issue
+      placeholder: |
+        1. Go to ...
+        2. Click on ...
+        3. See error
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: What are you running on?
+      options:
+        - WallCalToDo on Raspberry Pi (Pi OS)
+        - WallCalToDo frontend only (local dev)
+        - Companion app / UI
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: WallCalToDo version
+      description: Run `git describe --tags` in your WallCalToDo checkout (e.g., v1.0.1)
+      placeholder: e.g., v1.0.1
+    validations:
+      required: true
+  - type: input
+    id: host
+    attributes:
+      label: Hostname/IP and port
+      description: e.g., http://wallcaltodo.local:3000 (or http://192.168.1.100:3000)
+      placeholder: http://wallcaltodo.local:3000
+  - type: textarea
+    id: backend_status
+    attributes:
+      label: Backend status (if on Pi)
+      description: Output of `curl -s localhost:3000/api/status`
+      placeholder: Paste the JSON output here
+      render: json
+  - type: textarea
+    id: logs
+    attributes:
+      label: Backend logs (if on Pi)
+      description: Output of `sudo journalctl -u wallcaltodo -n 50`
+      placeholder: Paste the logs here
+  - type: input
+    id: build_check
+    attributes:
+      label: Display build check (if on Pi/display)
+      description: Output of `curl -s localhost:3000 | grep wall-build` compared to `build` from status
+      placeholder: e.g., status.build=abc123, HTML has abc123
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Screenshots, console errors, network issues, etc.
+      placeholder: Add any other context about the problem
