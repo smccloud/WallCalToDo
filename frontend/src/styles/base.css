@@ -431,11 +431,15 @@ body {
 
 .calendar-cell__day {
   font-size: var(--font-size-small);
-  width: 1.6em;
+  min-width: 1.6em;
   height: 1.6em;
+  padding: 0 0.15em;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 /* A day carrying one of the decorated holidays (see utils/holidays.js
