@@ -1,5 +1,5 @@
-import { fireEvent, render, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SchoolLunchSettings from '../src/components/SchoolLunchSettings.jsx';
 
 const api = vi.hoisted(() => vi.fn());
@@ -27,6 +27,10 @@ function mockRoutes(routes = {}) {
       return value;
     }
     if (String(path).startsWith('/lunch/providers')) return { providers: PROVIDERS };
+    // The preview under the scroll-speed slider asks for the cached menu.
+    // Nothing cached is the normal case for a test that isn't about the
+    // preview itself.
+    if (String(path).startsWith('/lunch')) return null;
     throw new Error(`unexpected api ${path}`);
   });
 }
@@ -358,6 +362,67 @@ describe('SchoolLunchSettings', () => {
     it('shows the saved interval', () => {
       const { getByRole } = renderSettings({ ...ON, schoolLunchAlternateSeconds: 120 });
       expect(selectFor(getByRole).value).toBe('120');
+    });
+  });
+
+  describe('the scroll speed', () => {
+    // The slider saves once it settles rather than on every step of a drag,
+    // so the clock is under the test's control here.
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const sliderFor = (container) => container.querySelector('input[type="range"]');
+
+    it('shows the saved speed', () => {
+      const { container } = renderSettings({ ...ON, schoolLunchScrollSpeed: 24 });
+      expect(sliderFor(container).value).toBe('24');
+    });
+
+    it('falls back to the speed the wall has always used', () => {
+      const { container } = renderSettings(ON);
+      expect(sliderFor(container).value).toBe('16');
+    });
+
+    it('moves at once and saves once the slider settles', () => {
+      const handlers = renderSettings({ ...ON, schoolLunchScrollSpeed: 16 });
+
+      fireEvent.change(sliderFor(handlers.container), { target: { value: '40' } });
+      // The slider moves at once...
+      expect(sliderFor(handlers.container).value).toBe('40');
+      expect(handlers.onSetSchoolLunch).not.toHaveBeenCalled();
+
+      // ...and the new speed is saved once it settles.
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+      expect(handlers.onSetSchoolLunch).toHaveBeenCalledWith({ schoolLunchScrollSpeed: 40 });
+    });
+
+    it('does not save a speed that is already saved', () => {
+      const handlers = renderSettings({ ...ON, schoolLunchScrollSpeed: 16 });
+
+      fireEvent.change(sliderFor(handlers.container), { target: { value: '16' } });
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+
+      expect(handlers.onSetSchoolLunch).not.toHaveBeenCalled();
+    });
+
+    it('can stop the menu drifting altogether', () => {
+      const handlers = renderSettings({ ...ON, schoolLunchScrollSpeed: 16 });
+
+      fireEvent.change(sliderFor(handlers.container), { target: { value: '0' } });
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+
+      expect(handlers.onSetSchoolLunch).toHaveBeenCalledWith({ schoolLunchScrollSpeed: 0 });
     });
   });
 });

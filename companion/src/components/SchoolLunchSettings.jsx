@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
+import LunchMenuPreview from './LunchMenuPreview.jsx';
 
 // <input type="time"> reads and writes exactly the 'HH:MM' strings the server
 // stores (see the LUNCH_TIME_RE check in routes/settings.js), so a value passes
@@ -66,6 +67,27 @@ const ALTERNATE_OPTIONS = [
   { value: 300, label: 'Every 5 minutes' },
 ];
 
+// How fast the wall's menu panel drifts through a menu too tall to show at
+// once, in pixels per second. The same range the server accepts
+// (LUNCH_SCROLL_SPEED_MIN/MAX in server/src/routes/settings.js) and the same
+// default it saves (schoolLunchScrollSpeed in
+// server/src/services/settingsService.js). 0 means the menu doesn't drift.
+const SCROLL_SPEED_MIN = 0;
+const SCROLL_SPEED_MAX = 60;
+const SCROLL_SPEED_DEFAULT = 16;
+
+// A plain word for the number, so the slider reads as a choice rather than a
+// measurement. The thresholds are a judgement call: slow enough that a line
+// can be read while it moves, quick enough that a long menu still comes
+// round.
+function speedWord(speed) {
+  if (speed <= 0) return 'Still';
+  if (speed <= 8) return 'Slow';
+  if (speed <= 24) return 'Steady';
+  if (speed <= 45) return 'Brisk';
+  return 'Fast';
+}
+
 // Optional school lunch view: replaces the to-do list with the school's
 // breakfast/lunch menus during a daily window (see frontend/src/App.jsx).
 // Which menu system to read is a provider choice; each one names a district
@@ -90,10 +112,21 @@ export default function SchoolLunchSettings({
   const [linesLoading, setLinesLoading] = useState(false);
   const [discovering, setDiscovering] = useState(false);
   const [searchError, setSearchError] = useState(null);
+  // The slider's value while it's being moved, before it's saved: the preview
+  // below shows the new speed straight away, and the server is told once the
+  // slider settles.
+  const [draftSpeed, setDraftSpeed] = useState(null);
+  const commitTimer = useRef(null);
 
   const meta = metaFor(provider);
   const providerLabel = providers.find((p) => p.id === provider)?.label || 'your menu provider';
   const alternateSeconds = Number(settings?.schoolLunchAlternateSeconds) || 0;
+  const savedSpeed = Number(settings?.schoolLunchScrollSpeed ?? SCROLL_SPEED_DEFAULT);
+  const speed = draftSpeed ?? savedSpeed;
+
+  // A pending save is dropped if the panel goes away first, so a slider
+  // nobody finished with doesn't write to the server afterwards.
+  useEffect(() => () => clearTimeout(commitTimer.current), []);
 
   useEffect(() => {
     let active = true;
@@ -223,6 +256,20 @@ export default function SchoolLunchSettings({
     setLines(null);
     setSearchError(null);
     onSetSchoolLunch({ schoolLunchServingLine: line.name });
+  }
+
+  // Moving the slider fires a change event per step, and every one of them
+  // would be its own PATCH -- and its own broadcast to the wall. So the value
+  // moves locally at once (the preview below shows the new speed immediately)
+  // and is saved once the slider settles.
+  function changeSpeed(value) {
+    setDraftSpeed(value);
+    clearTimeout(commitTimer.current);
+    commitTimer.current = setTimeout(() => {
+      commitTimer.current = null;
+      setDraftSpeed(null);
+      if (value !== savedSpeed) onSetSchoolLunch({ schoolLunchScrollSpeed: value });
+    }, 300);
   }
 
   return (
@@ -444,6 +491,30 @@ export default function SchoolLunchSettings({
           <p className="location-settings__hint">
             Read tomorrow's menu instead of today's. If tomorrow has no menu, the to-do list stays up.
           </p>
+
+          <p className="settings-label section-label">Menu scroll speed</p>
+          <p className="location-settings__hint">
+            How fast the wall's panel drifts through a menu too tall to show at once. 0 keeps the menu still.
+          </p>
+          <div className="school-lunch-settings__speed">
+            <input
+              type="range"
+              min={SCROLL_SPEED_MIN}
+              max={SCROLL_SPEED_MAX}
+              step="1"
+              value={speed}
+              disabled={settingsLoading}
+              aria-label="How fast the lunch menu scrolls"
+              onChange={(e) => changeSpeed(Number(e.target.value))}
+            />
+            <output className="school-lunch-settings__speed-value">{speed} px/s</output>
+          </div>
+          <p className="location-settings__hint school-lunch-settings__speed-hint">{speedWord(speed)}</p>
+
+          {/* What the wall will show, drawn from the same cached menu it draws
+              from -- so the speed above can be judged against something that
+              looks like the display rather than guessed at. */}
+          <LunchMenuPreview speed={speed} showTomorrow={Boolean(settings?.schoolLunchShowTomorrow)} />
         </>
       )}
     </div>

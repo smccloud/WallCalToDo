@@ -1,26 +1,27 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import WeatherWidget from './WeatherWidget.jsx';
 import { mealLabel } from '../utils/lunch.js';
-
-// Same shrink-to-fit floor/ceiling the to-do list and today agenda use, so a
-// long menu scales down by the same rule as everything else on the panel
-// instead of being the one list that just overflows.
-const LUNCH_FONT_MAX = 22;
-const LUNCH_FONT_MIN = 12;
+import { useAutoScroll, SCROLL_SPEED_PX_PER_SEC } from '../hooks/useAutoScroll.js';
 
 // Data shape: meals = [{ meal: 'breakfast'|'lunch', sections: [{ title, items }] }]
 // (see mealsFor/orderMeals in utils/lunch.js). The first entry is the one
 // pickMeal chose; when alternateSeconds is set and the day serves more than one
 // meal, the view cycles through them at that interval instead of sitting on it.
 //
-// The same shrink-to-fit binary search as TodoView.jsx, against .lunch-list
-// instead of .todo-list. Section headings and item text are all sized in em
-// off --lunch-font-size (see base.css), so the whole menu scales together
-// rather than the headings drifting out of proportion with the items.
+// The menu's own text is the content, so it stays at one readable size
+// (--lunch-font-size in base.css) rather than shrinking to fit the panel: a
+// menu taller than the panel scrolls instead. The wall has no scroll input of
+// its own, so the panel drifts through the overflow by itself (see
+// useAutoScroll.js). Section headings and item text are both sized in em off
+// --lunch-font-size, so the whole menu reads at the same scale.
 export default function LunchView({ meals, tomorrow, alternateSeconds, weather, settings }) {
   const listRef = useRef(null);
   const count = meals.length;
   const alternateMs = Number(alternateSeconds || 0) * 1000;
+  // How fast the menu drifts through its overflow, in pixels per second. The
+  // companion app's slider sets it; 0 means the menu doesn't drift at all.
+  // A missing value falls back to the hook's own default (16 px/s).
+  const scrollSpeed = settings?.schoolLunchScrollSpeed ?? SCROLL_SPEED_PX_PER_SEC;
   // Only ever alternate when there's a second meal to alternate to -- one meal,
   // or an interval of 0 ("Off"), leaves the view on the first entry.
   const cycling = count > 1 && alternateMs > 0;
@@ -43,28 +44,15 @@ export default function LunchView({ meals, tomorrow, alternateSeconds, weather, 
     .map((section) => `${section.title || ''}[${section.items.join('|')}]`)
     .join(';')}`;
 
-  useLayoutEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
-    let lo = LUNCH_FONT_MIN;
-    let hi = LUNCH_FONT_MAX;
-    let best = LUNCH_FONT_MIN;
-    while (lo <= hi) {
-      const mid = Math.floor((lo + hi) / 2);
-      list.style.setProperty('--lunch-font-size', `${mid}px`);
-      if (list.scrollHeight <= list.clientHeight + 0.5) {
-        best = mid;
-        lo = mid + 1;
-      } else {
-        hi = mid - 1;
-      }
-    }
-    list.style.setProperty('--lunch-font-size', `${best}px`);
-    // Re-runs whenever the menu's actual content changes -- a plain
-    // `[sections]` dependency would also fire on every reference change with
-    // the same content, same reasoning as TodoView's tasksSignature.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature]);
+  // Keyed on the menu's own content: a new meal (breakfast for lunch, or a
+  // changed menu) starts the scroll over at its own first line instead of
+  // picking up wherever the last one was left.
+  //
+  // The speed comes from the companion app's slider (schoolLunchScrollSpeed),
+  // in pixels per second; 0 means the menu doesn't drift at all. The hook
+  // reads it through a ref, so changing it mid-drift doesn't throw the panel
+  // back to the top.
+  useAutoScroll(listRef, signature, scrollSpeed);
 
   return (
     <section className="lunch">

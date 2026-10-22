@@ -69,6 +69,15 @@ const LUNCH_LINE_MAX = 120;
 // friendlier labels ("Every 30 seconds").
 const LUNCH_ALTERNATE_SECONDS = [0, 15, 30, 60, 120, 300];
 
+// How fast the lunch view's menu drifts through its overflow, in pixels per
+// second. 0 means it doesn't drift at all. A range rather than a fixed list
+// because the companion app offers it as a slider and the drift is a
+// continuous speed, not a set of presets (see
+// frontend/src/hooks/useAutoScroll.js). The ceiling keeps a stray value from
+// turning the panel into a blur.
+const LUNCH_SCROLL_SPEED_MIN = 0;
+const LUNCH_SCROLL_SPEED_MAX = 60;
+
 function isValidOffset(offset) {
   return (
     offset &&
@@ -228,6 +237,7 @@ settingsRouter.patch('/settings', (req, res) => {
     schoolLunchEndTime,
     schoolLunchShowTomorrow,
     schoolLunchAlternateSeconds,
+    schoolLunchScrollSpeed,
   } = req.body || {};
   const patch = {};
 
@@ -433,6 +443,16 @@ settingsRouter.patch('/settings', (req, res) => {
       return res.status(400).json({ error: 'Invalid schoolLunchAlternateSeconds' });
     }
     patch.schoolLunchAlternateSeconds = schoolLunchAlternateSeconds;
+  }
+  // How fast the menu drifts through its overflow. A whole number of pixels
+  // per second between 0 (still) and the ceiling (see
+  // LUNCH_SCROLL_SPEED_MAX) -- the same range the companion app's slider
+  // offers.
+  if (schoolLunchScrollSpeed !== undefined) {
+    if (!isValidCount(schoolLunchScrollSpeed, LUNCH_SCROLL_SPEED_MIN, LUNCH_SCROLL_SPEED_MAX)) {
+      return res.status(400).json({ error: 'Invalid schoolLunchScrollSpeed' });
+    }
+    patch.schoolLunchScrollSpeed = schoolLunchScrollSpeed;
   }
 
   const settings = updateSettings(patch);

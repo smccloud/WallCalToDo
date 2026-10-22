@@ -42,12 +42,12 @@ describe('LunchView', () => {
     expect(document.querySelector('.lunch-list__item').textContent).toBe('Tacos');
   });
 
-  it('sizes the list through the shared shrink-to-fit control point', () => {
+  it('leaves the menu at full size instead of shrinking it to fit', () => {
     render(<LunchView meals={meal('lunch', SECTIONS)} />);
-    // jsdom reports zero heights, so the binary search lands on the ceiling --
-    // what matters is that it set the one variable the CSS sizes everything
-    // from, rather than leaving the list unsized.
-    expect(document.querySelector('.lunch-list').style.getPropertyValue('--lunch-font-size')).toBe('22px');
+    // The list's size comes from the stylesheet's own control point now (see
+    // .lunch-list in base.css) -- the component no longer overrides it with
+    // a shrink-to-fit search, so a long menu scrolls rather than shrinking.
+    expect(document.querySelector('.lunch-list').style.getPropertyValue('--lunch-font-size')).toBe('');
   });
 
   it('stays on the first meal when alternation is off', () => {

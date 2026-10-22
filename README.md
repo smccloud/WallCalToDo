@@ -534,8 +534,15 @@ to-do list stays up — the same rule any other empty day gets, and never today'
 menu masquerading as tomorrow's. Nothing to configure to turn it off, either —
 with the feature disabled the to-do panel is exactly as it was.
 
-The menu's own text is the content, so it scales to fill the panel with the
-same shrink-to-fit rule the to-do list and today's agenda use, and the meal is
+The menu's own text is the content, so it stays at one readable size instead of
+shrinking to fit the panel: a menu taller than the panel scrolls rather than
+getting smaller, drifting down through the overflow and back up again so every
+food on it is read at the same size as the rest of the wall. The drift's speed is
+a slider in the companion app, in pixels per second — slow enough that a line
+can be read while it moves, quick enough that a long menu still comes round —
+and 0 stops the drift altogether. Under the slider is a preview of the panel as
+the wall draws it, from the same cached menu, so the speed can be judged against
+something that looks like the display rather than guessed at. The meal is
 titled at the top ("Lunch", or "Tomorrow's Lunch"). Like everything else on
 the wall it's read-only: the school lunch view is a window onto the menu, not
 a way to order from it.
@@ -811,7 +818,8 @@ all-day events Google really hands over, tagged the same way.)*
   **SchoolCafe**), the district and school (with a location-based district
   search where the provider supports it, and a serving line for SchoolCafe),
   the window of the day it appears, how it alternates between breakfast and
-  lunch, and whether to show tomorrow's menu instead of today's; see
+  lunch, whether to show tomorrow's menu instead of today's, and how fast the
+  menu drifts through a panel too small to hold it; see
   [School lunch view](#school-lunch-view). Off by default.
 
 Every change here pushes to the wall display immediately over the same

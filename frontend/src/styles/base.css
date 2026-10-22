@@ -678,6 +678,12 @@ body {
   flex-shrink: 0;
 }
 
+.lunch__heading {
+  /* Same for the meal's own title: the menu below it scrolls rather than
+     shrinking, and the heading keeps its size either way. */
+  flex-shrink: 0;
+}
+
 @media (orientation: landscape) {
   /* Landscape's agenda panel is narrow enough that the heading can wrap
      mid-phrase on its own (e.g. "Tuesday, September" / "15th") -- force
@@ -931,15 +937,29 @@ body {
   color: var(--color-text-muted);
 }
 
+/* The menu's one text size, set here rather than by a shrink-to-fit search
+   (see LunchView.jsx): every food on the menu is read at the same size as
+   the rest of the wall, and a long one scrolls instead of getting smaller.
+   Same 22px the to-do list and today's agenda start from -- the section
+   headings and the items under them are both sized in em off it, so the
+   whole menu reads at one scale. */
+.lunch {
+  --lunch-font-size: 22px;
+}
+
 /* The school lunch view's list, in place of .todo-list during its window (see
-   LunchView.jsx). Same flex: 1 / min-height: 0 / overflow-y: auto contract as
-   .todo-list so the shrink-to-fit search has a bounded box to fit against,
-   and the same --lunch-font-size control point so a section heading and the
-   items under it scale together. */
+   LunchView.jsx). Same flex: 1 / min-height: 0 contract as .todo-list, so the
+   panel below it keeps its own space, but the list itself is the scroller
+   here: the menu's text stays at one size (--lunch-font-size above) and a
+   menu taller than the panel scrolls instead of shrinking, with the panel
+   drifting through the overflow by itself (see useAutoScroll.js -- the wall
+   has no scroll input of its own). */
 .lunch-list {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Keeps a scroll of the menu from chaining out to whatever is behind it. */
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 0.6em;
@@ -950,11 +970,16 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.15em;
+  /* A section keeps its own height: as a flex item in the column above it
+     would otherwise be squeezed to fit the panel, which is the shrinking
+     this list is no longer doing. */
+  flex-shrink: 0;
 }
 
 /* A menu's own section titles ("Entrees", "Sides") -- small, spaced, and
    muted, so they read as labels for the foods below rather than competing
-   with them. Sized in em off --lunch-font-size so it shrinks with the list. */
+   with them. Sized in em off --lunch-font-size so they scale with the items
+   under them. */
 .lunch-list__section-title {
   margin: 0;
   font-size: 0.62em;
@@ -978,6 +1003,10 @@ body {
      wraps lines up under itself rather than under the bullet. */
   padding-left: 1em;
   position: relative;
+  /* A long food name wraps rather than running off the side: overflow-x on a
+     scroller computes to auto, so an unwrapped long word would give the menu
+     a horizontal scrollbar of its own. */
+  overflow-wrap: break-word;
 }
 
 .lunch-list__item::before {

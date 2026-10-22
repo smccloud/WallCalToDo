@@ -721,6 +721,142 @@ body {
   margin-bottom: 0.75rem;
 }
 
+/* The scroll-speed slider: the range itself, and the value beside it. The
+   range is the browser's own, tinted with the accent color so it doesn't look
+   out of place in either theme; the value is a plain number, fixed-width so
+   the row doesn't shuffle as it changes. */
+.school-lunch-settings__speed {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.school-lunch-settings__speed input[type='range'] {
+  flex: 1;
+  accent-color: var(--color-accent);
+}
+
+.school-lunch-settings__speed-value {
+  min-width: 4.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.school-lunch-settings__speed-hint {
+  margin-top: 0.35rem;
+}
+
+/* The wall's lunch panel in miniature: the preview under the scroll-speed
+   slider. It wears the wall's own palette (frontend/src/styles/tokens.css)
+   rather than the companion's, because the point of it is to look like the
+   display. The companion app follows the wall's theme (App.jsx sets
+   data-theme from the same setting the wall does), so the preview follows
+   too. */
+.lunch-preview {
+  margin-top: 0.75rem;
+}
+
+.lunch-preview__frame {
+  background: #000000;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  /* The preview's own menu text size. The drift is scaled to match it, so
+     the preview moves at the same visual rate as the wall (see
+     LunchMenuPreview.jsx). */
+  font-size: 13px;
+  color: #d6e0ea;
+}
+
+/* The wall's light theme (--color-bg and --color-text-agenda in the wall's
+   tokens.css), so the preview isn't a black box on a light wall. */
+:root[data-theme='light'] .lunch-preview__frame {
+  background: #ffffff;
+  color: #33393f;
+}
+
+/* Nothing to show yet -- loading, a failed fetch, or no cached menu. */
+.lunch-preview__frame--empty {
+  color: #9aa0a6;
+  font-size: 0.85rem;
+}
+
+:root[data-theme='light'] .lunch-preview__frame--empty {
+  color: #6b7280;
+}
+
+/* The meal's title, at the same ratio to the menu text as the wall's own
+   heading (.lunch__heading in the wall's base.css). */
+.lunch-preview__heading {
+  margin: 0 0 0.4rem;
+  font-size: 1.27em;
+  font-weight: 700;
+  color: #f5f5f5;
+}
+
+:root[data-theme='light'] .lunch-preview__heading {
+  color: #1a1a1a;
+}
+
+/* The scrolling list. Same contract as the wall's own (.lunch-list): it
+   scrolls, and the preview's drift walks through the overflow. */
+.lunch-preview__list {
+  max-height: 8.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+.lunch-preview__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  flex-shrink: 0;
+}
+
+/* A menu's own section titles ("Entrees", "Sides") -- small and muted, the
+   same treatment they get on the wall. */
+.lunch-preview__section-title {
+  margin: 0;
+  font-size: 0.62em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9aa0a6;
+}
+
+:root[data-theme='light'] .lunch-preview__section-title {
+  color: #6b7280;
+}
+
+.lunch-preview__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+.lunch-preview__item {
+  overflow-wrap: break-word;
+}
+
+.lunch-preview__caption {
+  margin: 0.4rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.lunch-preview__refresh {
+  width: 100%;
+  margin-top: 0.4rem;
+}
+
 .location-settings__current {
   margin: 0 0 0.5rem;
   font-size: 0.9rem;

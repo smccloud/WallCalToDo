@@ -122,6 +122,12 @@ const DEFAULT_SETTINGS = {
   // pickMeal chooses (see frontend/src/utils/lunch.js). Off by default so an
   // upgrade doesn't start something moving on somebody's wall unasked.
   schoolLunchAlternateSeconds: 0,
+  // How fast the lunch view's panel drifts through a menu too tall to show at
+  // once, in pixels per second. 0 means it doesn't drift at all -- the menu
+  // simply sits at the top of the panel. The wall has no scroll input of its
+  // own (no mouse, no touch), so this is what decides how a long menu reads
+  // (see frontend/src/hooks/useAutoScroll.js).
+  schoolLunchScrollSpeed: 16,
 };
 
 function loadSettings() {

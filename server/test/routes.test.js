@@ -243,6 +243,14 @@ describe('PATCH /api/settings', () => {
     [{ schoolLunchShowTomorrow: 'yes' }, 'Invalid schoolLunchShowTomorrow'],
     [{ schoolLunchAlternateSeconds: 45 }, 'Invalid schoolLunchAlternateSeconds'],
     [{ schoolLunchAlternateSeconds: '30' }, 'Invalid schoolLunchAlternateSeconds'],
+    // The scroll speed is a whole number of pixels per second, between 0
+    // (the menu doesn't drift) and the ceiling the companion app's slider
+    // stops at.
+    [{ schoolLunchScrollSpeed: -1 }, 'Invalid schoolLunchScrollSpeed'],
+    [{ schoolLunchScrollSpeed: 61 }, 'Invalid schoolLunchScrollSpeed'],
+    [{ schoolLunchScrollSpeed: 12.5 }, 'Invalid schoolLunchScrollSpeed'],
+    [{ schoolLunchScrollSpeed: '16' }, 'Invalid schoolLunchScrollSpeed'],
+    [{ schoolLunchScrollSpeed: null }, 'Invalid schoolLunchScrollSpeed'],
   ])('rejects %j with %s', async (patch, message) => {
     const { status, body } = await api('/settings', { method: 'PATCH', body: JSON.stringify(patch) });
     expect(status).toBe(400);
@@ -278,6 +286,7 @@ describe('PATCH /api/settings', () => {
         schoolLunchEndTime: '13:00',
         schoolLunchShowTomorrow: true,
         schoolLunchAlternateSeconds: 30,
+        schoolLunchScrollSpeed: 40,
       }),
     });
     expect(status).toBe(200);
@@ -287,6 +296,7 @@ describe('PATCH /api/settings', () => {
     expect(body.schoolLunchStartTime).toBe('07:30');
     expect(body.schoolLunchShowTomorrow).toBe(true);
     expect(body.schoolLunchAlternateSeconds).toBe(30);
+    expect(body.schoolLunchScrollSpeed).toBe(40);
 
     const cleared = await api('/settings', {
       method: 'PATCH',
@@ -294,6 +304,22 @@ describe('PATCH /api/settings', () => {
     });
     expect(cleared.status).toBe(200);
     expect(cleared.body.schoolLunchStartTime).toBeNull();
+  });
+
+  it('accepts the ends of the scroll speed range', async () => {
+    const still = await api('/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ schoolLunchScrollSpeed: 0 }),
+    });
+    expect(still.status).toBe(200);
+    expect(still.body.schoolLunchScrollSpeed).toBe(0);
+
+    const fastest = await api('/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ schoolLunchScrollSpeed: 60 }),
+    });
+    expect(fastest.status).toBe(200);
+    expect(fastest.body.schoolLunchScrollSpeed).toBe(60);
   });
 });
 
