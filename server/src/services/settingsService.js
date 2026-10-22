@@ -131,6 +131,9 @@ const DEFAULT_SETTINGS = {
   // Whether to show sunrise and sunset times in the calendar header. True by
   // default so existing installs continue to show them.
   showSunTimes: true,
+  // Whether to show air quality (AQI) in the weather widget. True by default
+  // so existing installs continue to show it.
+  showAirQuality: true,
 };
 
 function loadSettings() {

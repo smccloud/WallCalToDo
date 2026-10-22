@@ -239,6 +239,7 @@ settingsRouter.patch('/settings', (req, res) => {
     schoolLunchAlternateSeconds,
     schoolLunchScrollSpeed,
     showSunTimes,
+    showAirQuality,
   } = req.body || {};
   const patch = {};
 
@@ -458,6 +459,10 @@ settingsRouter.patch('/settings', (req, res) => {
   if (showSunTimes !== undefined) {
     if (typeof showSunTimes !== 'boolean') return res.status(400).json({ error: 'Invalid showSunTimes' });
     patch.showSunTimes = showSunTimes;
+  }
+  if (showAirQuality !== undefined) {
+    if (typeof showAirQuality !== 'boolean') return res.status(400).json({ error: 'Invalid showAirQuality' });
+    patch.showAirQuality = showAirQuality;
   }
 
   const settings = updateSettings(patch);

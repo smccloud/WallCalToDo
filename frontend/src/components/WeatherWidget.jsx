@@ -47,7 +47,7 @@ export default function WeatherWidget({ weather, settings }) {
 
   return (
     <div className="weather">
-      {hasAqi && (
+      {settings?.showAirQuality !== false && hasAqi && (
         <span
           className={`weather__aqi ${
             weather.aqi >= 301

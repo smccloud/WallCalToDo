@@ -262,6 +262,8 @@ export default function App() {
   const setSchoolLunchEnabled = (schoolLunchEnabled) => patchSetting({ schoolLunchEnabled });
   // Show/hide sunrise/sunset times in the calendar header.
   const setShowSunTimes = (showSunTimes) => patchSetting({ showSunTimes });
+  // Show/hide air quality (AQI) in the weather widget.
+  const setShowAirQuality = (showAirQuality) => patchSetting({ showAirQuality });
   // Every other school-lunch field (district, school slug and its display
   // name, the window) in one handler: they're all saved the
   // same way, and the district/school trio has to travel together in one PATCH
@@ -595,6 +597,7 @@ export default function App() {
         onSetWeatherDailyDays={setWeatherDailyDays}
         onSetWeatherEnabled={setWeatherEnabled}
         onSetShowSunTimes={setShowSunTimes}
+        onSetShowAirQuality={setShowAirQuality}
         onSetSchoolLunchEnabled={setSchoolLunchEnabled}
         onSetSchoolLunch={setSchoolLunch}
         onSaveLocation={saveLocation}

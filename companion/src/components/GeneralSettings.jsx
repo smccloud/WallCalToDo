@@ -40,6 +40,7 @@ export default function GeneralSettings({
   onSetWeatherDailyDays,
   onSetWeatherEnabled,
   onSetShowSunTimes,
+  onSetShowAirQuality,
   onSetSchoolLunchEnabled,
   onSetSchoolLunch,
   onSaveLocation,
@@ -104,6 +105,22 @@ export default function GeneralSettings({
       </div>
       <p className="sun-times-toggle__hint">
         Shows next sunrise or sunset time in the calendar header.
+      </p>
+
+      <div className="air-quality-toggle">
+        <span className="settings-label">Show air quality</span>
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={settings?.showAirQuality !== false}
+            disabled={settingsLoading}
+            onChange={(e) => onSetShowAirQuality?.(e.target.checked)}
+          />
+          <span className="switch__track" />
+        </label>
+      </div>
+      <p className="air-quality-toggle__hint">
+        Shows AQI in the weather widget when available.
       </p>
 
       <div className="microsoft-toggle">
