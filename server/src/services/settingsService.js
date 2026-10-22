@@ -128,6 +128,9 @@ const DEFAULT_SETTINGS = {
   // own (no mouse, no touch), so this is what decides how a long menu reads
   // (see frontend/src/hooks/useAutoScroll.js).
   schoolLunchScrollSpeed: 16,
+  // Whether to show sunrise and sunset times in the calendar header. True by
+  // default so existing installs continue to show them.
+  showSunTimes: true,
 };
 
 function loadSettings() {

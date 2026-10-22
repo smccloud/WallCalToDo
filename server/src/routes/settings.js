@@ -238,6 +238,7 @@ settingsRouter.patch('/settings', (req, res) => {
     schoolLunchShowTomorrow,
     schoolLunchAlternateSeconds,
     schoolLunchScrollSpeed,
+    showSunTimes,
   } = req.body || {};
   const patch = {};
 
@@ -453,6 +454,10 @@ settingsRouter.patch('/settings', (req, res) => {
       return res.status(400).json({ error: 'Invalid schoolLunchScrollSpeed' });
     }
     patch.schoolLunchScrollSpeed = schoolLunchScrollSpeed;
+  }
+  if (showSunTimes !== undefined) {
+    if (typeof showSunTimes !== 'boolean') return res.status(400).json({ error: 'Invalid showSunTimes' });
+    patch.showSunTimes = showSunTimes;
   }
 
   const settings = updateSettings(patch);

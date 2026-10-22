@@ -27,12 +27,8 @@ export default function CalendarHeader({ connected, settings }) {
         <span className="calendar-header__month">{now.toLocaleDateString(undefined, { month: 'long' })}</span>
         <span className="calendar-header__year"> {now.getFullYear()}</span>
       </h1>
-      {/* Sunrise/sunset, between the month/year and the clock — the one gap in
-          the header that was doing nothing. Renders nothing at all without a
-          saved location, and both outer elements are pinned to their own
-          columns (see .calendar-header), so the header then lays out exactly
-          as it did before this existed. */}
-      <SunTimes settings={settings} />
+      {/* Sunrise/sunset, between the month/year and the clock. Can be hidden via settings. */}
+      {settings?.showSunTimes !== false && <SunTimes settings={settings} />}
       <div className="calendar-header__right">
         <span className={`calendar-header__dot ${connected ? 'is-connected' : 'is-disconnected'}`} />
         <WallClock

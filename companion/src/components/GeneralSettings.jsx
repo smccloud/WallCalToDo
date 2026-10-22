@@ -39,6 +39,7 @@ export default function GeneralSettings({
   onSetWeatherHourlyHours,
   onSetWeatherDailyDays,
   onSetWeatherEnabled,
+  onSetShowSunTimes,
   onSetSchoolLunchEnabled,
   onSetSchoolLunch,
   onSaveLocation,
@@ -88,6 +89,22 @@ export default function GeneralSettings({
         onSetWindUnit={onSetWindUnit}
         onSetPrecipUnit={onSetPrecipUnit}
       />
+
+      <div className="sun-times-toggle">
+        <span className="settings-label">Show sunrise/sunset</span>
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={settings?.showSunTimes !== false}
+            disabled={settingsLoading}
+            onChange={(e) => onSetShowSunTimes?.(e.target.checked)}
+          />
+          <span className="switch__track" />
+        </label>
+      </div>
+      <p className="sun-times-toggle__hint">
+        Shows next sunrise or sunset time in the calendar header.
+      </p>
 
       <div className="microsoft-toggle">
         <span className="settings-label">Show Microsoft Accounts</span>

@@ -260,6 +260,8 @@ export default function App() {
   // saved regardless so turning it back on restores the same district, school,
   // and window.
   const setSchoolLunchEnabled = (schoolLunchEnabled) => patchSetting({ schoolLunchEnabled });
+  // Show/hide sunrise/sunset times in the calendar header.
+  const setShowSunTimes = (showSunTimes) => patchSetting({ showSunTimes });
   // Every other school-lunch field (district, school slug and its display
   // name, the window) in one handler: they're all saved the
   // same way, and the district/school trio has to travel together in one PATCH
@@ -592,6 +594,7 @@ export default function App() {
         onSetWeatherHourlyHours={setWeatherHourlyHours}
         onSetWeatherDailyDays={setWeatherDailyDays}
         onSetWeatherEnabled={setWeatherEnabled}
+        onSetShowSunTimes={setShowSunTimes}
         onSetSchoolLunchEnabled={setSchoolLunchEnabled}
         onSetSchoolLunch={setSchoolLunch}
         onSaveLocation={saveLocation}
