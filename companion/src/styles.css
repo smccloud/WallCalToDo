@@ -560,7 +560,9 @@ body {
    divider separates it from the hint above. */
 .microsoft-toggle,
 .google-toggle,
-.merge-events-toggle {
+.merge-events-toggle,
+.sun-times-toggle,
+.air-quality-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -571,7 +573,9 @@ body {
 
 .microsoft-toggle__hint,
 .google-toggle__hint,
-.merge-events-toggle__hint {
+.merge-events-toggle__hint,
+.sun-times-toggle__hint,
+.air-quality-toggle__hint {
   margin: 0.5rem 0 0;
   color: var(--color-text-muted);
   font-size: 0.85rem;
