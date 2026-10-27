@@ -42,17 +42,15 @@ let lastLunchSignature = null;
 // catches that, and it makes the providers' own `changed` flags unnecessary
 // here — they only ever claim something moved, which is the same question.
 //
-// The Microsoft overflow count is part of the signature for the same reason:
-// it rides on the kept events rather than standing in for them, so a day that
-// gains a meeting the per-day cap then drops leaves every id and start time in
-// this list exactly as they were. Without it, "+2" would stay on the wall
-// until some unrelated event moved. It only ever appears on `grid` — that's
-// the list the cap is applied to — and both lists are signed so a change to
-// either reaches the display.
+// The signature covers the complete lists, fields included, rather than a
+// digest of their ids and start times: a title, end time, location, color or
+// all-day flag can change while the event's id and start stay where they
+// were (renaming a meeting, extending one, recoloring a calendar), and the
+// Microsoft overflow count rides on the kept events rather than standing in
+// for them. Missing any of those left the wall stale until something else
+// moved. Both lists are signed so a change to either reaches the display.
 function pushCalendar(events, grid) {
-  const part = (list) =>
-    list.map((event) => `${event.id}@${event.start}${event.msOverflowCount ? `+${event.msOverflowCount}` : ''}`).join(',');
-  const signature = `${part(grid)}|${part(events)}`;
+  const signature = JSON.stringify({ events, grid });
   if (signature === lastCalendarSignature) return;
   lastCalendarSignature = signature;
   broadcast({ type: 'calendar', data: events, grid });

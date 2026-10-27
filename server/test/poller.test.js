@@ -162,6 +162,34 @@ describe('pushing to displays', () => {
     expect(calendarPushes()).toHaveLength(2);
     expect(calendarPushes()[1].data).toHaveLength(1);
   });
+
+  it('pushes a change that leaves the event id and start alone', async () => {
+    const before = [
+      { id: 'e1', start: '2026-10-08T09:00:00', title: 'Standup', end: '2026-10-08T09:30:00' },
+    ];
+    const after = [
+      { id: 'e1', start: '2026-10-08T09:00:00', title: 'Standup (weekly)', end: '2026-10-08T10:00:00' },
+    ];
+    m.pollCalendar.mockResolvedValue({ changed: false, events: before });
+    m.getCachedEvents.mockReturnValue(before);
+    m.getCachedGridEvents.mockReturnValue(before);
+
+    await runPoll();
+    expect(calendarPushes()).toHaveLength(1);
+
+    // Renamed/extended in Google Calendar: same id, same start. The old
+    // id@start signature treated this as "nothing changed" and never sent it.
+    m.pollCalendar.mockResolvedValue({ changed: true, events: after });
+    m.getCachedEvents.mockReturnValue(after);
+    m.getCachedGridEvents.mockReturnValue(after);
+    await vi.advanceTimersByTimeAsync(INTERVAL);
+
+    expect(calendarPushes()).toHaveLength(2);
+    expect(calendarPushes()[1].data[0]).toMatchObject({
+      title: 'Standup (weekly)',
+      end: '2026-10-08T10:00:00',
+    });
+  });
 });
 
 describe('weather', () => {

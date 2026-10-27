@@ -72,7 +72,15 @@ function normalizeEvent(event, context) {
   // within it" even when the two differ.
   const overrideColor = event.colorId && context.eventColors?.[event.colorId]?.background;
   return {
-    id: event.id,
+    // Google only guarantees event IDs are unique *per calendar*, so the same
+    // event can carry the same id on two connected accounts (a shared event,
+    // or a shared/public calendar like Google's holidays). The display takes
+    // the merged feed from every account and keys React off this id, so a
+    // bare id lets one account's copy collide with another's. Namespace it
+    // with the calendar key (which already includes the account id) while
+    // keeping the cache keyed by the raw id, so upsert/delete/prune below
+    // still address the same entry.
+    id: `${context.calendarKey}:${event.id}`,
     title: event.summary || UNTITLED,
     start: event.start?.dateTime || event.start?.date,
     end: event.end?.dateTime || event.end?.date,

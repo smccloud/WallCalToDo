@@ -14,9 +14,25 @@ const m = vi.hoisted(() => ({
   getAuthorizedClient: vi.fn(() => ({})),
 }));
 
+const g = vi.hoisted(() => ({
+  eventsList: vi.fn(),
+  colorsGet: vi.fn(),
+}));
+
 vi.mock('../src/auth/googleAuth.js', () => ({
   listAccounts: m.listAccounts,
   getAuthorizedClient: m.getAuthorizedClient,
+}));
+
+// Lets pollCalendar() be driven without a real Google account. Only the sync
+// test below uses these; the rest of the file seeds the cache directly.
+vi.mock('googleapis', () => ({
+  google: {
+    calendar: () => ({
+      events: { list: g.eventsList },
+      colors: { get: g.colorsGet },
+    }),
+  },
 }));
 
 const {
@@ -69,6 +85,8 @@ function seedCache() {
 
 beforeEach(() => {
   m.listAccounts.mockReturnValue(ACCOUNTS);
+  g.eventsList.mockReset();
+  g.colorsGet.mockReset();
   fs.rmSync(dataPath(EVENTS_FILE), { force: true });
   fs.rmSync(dataPath(SYNC_FILE), { force: true });
 });
@@ -264,5 +282,47 @@ describe('pollCalendar', () => {
     m.listAccounts.mockReturnValue([]);
     expect(await pollCalendar()).toEqual({ changed: false, events: [] });
     expect(fs.existsSync(dataPath(EVENTS_FILE))).toBe(false);
+  });
+
+  it('namespaces event ids by calendar so two accounts cannot collide', async () => {
+    m.listAccounts.mockReturnValue([
+      {
+        id: 'acct-1',
+        email: 'one@example.com',
+        calendars: [{ id: 'cal-a', summary: 'One', backgroundColor: '#123456', enabled: true }],
+      },
+      {
+        id: 'acct-2',
+        email: 'two@example.com',
+        calendars: [{ id: 'cal-c', summary: 'Two', backgroundColor: '#abcdef', enabled: true }],
+      },
+    ]);
+    g.colorsGet.mockResolvedValue({ data: { event: {} } });
+    // The same raw id can appear on both accounts (a shared event, or a
+    // shared calendar such as Google's holidays). Google only guarantees ids
+    // are unique per calendar, so the display feed must namespace them.
+    g.eventsList.mockImplementation(async ({ calendarId }) => ({
+      data: {
+        items: [
+          {
+            id: 'shared-event',
+            summary: calendarId === 'cal-a' ? 'From one' : 'From two',
+            start: { dateTime: '2026-10-08T09:00:00Z' },
+            end: { dateTime: '2026-10-08T09:30:00Z' },
+            status: 'confirmed',
+            organizer: { self: true },
+          },
+        ],
+        nextSyncToken: `token-${calendarId}`,
+      },
+    }));
+
+    const { events } = await pollCalendar();
+
+    expect(events.map((event) => event.id)).toEqual([
+      'google:calendar::acct-1::cal-a:shared-event',
+      'google:calendar::acct-2::cal-c:shared-event',
+    ]);
+    expect(new Set(events.map((event) => event.id)).size).toBe(2);
   });
 });
