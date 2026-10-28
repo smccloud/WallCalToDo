@@ -1,8 +1,9 @@
 import { google } from 'googleapis';
-import { getAuthorizedClient, listAccounts } from '../auth/googleAuth.js';
+import { getAuthorizedClient, listAccounts, isInvalidGrant, removeAccount } from '../auth/googleAuth.js';
 import { getCachedMsEvents, getCachedMsGridEvents } from './msCalendarService.js';
 import { getSettings } from './settingsService.js';
 import { readJson, writeJson } from '../store/fileStore.js';
+import { broadcastCalendar } from '../ws/hub.js';
 
 const EVENTS_CACHE_FILE = 'googleEventsCache.json';
 const SYNC_FILE = 'googleSync.json';
@@ -192,6 +193,8 @@ async function pollOneCalendar(calendarApi, key, calendarId, context, cache, syn
       Object.keys(entries).forEach((id) => delete entries[id]);
       sync[key] = { syncToken: await fullSync(calendarApi, calendarId, entries, context) };
       changed = true;
+    } else if (isInvalidGrant(err)) {
+      throw err;
     } else {
       throw err;
     }
@@ -221,16 +224,41 @@ export async function pollCalendar() {
     try {
       calendarApi = google.calendar({ version: 'v3', auth: getAuthorizedClient(account.id) });
     } catch (err) {
+      if (isInvalidGrant(err)) {
+        console.error(`[calendar] Google auth for ${account.email} is invalid or expired; removing account and requiring reconnect.`);
+        try {
+          removeAccount(account.id);
+          dropAccountCache(account.id);
+          broadcastCalendar();
+        } catch (e) {
+          console.error(`[calendar] failed to clean up invalid Google account ${account.email}:`, e.message);
+        }
+        continue;
+      }
       console.error(`[calendar] skipping account ${account.email}:`, err.message);
       continue;
     }
 
     // Non-fatal: per-event color overrides are a nice-to-have, not worth
     // skipping this account's whole poll over if the palette fetch fails.
-    const eventColors = await getEventColors(calendarApi, account.id).catch((err) => {
+    let eventColors = {};
+    try {
+      eventColors = await getEventColors(calendarApi, account.id);
+    } catch (err) {
+      if (isInvalidGrant(err)) {
+        console.error(`[calendar] Google auth for ${account.email} is invalid or expired; removing account and requiring reconnect.`);
+        try {
+          removeAccount(account.id);
+          dropAccountCache(account.id);
+          broadcastCalendar();
+        } catch (e) {
+          console.error(`[calendar] failed to clean up invalid Google account ${account.email}:`, e.message);
+        }
+        continue;
+      }
       console.error(`[calendar] failed to fetch event color palette for ${account.email}:`, err.message);
-      return {};
-    });
+      eventColors = {};
+    }
 
     for (const cal of account.calendars) {
       const key = cacheKey(account.id, cal.id);
@@ -245,6 +273,17 @@ export async function pollCalendar() {
         const calChanged = await pollOneCalendar(calendarApi, key, cal.id, context, cache, sync);
         changed = changed || calChanged;
       } catch (err) {
+        if (isInvalidGrant(err)) {
+          console.error(`[calendar] Google auth for ${account.email} is invalid or expired; removing account and requiring reconnect.`);
+          try {
+            removeAccount(account.id);
+            dropAccountCache(account.id);
+            broadcastCalendar();
+          } catch (e) {
+            console.error(`[calendar] failed to clean up invalid Google account ${account.email}:`, e.message);
+          }
+          break;
+        }
         console.error(`[calendar] poll failed for ${account.email} / ${cal.summary}:`, err.message);
       }
     }

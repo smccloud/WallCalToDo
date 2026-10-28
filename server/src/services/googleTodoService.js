@@ -1,7 +1,10 @@
 import { google } from 'googleapis';
-import { getAuthorizedClient, listAccounts } from '../auth/googleAuth.js';
+import { getAuthorizedClient, listAccounts, isInvalidGrant, removeAccount } from '../auth/googleAuth.js';
 import { getSettings } from './settingsService.js';
 import { readJson, writeJson } from '../store/fileStore.js';
+import { dropAccountCache } from './calendarService.js';
+import { getCachedTasks } from './todoService.js';
+import { broadcast, broadcastCalendar } from '../ws/hub.js';
 
 const CACHE_FILE = 'googleTasksCache.json';
 const LISTS_FILE = 'googleTaskLists.json';
@@ -134,16 +137,53 @@ export async function pollGoogleTasks() {
       let lists = getGoogleTaskLists(account.id);
       if (lists.length === 0) lists = await refreshGoogleTaskLists(account.id);
 
-      const api = google.tasks({ version: 'v1', auth: getAuthorizedClient(account.id) });
+      let api;
+      try {
+        api = google.tasks({ version: 'v1', auth: getAuthorizedClient(account.id) });
+      } catch (err) {
+        if (isInvalidGrant(err)) {
+          console.error(`[google-tasks] Google auth for ${account.email} is invalid or expired; removing account and requiring reconnect.`);
+          try {
+            removeAccount(account.id);
+            dropAccountCache(account.id);
+            broadcastCalendar();
+            broadcast({ type: 'todo', data: getCachedTasks() });
+          } catch (e) {
+            console.error(`[google-tasks] failed to clean up invalid Google account ${account.email}:`, e.message);
+          }
+          continue;
+        }
+        throw err;
+      }
       const fresh = [];
       for (const list of lists.filter((l) => l.enabled)) {
-        fresh.push(...(await fetchListTasks(api, account.id, list)));
+        try {
+          fresh.push(...(await fetchListTasks(api, account.id, list)));
+        } catch (err) {
+          if (isInvalidGrant(err)) {
+            console.error(`[google-tasks] Google auth for ${account.email} is invalid or expired; removing account and requiring reconnect.`);
+            try {
+              removeAccount(account.id);
+              dropAccountCache(account.id);
+              broadcastCalendar();
+              broadcast({ type: 'todo', data: getCachedTasks() });
+            } catch (e) {
+              console.error(`[google-tasks] failed to clean up invalid Google account ${account.email}:`, e.message);
+            }
+            throw err;
+          }
+          throw err;
+        }
       }
       if (JSON.stringify(cache[account.id]) !== JSON.stringify(fresh)) {
         cache[account.id] = fresh;
         changed = true;
       }
     } catch (err) {
+      if (isInvalidGrant(err)) {
+        // Already handled above
+        continue;
+      }
       // Keep the last good cache for this account rather than wiping it.
       console.error(`[google-tasks] poll failed for ${account.email}:`, err.message);
     }

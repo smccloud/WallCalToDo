@@ -7,6 +7,11 @@ import {
   getGoogleSetLabel,
 } from '../services/credentialsService.js';
 
+function isInvalidGrantError(err) {
+  const text = `${err?.message || ''} ${err?.error || ''} ${err?.error_description || ''} ${err?.response?.data?.error || ''} ${err?.response?.data?.error_description || ''}`;
+  return /invalid_grant/i.test(text);
+}
+
 const ACCOUNTS_FILE = 'googleAccounts.json';
 // calendar.readonly to read events, userinfo.email so we can label each
 // connected account and dedupe reconnects by email instead of creating
@@ -243,4 +248,8 @@ export function getAuthorizedClient(accountId) {
     saveAccounts(latest);
   });
   return client;
+}
+
+export function isInvalidGrant(err) {
+  return isInvalidGrantError(err);
 }
