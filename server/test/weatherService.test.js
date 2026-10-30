@@ -142,8 +142,35 @@ describe('pollWeather', () => {
       precipChance: 10,
       windKmh: 20,
     });
+    // A calendar date, not an instant -- see the DST test below.
+    expect(daily[0].date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(daily[1].emoji).toBe('🌧️');
     expect(daily[1].precipChance).toBe(80);
+  });
+
+  // Regression: on the autumn DST change the wall showed "Sun 1" twice. These
+  // are the real daily epochs Open-Meteo returned for Chicago around the Nov 1
+  // 2026 fall-back: local midnight on the 1st and the 2nd, both expressed with
+  // the single pre-change -5h utc_offset_seconds the response carried. Kept as
+  // instants, the 2nd read back as 23:00 on the 1st, so it rendered as the 1st
+  // again and every day after it was a day behind.
+  it('keeps daily entries on their own calendar date across a DST change', async () => {
+    const body = forecast({
+      daily: {
+        time: [1793509200, 1793595600],
+        weather_code: [0, 61],
+        temperature_2m_max: [25, 26],
+        temperature_2m_min: [15, 16],
+        precipitation_sum: [0, 3],
+        precipitation_probability_max: [10, 80],
+        wind_speed_10m_max: [20, 25],
+      },
+    });
+    body.utc_offset_seconds = -18000;
+    respond({ forecastBody: body });
+
+    const { daily } = await pollWeather(41.88, -87.63);
+    expect(daily.map((day) => day.date)).toEqual(['2026-11-01', '2026-11-02']);
   });
 
   it.each([

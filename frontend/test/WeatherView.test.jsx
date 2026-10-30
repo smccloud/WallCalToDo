@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WeatherView from '../src/components/WeatherView.jsx';
+import { addDays, dateKey } from '../src/utils/date.js';
 
 // The wall's full-screen forecast. Only the strip sizing is under test here —
 // the unit formatting has its own suite (test/units.test.js) and the rest of
@@ -34,9 +35,11 @@ function daily(count = DAYS_AVAILABLE) {
   const start = new Date(NOW);
   start.setHours(0, 0, 0, 0);
   return Array.from({ length: count }, (_, i) => {
-    const at = new Date(start.getTime() + i * 86_400_000);
+    const at = addDays(start, i);
     return {
-      date: at.toISOString(),
+      // A calendar date, as the server now sends it (see weatherService.js's
+      // isoDate) -- not an instant.
+      date: dateKey(at),
       emoji: '☀️',
       highC: 25,
       highF: 77,
@@ -92,6 +95,44 @@ describe('WeatherView strips', () => {
 
     expect(days()).toHaveLength(5);
     expect(stripLabel('daily')).toBe('Next 5 days');
+  });
+
+  // Regression: the wall showed Sunday the 1st twice. Daily entries are
+  // calendar dates, and `new Date('2026-11-01')` parses a date-only string as
+  // UTC midnight -- 7pm on Oct 31 in Chicago -- so the strip labelled the day
+  // "Sat 31" and ran a day early. Reading them with parseLocalDate keeps each
+  // entry on the day it names.
+  it('labels daily entries by their calendar date, not a UTC instant', () => {
+    vi.setSystemTime(new Date(2026, 9, 31, 12, 0));
+    const entry = (date) => ({
+      date,
+      emoji: '☀️',
+      highC: 20,
+      highF: 68,
+      lowC: 10,
+      lowF: 50,
+      precipChance: 0,
+      precipMm: 0,
+      windKmh: 0,
+    });
+
+    render(
+      <WeatherView
+        weather={{ hourly: [], daily: [entry('2026-11-01'), entry('2026-11-02'), entry('2026-11-03')] }}
+        settings={{ weatherDailyDays: 5 }}
+      />
+    );
+
+    expect(days().map((day) => day.querySelector('.weather-view__day-name').textContent)).toEqual([
+      'Sun',
+      'Mon',
+      'Tue',
+    ]);
+    expect(days().map((day) => day.querySelector('.weather-view__day-date').textContent)).toEqual([
+      '1',
+      '2',
+      '3',
+    ]);
   });
 
   it('sizes each grid to the columns it actually rendered', () => {

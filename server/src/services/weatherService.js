@@ -81,6 +81,23 @@ async function fetchAqiValue(lat, lon) {
 // actually in, the same as every other time the display shows.
 const isoInstant = (epochSeconds) => new Date(epochSeconds * 1000).toISOString();
 
+// Epoch seconds -> a plain YYYY-MM-DD calendar date, for the daily series.
+//
+// A daily entry is a calendar day, not an instant: "Sunday the 1st" is a day
+// in the location's timezone, and round-tripping it through a UTC instant is
+// how a day gets lost or duplicated. Open-Meteo builds the daily unixtimes
+// with one utc_offset_seconds for the whole response rather than each date's
+// own offset, so adding that offset back (and reading the UTC date) recovers
+// the day it meant. Without it, on the autumn DST change the days after the
+// change each render an hour before midnight in the display's timezone -- so
+// the 2nd printed as the 1st, and "Sun 1" appeared twice.
+//
+// The offset can be missing (an unexpected response shape); the date is then
+// read straight from the epoch, which is still the right day except within an
+// hour of midnight.
+const isoDate = (epochSeconds, offsetSeconds) =>
+  new Date((epochSeconds + (offsetSeconds || 0)) * 1000).toISOString().slice(0, 10);
+
 // How much hourly data to fetch, and how much of it the display shows. The
 // fetch is deliberately deeper than the display's window: the cache is only
 // refreshed every WEATHER_POLL_INTERVAL_MS, so a display asking for exactly
@@ -122,7 +139,9 @@ export async function pollWeather(lat, lon) {
     // timezone=auto buckets the series in the *location's* timezone (so the
     // daily entries land on local midnight, which is what makes a day label
     // read correctly on the wall) while timeformat=unixtime keeps them as
-    // absolute instants rather than offset-less local strings.
+    // absolute instants rather than offset-less local strings. The daily
+    // epochs are turned back into calendar dates by isoDate above -- see the
+    // note there on why they must not be kept as instants.
     //
     // The unit parameters are pinned rather than left to Open-Meteo's
     // defaults: which unit a bare wind_speed_10m arrives in is otherwise
@@ -208,7 +227,7 @@ export async function pollWeather(lat, lon) {
       windKmh: hourlyWind[i] ?? null,
     })),
     daily: Array.from({ length: dailyLength }, (_, i) => ({
-      date: isoInstant(dailyTimes[i]),
+      date: isoDate(dailyTimes[i], forecast.utc_offset_seconds),
       highC: dailyMax[i],
       lowC: dailyMin[i],
       highF: toF(dailyMax[i]),

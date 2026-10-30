@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { WEEKDAYS, dateKey, ordinalSuffix } from '../utils/date.js';
+import { WEEKDAYS, dateKey, ordinalSuffix, parseLocalDate } from '../utils/date.js';
 import { REDUCED_MOTION } from '../utils/motion.js';
 import {
   formatPrecipChance,
@@ -58,6 +58,12 @@ function placeName(location) {
 // trimmed the same way against local midnight, which is where the server's
 // daily entries sit.
 //
+// Daily entries are calendar dates ("2026-11-01"), not instants, so they are
+// read with parseLocalDate: `new Date('2026-11-01')` would parse as UTC
+// midnight and print the previous day anywhere west of Greenwich. parseLocalDate
+// also accepts the full instants cached by older versions, so a reading cached
+// before the server started sending dates still renders.
+//
 // The slice is a cap and not a promise: with a stale cache there may be fewer
 // hours or days left than were asked for, and showing the ones there are
 // beats showing nothing or padding the row with blanks.
@@ -72,7 +78,7 @@ function visibleForecast(weather, now, hourlyCount, dailyCount) {
       .filter((hour) => new Date(hour.time).getTime() >= hourStart.getTime())
       .slice(0, hourlyCount),
     daily: (weather.daily || [])
-      .filter((day) => new Date(day.date).getTime() >= dayStart.getTime())
+      .filter((day) => parseLocalDate(day.date).getTime() >= dayStart.getTime())
       .slice(0, dailyCount),
   };
 }
@@ -309,7 +315,7 @@ export default function WeatherView({ weather, settings, className = '' }) {
               than the days it did render. */}
           <ol className="weather-view__days" style={{ '--daily-count': daily.length }}>
             {daily.map((day) => {
-              const date = new Date(day.date);
+              const date = parseLocalDate(day.date);
               return (
                 // dateKey rather than the raw instant: the same helper the
                 // calendar cells key on, so a day reads the same here as it
