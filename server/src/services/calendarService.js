@@ -392,11 +392,20 @@ function slotKey(event) {
   const end = Date.parse(event.end || event.start);
   if (Number.isNaN(start) || Number.isNaN(end)) return null;
   if (event.allDay) {
-    const day = (ms) => {
-      const d = new Date(ms);
-      return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const day = (val) => {
+      if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+        return val; // YYYY-MM-DD already in correct format
+      }
+      const d = new Date(val);
+      // Use UTC components if the date was parsed as UTC (date-only strings)
+      // to avoid timezone shifts
+      if (typeof val === 'string' && val.includes('T')) {
+        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      }
+      // For date-only strings parsed as UTC, use UTC methods
+      return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
     };
-    return `all-day:${day(start)}:${day(end)}`;
+    return `all-day:${day(event.start)}:${day(event.end || event.start)}`;
   }
   return `timed:${start}:${end}`;
 }

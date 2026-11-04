@@ -48,9 +48,22 @@ function slugify(email) {
   return email.toLowerCase().replace(/[^a-z0-9]+/g, '_');
 }
 
+// Cache OAuth2 clients per account to avoid attaching multiple 'tokens'
+// event listeners on every call to getAuthorizedClient(), which can cause
+// race conditions and lose refresh tokens.
+const clientCache = new Map();
+
 function createClient(setId) {
   const { clientId, clientSecret } = getCredentials('google', setId);
   return new google.auth.OAuth2(clientId, clientSecret, config.google.redirectUri);
+}
+
+export function resetClient(accountId) {
+  if (accountId) {
+    clientCache.delete(accountId);
+  } else {
+    clientCache.clear();
+  }
 }
 
 export function isConfigured(setId) {
@@ -181,14 +194,21 @@ export async function exchangeCode(code, state) {
   const accountId = slugify(profile.email);
 
   const accounts = loadAccounts();
+  const existingTokens = accounts[accountId]?.tokens;
+  // Preserve existing refresh_token if the new exchange doesn't include one
+  const mergedTokens = tokens.refresh_token || !existingTokens
+    ? tokens
+    : { ...tokens, refresh_token: existingTokens.refresh_token };
+
   accounts[accountId] = {
     id: accountId,
     email: profile.email,
-    tokens,
+    tokens: mergedTokens,
     credentialSetId,
     calendars: accounts[accountId]?.calendars || [],
   };
   saveAccounts(accounts);
+  clientCache.delete(accountId);
 
   await refreshCalendarList(accountId);
   return accountId;
@@ -198,6 +218,7 @@ export function removeAccount(accountId) {
   const accounts = loadAccounts();
   delete accounts[accountId];
   saveAccounts(accounts);
+  clientCache.delete(accountId);
 }
 
 export function setCalendarEnabled(accountId, calendarId, enabled) {
@@ -239,14 +260,29 @@ export function getAuthorizedClient(accountId) {
   const account = accounts[accountId];
   if (!account) throw new Error(`Unknown Google account: ${accountId}`);
 
+  if (clientCache.has(accountId)) {
+    const cached = clientCache.get(accountId);
+    // Update credentials in case they were refreshed elsewhere
+    cached.setCredentials(account.tokens);
+    return cached;
+  }
+
   const client = createClient(account.credentialSetId);
   client.setCredentials(account.tokens);
   client.on('tokens', (refreshed) => {
     const latest = loadAccounts();
     if (!latest[accountId]) return; // account was removed mid-request
-    latest[accountId].tokens = { ...latest[accountId].tokens, ...refreshed };
+    // Preserve existing refresh_token if the refreshed tokens don't include one
+    // (Google often omits refresh_token on refresh)
+    const existingTokens = latest[accountId].tokens || {};
+    latest[accountId].tokens = {
+      ...existingTokens,
+      ...refreshed,
+      refresh_token: refreshed.refresh_token !== undefined ? refreshed.refresh_token : existingTokens.refresh_token,
+    };
     saveAccounts(latest);
   });
+  clientCache.set(accountId, client);
   return client;
 }
 
