@@ -138,8 +138,10 @@ export async function refreshCalendarList(accountId) {
   const account = accounts[accountId];
   if (!account) throw new Error(`Unknown Google account: ${accountId}`);
 
-  const client = createClient(account.credentialSetId);
-  client.setCredentials(account.tokens);
+  // Use the shared, listener-backed client so any token refresh Google
+  // performs while listing calendars is persisted (see getAuthorizedClient).
+  // A direct client here used to drop refreshed tokens on the floor.
+  const client = getAuthorizedClient(accountId);
   const calendarApi = google.calendar({ version: 'v3', auth: client });
 
   const items = [];
@@ -154,8 +156,16 @@ export async function refreshCalendarList(accountId) {
     pageToken = data.nextPageToken;
   } while (pageToken);
 
+  // The fetch above may have triggered a token refresh that persisted through
+  // getAuthorizedClient's listener, so reload the account record before
+  // writing calendars back — otherwise we'd overwrite the refreshed tokens
+  // with the stale copy captured at the top of this function.
+  const freshAccounts = loadAccounts();
+  const freshAccount = freshAccounts[accountId];
+  if (!freshAccount) throw new Error(`Unknown Google account: ${accountId}`);
+
   const existingById = new Map((account.calendars || []).map((cal) => [cal.id, cal]));
-  account.calendars = items.map((item) => {
+  freshAccount.calendars = items.map((item) => {
     const existing = existingById.get(item.id);
     return {
       id: item.id,
@@ -170,8 +180,8 @@ export async function refreshCalendarList(accountId) {
     };
   });
 
-  saveAccounts(accounts);
-  return account.calendars;
+  saveAccounts(freshAccounts);
+  return freshAccount.calendars;
 }
 
 // Exchanges an OAuth code for tokens, identifies which Google account they
@@ -193,12 +203,20 @@ export async function exchangeCode(code, state) {
   const { data: profile } = await oauth2.userinfo.get();
   const accountId = slugify(profile.email);
 
+  // Google may have silently refreshed the access token (and possibly the
+  // refresh token) while fetching the profile above; persist whatever the
+  // client actually ended up holding rather than the original exchange's
+  // tokens, so a refresh that happened mid-flow isn't lost.
+  const finalTokens = client.credentials && Object.keys(client.credentials).length
+    ? client.credentials
+    : tokens;
+
   const accounts = loadAccounts();
   const existingTokens = accounts[accountId]?.tokens;
   // Preserve existing refresh_token if the new exchange doesn't include one
-  const mergedTokens = tokens.refresh_token || !existingTokens
-    ? tokens
-    : { ...tokens, refresh_token: existingTokens.refresh_token };
+  const mergedTokens = (finalTokens.refresh_token != null || !existingTokens)
+    ? finalTokens
+    : { ...finalTokens, refresh_token: existingTokens.refresh_token };
 
   accounts[accountId] = {
     id: accountId,
@@ -210,6 +228,9 @@ export async function exchangeCode(code, state) {
   saveAccounts(accounts);
   clientCache.delete(accountId);
 
+  // Warm the shared client cache so later calls (and any token refresh they
+  // trigger) go through the listener-backed client instead of a bare one.
+  getAuthorizedClient(accountId);
   await refreshCalendarList(accountId);
   return accountId;
 }
@@ -262,8 +283,14 @@ export function getAuthorizedClient(accountId) {
 
   if (clientCache.has(accountId)) {
     const cached = clientCache.get(accountId);
-    // Update credentials in case they were refreshed elsewhere
-    cached.setCredentials(account.tokens);
+    // Update credentials in case they were refreshed elsewhere, but never let a
+    // disk read that is missing a refresh_token clobber the one the cached
+    // client already holds in memory — losing it breaks silent renewal.
+    const diskTokens = account.tokens || {};
+    const mergedTokens = diskTokens.refresh_token != null
+      ? diskTokens
+      : { ...diskTokens, refresh_token: cached.credentials?.refresh_token };
+    cached.setCredentials(mergedTokens);
     return cached;
   }
 
@@ -273,12 +300,13 @@ export function getAuthorizedClient(accountId) {
     const latest = loadAccounts();
     if (!latest[accountId]) return; // account was removed mid-request
     // Preserve existing refresh_token if the refreshed tokens don't include one
-    // (Google often omits refresh_token on refresh)
+    // (Google often omits refresh_token on refresh). Treat null/undefined as
+    // "omitted" so a missing value never clobbers a stored refresh token.
     const existingTokens = latest[accountId].tokens || {};
     latest[accountId].tokens = {
       ...existingTokens,
       ...refreshed,
-      refresh_token: refreshed.refresh_token !== undefined ? refreshed.refresh_token : existingTokens.refresh_token,
+      refresh_token: refreshed.refresh_token != null ? refreshed.refresh_token : existingTokens.refresh_token,
     };
     saveAccounts(latest);
   });

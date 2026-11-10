@@ -7,7 +7,7 @@ import {
   deleteGoogleSet,
 } from '../services/credentialsService.js';
 import { requireTrusted } from '../services/trustedNetworks.js';
-import { accountsUsingSet } from '../auth/googleAuth.js';
+import { accountsUsingSet, resetClient as resetGoogleClient } from '../auth/googleAuth.js';
 import { resetClient as resetMsalClient } from '../auth/microsoftAuth.js';
 
 export const credentialsRouter = Router();
@@ -78,6 +78,9 @@ credentialsRouter.post('/credentials/google', (req, res) => {
       return res.status(400).json({ error: 'Client ID and Client Secret are both required' });
     }
     addGoogleSet({ name, clientId, clientSecret });
+    // A new set doesn't change existing accounts, but clearing cached clients
+    // is cheap and keeps credential changes from being masked by stale clients.
+    resetGoogleClient();
     res.status(201).json(statusWithInUse());
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -94,6 +97,9 @@ credentialsRouter.put('/credentials/google/:setId', (req, res) => {
       return res.status(400).json({ error: 'Client ID cannot be blank' });
     }
     updateGoogleSet(req.params.setId, { name, clientId, clientSecret });
+    // Rebuild cached OAuth clients so accounts pinned to this set pick up the
+    // new client id/secret instead of renewing against the stale ones.
+    resetGoogleClient();
     res.json(statusWithInUse());
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -110,6 +116,7 @@ credentialsRouter.delete('/credentials/google/:setId', (req, res) => {
       });
     }
     deleteGoogleSet(setId);
+    resetGoogleClient();
     res.json(statusWithInUse());
   } catch (err) {
     res.status(400).json({ error: err.message });
