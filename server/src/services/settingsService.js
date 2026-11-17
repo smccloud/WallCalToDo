@@ -134,6 +134,10 @@ const DEFAULT_SETTINGS = {
   // Whether to show air quality (AQI) in the weather widget. True by default
   // so existing installs continue to show it.
   showAirQuality: true,
+  // Whether to sync with Azure AD. Off by default.
+  azureAdSync: false,
+  // Hostname used for the Azure AD sync. Null until configured.
+  azureAdSyncHostname: null,
 };
 
 function loadSettings() {

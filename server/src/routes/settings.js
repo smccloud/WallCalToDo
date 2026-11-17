@@ -240,6 +240,8 @@ settingsRouter.patch('/settings', (req, res) => {
     schoolLunchScrollSpeed,
     showSunTimes,
     showAirQuality,
+    azureAdSync,
+    azureAdSyncHostname,
   } = req.body || {};
   const patch = {};
 
@@ -463,6 +465,19 @@ settingsRouter.patch('/settings', (req, res) => {
   if (showAirQuality !== undefined) {
     if (typeof showAirQuality !== 'boolean') return res.status(400).json({ error: 'Invalid showAirQuality' });
     patch.showAirQuality = showAirQuality;
+  }
+  if (azureAdSync !== undefined) {
+    if (typeof azureAdSync !== 'boolean') return res.status(400).json({ error: 'Invalid azureAdSync' });
+    patch.azureAdSync = azureAdSync;
+  }
+  if (azureAdSyncHostname !== undefined) {
+    if (
+      azureAdSyncHostname !== null &&
+      (typeof azureAdSyncHostname !== 'string' || azureAdSyncHostname.length > 255)
+    ) {
+      return res.status(400).json({ error: 'Invalid azureAdSyncHostname' });
+    }
+    patch.azureAdSyncHostname = azureAdSyncHostname;
   }
 
   const settings = updateSettings(patch);
