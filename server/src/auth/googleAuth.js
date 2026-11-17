@@ -206,17 +206,31 @@ export async function exchangeCode(code, state) {
   // Google may have silently refreshed the access token (and possibly the
   // refresh token) while fetching the profile above; persist whatever the
   // client actually ended up holding rather than the original exchange's
-  // tokens, so a refresh that happened mid-flow isn't lost.
+  // tokens, so a refresh that happened mid-flow isn't lost. The original
+  // `tokens` from getToken() are kept as a fallback source for the refresh
+  // token, since a mid-flow refresh's response often omits refresh_token and
+  // would otherwise drop it (and, on a reconnect, clobber the freshly minted
+  // one with the stale value already on disk).
   const finalTokens = client.credentials && Object.keys(client.credentials).length
     ? client.credentials
     : tokens;
 
   const accounts = loadAccounts();
   const existingTokens = accounts[accountId]?.tokens;
-  // Preserve existing refresh_token if the new exchange doesn't include one
-  const mergedTokens = (finalTokens.refresh_token != null || !existingTokens)
-    ? finalTokens
-    : { ...finalTokens, refresh_token: existingTokens.refresh_token };
+  const refreshToken = finalTokens.refresh_token != null
+    ? finalTokens.refresh_token
+    : (tokens.refresh_token != null
+      ? tokens.refresh_token
+      : (existingTokens?.refresh_token != null ? existingTokens.refresh_token : null));
+  // Preserve existing scope if a mid-flow refresh's response omitted it.
+  const scope = finalTokens.scope != null
+    ? finalTokens.scope
+    : (tokens.scope != null ? tokens.scope : existingTokens?.scope);
+  const mergedTokens = {
+    ...finalTokens,
+    ...(refreshToken != null ? { refresh_token: refreshToken } : {}),
+    ...(scope != null ? { scope } : {}),
+  };
 
   accounts[accountId] = {
     id: accountId,
@@ -284,29 +298,46 @@ export function getAuthorizedClient(accountId) {
   if (clientCache.has(accountId)) {
     const cached = clientCache.get(accountId);
     // Update credentials in case they were refreshed elsewhere, but never let a
-    // disk read that is missing a refresh_token clobber the one the cached
-    // client already holds in memory — losing it breaks silent renewal.
+    // disk read that is missing a refresh_token/scope clobber the values the
+    // cached client already holds in memory — losing them breaks silent renewal
+    // and the companion app's "has Tasks access" check.
     const diskTokens = account.tokens || {};
-    const mergedTokens = diskTokens.refresh_token != null
-      ? diskTokens
-      : { ...diskTokens, refresh_token: cached.credentials?.refresh_token };
+    const cachedCreds = cached.credentials || {};
+    const mergedTokens = {
+      ...cachedCreds,
+      ...diskTokens,
+      refresh_token: diskTokens.refresh_token != null
+        ? diskTokens.refresh_token
+        : cachedCreds.refresh_token,
+      scope: diskTokens.scope != null ? diskTokens.scope : cachedCreds.scope,
+    };
     cached.setCredentials(mergedTokens);
     return cached;
   }
 
   const client = createClient(account.credentialSetId);
-  client.setCredentials(account.tokens);
+  client.setCredentials(account.tokens || {});
   client.on('tokens', (refreshed) => {
     const latest = loadAccounts();
     if (!latest[accountId]) return; // account was removed mid-request
-    // Preserve existing refresh_token if the refreshed tokens don't include one
-    // (Google often omits refresh_token on refresh). Treat null/undefined as
-    // "omitted" so a missing value never clobbers a stored refresh token.
+    // Preserve existing refresh_token/scope if the refreshed tokens don't
+    // include one (Google often omits refresh_token on refresh, and may omit
+    // scope). Treat null/undefined as "omitted" so a missing value never
+    // clobbers a stored value. Fall back to the client's in-memory copy if
+    // disk already lost them.
     const existingTokens = latest[accountId].tokens || {};
+    const cachedCreds = client.credentials || {};
+    const refreshToken = refreshed.refresh_token != null
+      ? refreshed.refresh_token
+      : (existingTokens.refresh_token != null ? existingTokens.refresh_token : cachedCreds.refresh_token);
+    const scope = refreshed.scope != null
+      ? refreshed.scope
+      : (existingTokens.scope != null ? existingTokens.scope : cachedCreds.scope);
     latest[accountId].tokens = {
       ...existingTokens,
       ...refreshed,
-      refresh_token: refreshed.refresh_token != null ? refreshed.refresh_token : existingTokens.refresh_token,
+      refresh_token: refreshToken != null ? refreshToken : existingTokens.refresh_token,
+      scope: scope != null ? scope : existingTokens.scope,
     };
     saveAccounts(latest);
   });

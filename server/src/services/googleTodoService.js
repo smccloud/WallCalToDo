@@ -45,7 +45,7 @@ function normalizeTask(task, accountId, list) {
 // need a disconnect/reconnect before Google will hand back any tasks.
 export function hasTasksAccess(accountId) {
   try {
-    return Boolean(getAuthorizedClient(accountId).credentials.scope?.includes('auth/tasks'));
+    return Boolean(getAuthorizedClient(accountId).credentials?.scope?.includes('auth/tasks'));
   } catch {
     return false;
   }
