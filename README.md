@@ -1095,6 +1095,20 @@ provider's redirect getting back to the Pi through a port forward.
    **Client Secret** it gives you into the fields and click **Save**. You
    can add more sets later — one per Google OAuth app you create (a set
    per organisation whose calendars the wall shows, say).
+
+   **Publish the app before relying on it.** A newly created Google app sits
+   in **Testing**, and while it does, Google expires every connection's
+   refresh token after **seven days** — so each connected account stops
+   updating and needs reconnecting weekly. On the OAuth consent screen's
+   **Audience** page, click **Publish app** (if your accounts are on a
+   Google Workspace you own, choosing **Internal** as the user type avoids
+   the expiry too), then reconnect. Publishing doesn't extend tokens that
+   were already issued, which is why the reconnect afterwards matters — the
+   companion app warns you with the exact date while a connection is still
+   on the seven-day clock. If **Publish app** is greyed out, the consent
+   screen's branding fields (homepage, privacy policy, authorized domain)
+   aren't filled in yet; a domain has to be verified in Search Console
+   before Google will accept it.
 3. Each set now shows **+ Add account**. Tap it, sign in, grant access.
    Repeat for every Google account you want on the display. The one sign-in
    grants read-only access to both Calendar and Tasks, so the connected
@@ -1292,6 +1306,18 @@ backend) or the request will be turned away.
   resolves `localhost` to it. Keep an SSH port forward open
   (`ssh -L 3000:localhost:3000 pi@wallcaltodo.local`) or register a real
   HTTPS redirect URI — see "Connecting an account from a remote computer".
+- **A Google account stops updating after about a week, and the companion app
+  says it needs reconnecting** — its OAuth app is still in **Testing**.
+  Google caps refresh tokens issued by a Testing app at seven days, however
+  reliably the access token itself is being renewed, so reconnecting on its
+  own only buys another week. Click **Publish app** on the app's OAuth
+  consent screen (**Audience** → Publishing status), then reconnect the
+  account once — publishing doesn't extend tokens that were already issued.
+  The companion app shows the deadline up front, so you can do this before
+  the wall goes quiet. If every account is on a Google Workspace you own,
+  switching the user type to **Internal** avoids the expiry as well. A lapsed
+  account keeps its calendars, colors and toggles; reconnecting the same
+  email restores them.
 - **A Microsoft account's to-do lists work but its calendars don't** — it was
   connected before `Calendars.Read` was requested, so its existing token
   only carries `Tasks.Read`. The companion app's Microsoft section says so

@@ -23,6 +23,14 @@ const GOOGLE_HELP_STEPS = [
     name and your email, save. Under <strong>Test users</strong>, add every Google account you plan to connect.
   </>,
   <>
+    Still on that screen, click <strong>Publish app</strong> (Audience → Publishing status). While the app
+    stays in <strong>Testing</strong>, Google expires every connection <strong>seven days</strong> after it
+    was made — the companion app then shows that account as needing a reconnect, every week, forever. If
+    every account you're connecting is on a Google Workspace you own, choosing <strong>Internal</strong> as
+    the user type avoids the expiry too. (If <strong>Publish app</strong> is greyed out, fill in the consent
+    screen's branding fields — homepage, privacy policy, authorized domain — first.)
+  </>,
+  <>
     <strong>APIs &amp; Services → Credentials → Create Credentials → OAuth client ID</strong>. Application type:{' '}
     <strong>Web application</strong>.
   </>,

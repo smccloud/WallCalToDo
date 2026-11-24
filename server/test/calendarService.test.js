@@ -284,6 +284,25 @@ describe('pollCalendar', () => {
     expect(fs.existsSync(dataPath(EVENTS_FILE))).toBe(false);
   });
 
+  it('skips an account flagged for reconnection instead of calling Google', async () => {
+    // A dead refresh token (see googleAuth.markNeedsReauth) is not worth a
+    // request per calendar per minute; the companion app already asks for a
+    // reconnect, which is the only thing that repairs it.
+    m.listAccounts.mockReturnValue([
+      {
+        id: 'acct-1',
+        email: 'one@example.com',
+        needsReauth: true,
+        calendars: [{ id: 'cal-a', summary: 'One', backgroundColor: '#123456', enabled: true }],
+      },
+    ]);
+    m.getAuthorizedClient.mockClear();
+
+    expect(await pollCalendar()).toEqual({ changed: false, events: [] });
+    expect(m.getAuthorizedClient).not.toHaveBeenCalled();
+    expect(g.eventsList).not.toHaveBeenCalled();
+  });
+
   it('namespaces event ids by calendar so two accounts cannot collide', async () => {
     m.listAccounts.mockReturnValue([
       {

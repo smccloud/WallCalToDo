@@ -1,10 +1,9 @@
 import { google } from 'googleapis';
-import { getAuthorizedClient, listAccounts, isInvalidGrant, removeAccount } from '../auth/googleAuth.js';
+import { getAuthorizedClient, listAccounts, isInvalidGrant, markNeedsReauth } from '../auth/googleAuth.js';
 import { getSettings } from './settingsService.js';
 import { readJson, writeJson } from '../store/fileStore.js';
 import { dropAccountCache } from './calendarService.js';
-import { getCachedTasks } from './todoService.js';
-import { broadcast, broadcastCalendar } from '../ws/hub.js';
+import { broadcastCalendar } from '../ws/hub.js';
 
 const CACHE_FILE = 'googleTasksCache.json';
 const LISTS_FILE = 'googleTaskLists.json';
@@ -104,6 +103,23 @@ async function fetchListTasks(api, accountId, list) {
   return tasks;
 }
 
+// Google refused this account's refresh token — final, unlike a transient
+// network error. Same treatment as the calendar poll (see calendarService):
+// flag it for reconnection instead of deleting the account, and drop the
+// cached tasks so the wall doesn't keep showing a list that can't be refreshed.
+function handleInvalidGrant(account) {
+  console.error(
+    `[google-tasks] Google auth for ${account.email} is invalid or expired; reconnect it in the companion app.`
+  );
+  try {
+    markNeedsReauth(account.id);
+    dropAccountCache(account.id);
+    broadcastCalendar();
+  } catch (e) {
+    console.error(`[google-tasks] failed to flag invalid Google account ${account.email}:`, e.message);
+  }
+}
+
 // Returns true if anything changed since the last poll.
 export async function pollGoogleTasks() {
   const accounts = listAccounts();
@@ -122,6 +138,9 @@ export async function pollGoogleTasks() {
   saveLists(allLists);
 
   for (const account of accounts) {
+    // Flagged accounts have no refresh token left; asking Google again would
+    // just fail, and hasTasksAccess() would misreport it as a scope problem.
+    if (account.needsReauth) continue;
     try {
       if (!hasTasksAccess(account.id)) {
         if (!warnedAccounts.has(account.id)) {
@@ -137,51 +156,26 @@ export async function pollGoogleTasks() {
       let lists = getGoogleTaskLists(account.id);
       if (lists.length === 0) lists = await refreshGoogleTaskLists(account.id);
 
-      let api;
-      try {
-        api = google.tasks({ version: 'v1', auth: getAuthorizedClient(account.id) });
-      } catch (err) {
-        if (isInvalidGrant(err)) {
-          console.error(`[google-tasks] Google auth for ${account.email} is invalid or expired; removing account and requiring reconnect.`);
-          try {
-            removeAccount(account.id);
-            dropAccountCache(account.id);
-            broadcastCalendar();
-            broadcast({ type: 'todo', data: getCachedTasks() });
-          } catch (e) {
-            console.error(`[google-tasks] failed to clean up invalid Google account ${account.email}:`, e.message);
-          }
-          continue;
-        }
-        throw err;
-      }
+      const api = google.tasks({ version: 'v1', auth: getAuthorizedClient(account.id) });
       const fresh = [];
       for (const list of lists.filter((l) => l.enabled)) {
-        try {
-          fresh.push(...(await fetchListTasks(api, account.id, list)));
-        } catch (err) {
-          if (isInvalidGrant(err)) {
-            console.error(`[google-tasks] Google auth for ${account.email} is invalid or expired; removing account and requiring reconnect.`);
-            try {
-              removeAccount(account.id);
-              dropAccountCache(account.id);
-              broadcastCalendar();
-              broadcast({ type: 'todo', data: getCachedTasks() });
-            } catch (e) {
-              console.error(`[google-tasks] failed to clean up invalid Google account ${account.email}:`, e.message);
-            }
-            throw err;
-          }
-          throw err;
-        }
+        fresh.push(...(await fetchListTasks(api, account.id, list)));
       }
       if (JSON.stringify(cache[account.id]) !== JSON.stringify(fresh)) {
         cache[account.id] = fresh;
         changed = true;
       }
     } catch (err) {
+      // Any Google call in this account's round can discover the token is
+      // dead — the task-list refresh above included, which is why this is
+      // checked here rather than around each call.
       if (isInvalidGrant(err)) {
-        // Already handled above
+        handleInvalidGrant(account);
+        // Nothing under this account can be refreshed again, so its cached
+        // tasks go with its calendars; the list *definitions* stay, so a
+        // reconnect keeps the user's per-list toggles.
+        delete cache[account.id];
+        changed = true;
         continue;
       }
       // Keep the last good cache for this account rather than wiping it.

@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import { getAuthorizedClient, listAccounts, isInvalidGrant, removeAccount } from '../auth/googleAuth.js';
+import { getAuthorizedClient, listAccounts, isInvalidGrant, markNeedsReauth } from '../auth/googleAuth.js';
 import { getCachedMsEvents, getCachedMsGridEvents } from './msCalendarService.js';
 import { getSettings } from './settingsService.js';
 import { readJson, writeJson } from '../store/fileStore.js';
@@ -203,6 +203,26 @@ async function pollOneCalendar(calendarApi, key, calendarId, context, cache, syn
   return changed;
 }
 
+// Google finally refused this account's refresh token. Flag it for
+// reconnection and drop the events cached under it, so the wall doesn't keep
+// showing a copy of a calendar that can no longer be read. The account record
+// itself — calendars, toggles, colors — is kept, and reconnecting the same
+// email restores it in place (see googleAuth.markNeedsReauth). Prior versions
+// deleted the account outright, which is why a lapsed Google connection used
+// to take the whole calendar list with it.
+function handleInvalidGrant(account) {
+  console.error(
+    `[calendar] Google auth for ${account.email} is invalid or expired; reconnect it in the companion app.`
+  );
+  try {
+    markNeedsReauth(account.id);
+    dropAccountCache(account.id);
+    broadcastCalendar();
+  } catch (e) {
+    console.error(`[calendar] failed to flag invalid Google account ${account.email}:`, e.message);
+  }
+}
+
 export async function pollCalendar() {
   const accounts = listAccounts();
   if (accounts.length === 0) return { changed: false, events: [] };
@@ -220,19 +240,17 @@ export async function pollCalendar() {
   let calendarOrder = 0;
 
   for (const account of accounts) {
+    // No usable refresh token left (see markNeedsReauth): retrying Google
+    // every minute can't help, and the companion app is already showing the
+    // Reconnect prompt this account needs.
+    if (account.needsReauth) continue;
+
     let calendarApi;
     try {
       calendarApi = google.calendar({ version: 'v3', auth: getAuthorizedClient(account.id) });
     } catch (err) {
       if (isInvalidGrant(err)) {
-        console.error(`[calendar] Google auth for ${account.email} is invalid or expired; removing account and requiring reconnect.`);
-        try {
-          removeAccount(account.id);
-          dropAccountCache(account.id);
-          broadcastCalendar();
-        } catch (e) {
-          console.error(`[calendar] failed to clean up invalid Google account ${account.email}:`, e.message);
-        }
+        handleInvalidGrant(account);
         continue;
       }
       console.error(`[calendar] skipping account ${account.email}:`, err.message);
@@ -246,14 +264,7 @@ export async function pollCalendar() {
       eventColors = await getEventColors(calendarApi, account.id);
     } catch (err) {
       if (isInvalidGrant(err)) {
-        console.error(`[calendar] Google auth for ${account.email} is invalid or expired; removing account and requiring reconnect.`);
-        try {
-          removeAccount(account.id);
-          dropAccountCache(account.id);
-          broadcastCalendar();
-        } catch (e) {
-          console.error(`[calendar] failed to clean up invalid Google account ${account.email}:`, e.message);
-        }
+        handleInvalidGrant(account);
         continue;
       }
       console.error(`[calendar] failed to fetch event color palette for ${account.email}:`, err.message);
@@ -274,14 +285,7 @@ export async function pollCalendar() {
         changed = changed || calChanged;
       } catch (err) {
         if (isInvalidGrant(err)) {
-          console.error(`[calendar] Google auth for ${account.email} is invalid or expired; removing account and requiring reconnect.`);
-          try {
-            removeAccount(account.id);
-            dropAccountCache(account.id);
-            broadcastCalendar();
-          } catch (e) {
-            console.error(`[calendar] failed to clean up invalid Google account ${account.email}:`, e.message);
-          }
+          handleInvalidGrant(account);
           break;
         }
         console.error(`[calendar] poll failed for ${account.email} / ${cal.summary}:`, err.message);

@@ -12,6 +12,19 @@ function isInvalidGrantError(err) {
   return /invalid_grant/i.test(text);
 }
 
+// Google returns `refresh_token_expires_in` (seconds) only when the refresh
+// token it just issued actually has a deadline. That is the whole difference
+// between an app whose OAuth consent screen is In production (no such field —
+// the token lives until revoked or six months of disuse) and one still in
+// Testing (seven days, no matter how often the access token is renewed). We
+// keep the deadline as an absolute timestamp so the companion app can say
+// "this will need reconnecting on <date>" *before* the wall goes quiet,
+// instead of only finding out when Google starts answering invalid_grant.
+function refreshTokenExpiry(tokens) {
+  const seconds = Number(tokens?.refresh_token_expires_in);
+  return Number.isFinite(seconds) && seconds > 0 ? Date.now() + seconds * 1000 : null;
+}
+
 const ACCOUNTS_FILE = 'googleAccounts.json';
 // calendar.readonly to read events, userinfo.email so we can label each
 // connected account and dedupe reconnects by email instead of creating
@@ -95,16 +108,27 @@ export function getAuthUrl(setId) {
 // account's tokens were minted under. `color` is the one the display should
 // actually use: the user's own choice when there is one, Google's otherwise.
 export function listAccounts() {
-  return Object.values(loadAccounts()).map(({ id, email, calendars, credentialSetId }) => ({
-    id,
-    email,
-    calendars: (calendars || []).map((cal) => ({
-      ...cal,
-      accessLevel: cal.accessLevel || 'owner',
-      color: cal.customColor || cal.backgroundColor || null,
-    })),
-    credentialSet: { id: credentialSetId, name: getGoogleSetLabel(credentialSetId) },
-  }));
+  return Object.values(loadAccounts()).map(
+    ({ id, email, calendars, credentialSetId, needsReauth, refreshTokenExpiresAt }) => ({
+      id,
+      email,
+      calendars: (calendars || []).map((cal) => ({
+        ...cal,
+        accessLevel: cal.accessLevel || 'owner',
+        color: cal.customColor || cal.backgroundColor || null,
+      })),
+      credentialSet: { id: credentialSetId, name: getGoogleSetLabel(credentialSetId) },
+      // Google refused the saved refresh token (expired or revoked), so this
+      // account is no longer being polled. The record is kept — calendars,
+      // colors and enabled flags included — so reconnecting restores it whole
+      // rather than making the user rebuild the account from scratch.
+      needsReauth: Boolean(needsReauth),
+      // When Google told us the refresh token has a deadline (see
+      // refreshTokenExpiry above). Null for an In production app, where it
+      // doesn't. Lets the companion app warn while the connection still works.
+      refreshTokenExpiresAt: refreshTokenExpiresAt || null,
+    })
+  );
 }
 
 // Email addresses of the accounts pinned to one credential set — lets the
@@ -232,12 +256,26 @@ export async function exchangeCode(code, state) {
     ...(scope != null ? { scope } : {}),
   };
 
+  // A fresh consent can mint a new refresh token with its own deadline (or,
+  // once the app is In production, none at all), so the stored deadline is
+  // only ever carried over when no new token was issued — e.g. a reconnect
+  // that Google answered without one. Otherwise `refreshTokenExpiry` returns
+  // null and any stale deadline is dropped: a reconnect against a published
+  // app is exactly what turns a seven-day token into a permanent one.
+  const issuedNewRefreshToken = refreshToken != null && refreshToken !== existingTokens?.refresh_token;
+  const refreshTokenExpiresAt = issuedNewRefreshToken
+    ? refreshTokenExpiry(tokens.refresh_token_expires_in != null ? tokens : finalTokens)
+    : (existingTokens?.refreshTokenExpiresAt ?? null);
+
   accounts[accountId] = {
     id: accountId,
     email: profile.email,
     tokens: mergedTokens,
     credentialSetId,
     calendars: accounts[accountId]?.calendars || [],
+    // Rebuilt rather than spread, which also clears a needsReauth flag left
+    // by the previous connection: this consent is the repair.
+    ...(refreshTokenExpiresAt != null ? { refreshTokenExpiresAt } : {}),
   };
   saveAccounts(accounts);
   clientCache.delete(accountId);
@@ -252,6 +290,24 @@ export async function exchangeCode(code, state) {
 export function removeAccount(accountId) {
   const accounts = loadAccounts();
   delete accounts[accountId];
+  saveAccounts(accounts);
+  clientCache.delete(accountId);
+}
+
+// A refresh Google refused with invalid_grant is final: the stored refresh
+// token is dead (expired, revoked, or minted for a different OAuth client),
+// and no amount of retrying will revive it. Flag the account instead of
+// deleting it, unlike removeAccount above: the tokens are useless but the
+// calendar list, the enabled flags and the colors are the user's own work,
+// and exchangeCode() restores the whole record when the same email signs in
+// again. Polling skips flagged accounts (see calendarService/googleTodoService)
+// so a dead token isn't re-sent to Google every minute; the companion app
+// shows the flag as a Reconnect prompt and the reason it keeps happening.
+export function markNeedsReauth(accountId) {
+  const accounts = loadAccounts();
+  const account = accounts[accountId];
+  if (!account || account.needsReauth) return;
+  account.needsReauth = true;
   saveAccounts(accounts);
   clientCache.delete(accountId);
 }
@@ -294,6 +350,15 @@ export function getAuthorizedClient(accountId) {
   const accounts = loadAccounts();
   const account = accounts[accountId];
   if (!account) throw new Error(`Unknown Google account: ${accountId}`);
+  // Flagged accounts have no usable refresh token, so handing out a client
+  // would only produce another invalid_grant from the next API call. Fail with
+  // the thing the user can actually do instead; pollers skip these accounts
+  // before they get here (see markNeedsReauth).
+  if (account.needsReauth) {
+    throw new Error(
+      `Google access for ${account.email} has expired — reconnect the account in the companion app.`
+    );
+  }
 
   if (clientCache.has(accountId)) {
     const cached = clientCache.get(accountId);
@@ -339,6 +404,17 @@ export function getAuthorizedClient(accountId) {
       refresh_token: refreshToken != null ? refreshToken : existingTokens.refresh_token,
       scope: scope != null ? scope : existingTokens.scope,
     };
+    // Google's refresh response repeats the refresh token's remaining lifetime
+    // while one is in force, which keeps the deadline current across renewals.
+    // A rotated refresh token with no lifetime means the replacement doesn't
+    // expire on a timer, so the old deadline must not linger.
+    if (refreshed.refresh_token_expires_in != null) {
+      const expiresAt = refreshTokenExpiry(refreshed);
+      if (expiresAt != null) latest[accountId].refreshTokenExpiresAt = expiresAt;
+      else delete latest[accountId].refreshTokenExpiresAt;
+    } else if (refreshed.refresh_token != null) {
+      delete latest[accountId].refreshTokenExpiresAt;
+    }
     saveAccounts(latest);
   });
   clientCache.set(accountId, client);

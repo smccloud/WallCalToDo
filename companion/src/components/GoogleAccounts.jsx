@@ -1,4 +1,24 @@
 import GoogleCredentialSets from './GoogleCredentialSets.jsx';
+import AddAccountNote from './AddAccountNote.jsx';
+
+// Google reports a refresh token's remaining lifetime when one is in force
+// (see refreshTokenExpiry in googleAuth.js) — the companion app turns that
+// into "reconnect by <date>" ahead of the connection breaking. Date only:
+// the hour is noise for something that renews on a weekly clock at most.
+function formatExpiry(ms) {
+  return new Date(ms).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+// The Reconnect link for an account, or the reason it can't be offered here:
+// the flow has to start on the Pi's own screen or a network listed in
+// TRUSTED_CIDRS, same rule as adding one (see AddAccountNote).
+function ReconnectLink({ account, canConnect, clientAddress }) {
+  const setId = account.credentialSet?.id;
+  if (!canConnect) return <AddAccountNote what="Reconnecting" clientAddress={clientAddress} inline />;
+  return (
+    <a href={`/auth/google${setId ? `?set=${encodeURIComponent(setId)}` : ''}`}>Reconnect</a>
+  );
+}
 
 // Google Calendar section: the credential sets this deployment needs before
 // it can connect any account at all (each is its own Google OAuth app, see
@@ -77,7 +97,7 @@ export default function GoogleAccounts({
               <div className="account-card__actions">
                 <button
                   className="button button--ghost"
-                  disabled={busyAccountId === account.id}
+                  disabled={busyAccountId === account.id || account.needsReauth}
                   onClick={() => onRefreshAccount(account.id)}
                 >
                   Refresh calendars
@@ -91,6 +111,31 @@ export default function GoogleAccounts({
                 </button>
               </div>
             </div>
+
+            {/* Two different warnings, and they can't both be true at once:
+                needsReauth is Google already refusing the stored token (the
+                connection is dead until it's reconnected), while a future
+                refreshTokenExpiresAt is the same seven-day expiry seen before
+                it lands — the only chance to fix it in advance. */}
+            {account.needsReauth ? (
+              <p className="banner banner--warning">
+                Google stopped accepting this account's saved access, so its calendars and tasks have
+                stopped updating. While the OAuth app that created it is still in{' '}
+                <strong>Testing</strong>, Google expires these connections after seven days — open the
+                app's <strong>OAuth consent screen → Audience</strong> and click{' '}
+                <strong>Publish app</strong> so the next connection keeps working, then reconnect it:{' '}
+                <ReconnectLink account={account} canConnect={canAddAccounts} clientAddress={clientAddress} />.
+              </p>
+            ) : account.refreshTokenExpiresAt && account.refreshTokenExpiresAt > Date.now() ? (
+              <p className="banner banner--warning">
+                Google will expire this connection on{' '}
+                <strong>{formatExpiry(account.refreshTokenExpiresAt)}</strong> because the OAuth app it
+                was created with is still in <strong>Testing</strong>. Publish the app (OAuth consent
+                screen → Audience → <strong>Publish app</strong>), then reconnect it to replace the
+                seven-day token with one that doesn't expire:{' '}
+                <ReconnectLink account={account} canConnect={canAddAccounts} clientAddress={clientAddress} />.
+              </p>
+            ) : null}
 
             <ul className="calendar-list">
               {account.calendars.map((cal) => (
@@ -120,12 +165,16 @@ export default function GoogleAccounts({
                 </li>
               ))}
               {account.calendars.length === 0 && (
-                <li className="calendar-row calendar-row--empty">No calendars found.</li>
+                <li className="calendar-row calendar-row--empty">
+                  {account.needsReauth ? 'Reconnect to load this account’s calendars.' : 'No calendars found.'}
+                </li>
               )}
             </ul>
 
              <h3>Google Tasks</h3>
-             {!account.tasksAccess ? (
+             {account.needsReauth ? (
+               <p className="banner">Tasks resume once this account is reconnected.</p>
+             ) : !account.tasksAccess ? (
                <p className="banner">
                  This account hasn't granted Tasks access yet. Disconnect it and add it again to enable Google Tasks.
                </p>
